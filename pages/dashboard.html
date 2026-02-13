@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <!-- Header -->
+        <div class="container">
+            <div class="dashboard-header">
+                <div class="dashboard-logo">
+                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 50px; height: auto;">
+                    <h1>Winged Mind</h1>
+                </div>
+                
+                <div class="user-menu">
+                    <span id="userNameDisplay" style="color: white; font-weight: 500;"></span>
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <button class="btn btn-secondary btn-small" onclick="logout()">Sair</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="container">
+            <!-- Welcome Section -->
+            <div style="margin-bottom: 50px; color: white;">
+                <h2 style="font-size: 2.5rem; margin-bottom: 0.5rem;">Bem-vindo ao Winged Mind</h2>
+                <p style="font-size: 1.1rem; opacity: 0.9;">Plataforma de treinamento e onboarding para profissionais de saúde</p>
+            </div>
+
+            <!-- Dashboard Content Grid -->
+            <div class="dashboard-content">
+                <!-- Courses Card -->
+                <div class="card">
+                    <div class="card-icon">📚</div>
+                    <h3 class="card-title">Cursos Disponíveis</h3>
+                    <p class="card-description">Acesse cursos estruturados sobre coleta biométrica e onboarding.</p>
+                    <div class="card-meta">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 45%;"></div>
+                        </div>
+                        <span style="margin-left: 12px; font-weight: 600; color: var(--primary-blue);">45%</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Cursos</button>
+                </div>
+
+                <!-- AI Chat Card -->
+                <div class="card">
+                    <div class="card-icon">🤖</div>
+                    <h3 class="card-title">Assistente IA 24/7</h3>
+                    <p class="card-description">Converse com nossa IA especializada em suporte e treinamento.</p>
+                    <div class="card-meta">
+                        <span style="color: #388e3c; font-weight: 600;">✓ Online</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Iniciar Chat</button>
+                </div>
+
+                <!-- Progress Card -->
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h3 class="card-title">Seu Progresso</h3>
+                    <p class="card-description">Acompanhe seu progresso nos cursos e certificações.</p>
+                    <div class="card-meta">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 70%;"></div>
+                        </div>
+                        <span style="margin-left: 12px; font-weight: 600; color: var(--primary-blue);">70%</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Detalhes</button>
+                </div>
+
+                <!-- Certificates Card -->
+                <div class="card">
+                    <div class="card-icon">🏆</div>
+                    <h3 class="card-title">Certificados</h3>
+                    <p class="card-description">Visualize e baixe seus certificados de conclusão.</p>
+                    <div class="card-meta">
+                        <span style="color: #d32f2f; font-weight: 600;">2 Certificados</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Certificados</button>
+                </div>
+
+                <!-- Documents Card -->
+                <div class="card">
+                    <div class="card-icon">📄</div>
+                    <h3 class="card-title">Documentos</h3>
+                    <p class="card-description">Acesse guias, manuais e documentação técnica.</p>
+                    <div class="card-meta">
+                        <span style="color: var(--dark-gray); font-weight: 600;">12 Documentos</span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Documentos</button>
+                </div>
+
+                <!-- Profile Card -->
+                <div class="card">
+                    <div class="card-icon">👤</div>
+                    <h3 class="card-title">Perfil</h3>
+                    <p class="card-description">Edite suas informações e preferências de conta.</p>
+                    <div class="card-meta">
+                        <span id="hospitalDisplay" style="color: var(--dark-gray); font-weight: 600;"></span>
+                    </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Editar Perfil</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/pages/login.html';
+                return;
+            }
+
+            // Decode JWT to get user info
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(
+                    atob(base64).split('').map((c) => {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join('')
+                );
+
+                const userData = JSON.parse(jsonPayload);
+                document.getElementById('userNameDisplay').textContent = `Olá, ${userData.nome || 'Usuário'}!`;
+                document.getElementById('userAvatar').textContent = (userData.nome?.charAt(0) || 'U').toUpperCase();
+                document.getElementById('hospitalDisplay').textContent = userData.hospital || 'Hospital';
+            } catch (error) {
+                console.error('Erro ao decodificar token:', error);
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/pages/login.html';
+        }
+    </script>
+</body>
+</html>

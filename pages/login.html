@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-container">
+            <!-- Left Side - Form -->
+            <div class="auth-left">
+                <div class="logo-section">
+                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 100px; height: auto;">
+                </div>
+
+                <h1>Bem-vindo!</h1>
+                <p class="subtitle">Plataforma de Treinamento & Onboarding</p>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email Institucional</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            placeholder="seu.email@hospital.com" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Digite sua senha" 
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        Entrar na Plataforma
+                    </button>
+                </form>
+
+                <div class="auth-question">
+                    Não tem conta? <a href="/pages/register.html">Crie uma aqui</a>
+                </div>
+            </div>
+
+            <!-- Right Side - Benefits -->
+            <div class="auth-right">
+                <h2>Bem-vindo ao Winged Mind</h2>
+                <p style="margin-bottom: 30px; font-size: 1.1rem;">Acesse a plataforma de treinamento Winged Mind e comece seu aprendizado.</p>
+
+                <div class="benefits">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Cursos estruturados e profissionais</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Assistência com IA integrada</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Rastreamento de progresso</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Certificados de conclusão</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Suporte 24/7 com IA especializada</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    window.location.href = '/pages/dashboard.html';
+                } else {
+                    alert('Erro ao fazer login: ' + data.error);
+                }
+            } catch (error) {
+                alert('Erro: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

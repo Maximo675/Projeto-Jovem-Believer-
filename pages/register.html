@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar - Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-container">
+            <!-- Left Side - Form -->
+            <div class="auth-left">
+                <div class="logo-section">
+                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 100px; height: auto;">
+                </div>
+
+                <h1>Criar Conta</h1>
+                <p class="subtitle">Junte-se à rede de profissionais Winged Mind</p>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="nome">Nome Completo</label>
+                        <input 
+                            type="text" 
+                            id="nome" 
+                            name="nome" 
+                            placeholder="Seu nome completo" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Institucional</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            placeholder="seu.email@hospital.com" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hospital">Selecione seu Hospital</label>
+                        <select id="hospital" name="hospital" required>
+                            <option value="">-- Selecione uma instituição --</option>
+                            <option value="1">Hospital Central SP</option>
+                            <option value="2">Hospital Rio de Janeiro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Crie uma senha segura" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar Senha</label>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            placeholder="Confirme sua senha" 
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                        <input 
+                            type="checkbox" 
+                            id="terms" 
+                            name="terms" 
+                            required
+                            style="width: 18px; height: 18px; cursor: pointer;"
+                        >
+                        <label for="terms" style="margin: 0; cursor: pointer; flex: 1;">
+                            Concordo com os Termos de Uso e Política de Privacidade
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large">
+                        Criar Conta
+                    </button>
+                </form>
+
+                <div class="auth-question">
+                    Já tem conta? <a href="/pages/login.html">Faça login aqui</a>
+                </div>
+            </div>
+
+            <!-- Right Side - Benefits -->
+            <div class="auth-right">
+                <h2>Por que se registrar?</h2>
+                <p style="margin-bottom: 30px; font-size: 1.1rem;">Tenha acesso completo à plataforma Winged Mind para seu hospital.</p>
+
+                <div class="benefits">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Acesso ilimitado aos cursos</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Rastreamento de progresso em tempo real</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Suporte com IA 24/7</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Certificados reconhecidos</div>
+                    </div>
+
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Atualizações constantes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nome = document.getElementById('nome').value;
+            const email = document.getElementById('email').value;
+            const hospital = document.getElementById('hospital').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password !== confirmPassword) {
+                alert('As senhas não correspondem!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nome,
+                        email,
+                        hospital_id: hospital,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Conta criada com sucesso! Faça login para continuar.');
+                    window.location.href = '/pages/login.html';
+                } else {
+                    alert('Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('Erro ao registrar: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
+            </ul>
+        </div>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <script src="../js/main.js"></script>
+    <script src="../js/register.js"></script>
+</body>
+</html>

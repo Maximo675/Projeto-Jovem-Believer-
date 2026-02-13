@@ -1,0 +1,15 @@
+{
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.14",
+  "include": ["app", "tests"],
+  "exclude": [".venv", "__pycache__", "*.pyc"],
+  "strictParameterNoneDefault": false,
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
+  "reportUnknownParameterType": false,
+  "reportUnnecessaryIsInstance": false,
+  "reportUnnecessaryComparison": false
+}
