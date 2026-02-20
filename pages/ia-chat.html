@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistente IA - Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/ia-chat.css">
+    <script src="../js/theme.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <div class="chat-wrapper">
+        <div class="chat-header">
+            <div class="header-content">
+                <h1>🤖 Assistente IA</h1>
+                <p>Faça perguntas sobre onboarding e procedimentos biométricos</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="clearChat()" class="btn btn-secondary btn-small" title="Limpar conversa">
+                    🗑️ Limpar
+                </button>
+                <a href="../pages/dashboard.html" class="btn btn-secondary btn-small" title="Voltar ao dashboard">
+                    ← Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <!-- Messages Area -->
+            <div class="messages-container" id="messagesContainer">
+                <div class="message-welcome">
+                    <div class="welcome-icon">🤖</div>
+                    <h2>Bem-vindo ao Assistente IA</h2>
+                    <p>Olá! Sou seu assistente inteligente. Como posso ajudá-lo hoje?</p>
+                    <div class="quick-questions">
+                        <p>Perguntas populares:</p>
+                        <div class="quick-buttons">
+                            <button onclick="askQuestion('Como funciona a coleta biométrica de recém-nascidos?')" class="quick-btn">
+                                📋 Coleta Biométrica
+                            </button>
+                            <button onclick="askQuestion('Quais são os protocolos de segurança?')" class="quick-btn">
+                                🔒 Segurança
+                            </button>
+                            <button onclick="askQuestion('Como usar o sistema ETAN?')" class="quick-btn">
+                                ⚙️ Sistema ETAN
+                            </button>
+                            <button onclick="askQuestion('Qual é o protocolo de onboarding?')" class="quick-btn">
+                                📚 Onboarding
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <form id="chatForm" onsubmit="sendMessage(event)" class="chat-form">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Digite sua pergunta aqui... (Pressione Ctrl+Enter para enviar)"
+                        rows="3"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button type="submit" class="btn btn-primary" id="sendBtn">
+                            Enviar 📤
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Status -->
+            <div class="status-bar">
+                <span id="statusText">Pronto</span>
+                <span id="tokenCount" class="token-count" style="display: none;">
+                    Tokens: <span id="tokenValue">0</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Sidebar Info -->
+        <div class="chat-sidebar">
+            <div class="sidebar-section">
+                <h3>📊 Info</h3>
+                <div class="info-item">
+                    <span>Modo:</span>
+                    <span id="modoIA" class="mode-badge">Carregando...</span>
+                </div>
+                <div class="info-item">
+                    <span>Modelo:</span>
+                    <span id="modeloIA" class="mode-badge">Carregando...</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>💾 Histórico</h3>
+                <div id="historicoList" class="historico-list">
+                    <p style="text-align: center; color: #999; font-size: 12px;">
+                        Nenhuma conversa anterior
+                    </p>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>⚙️ Configurações</h3>
+                <div class="config-item">
+                    <label>
+                        <input type="checkbox" id="autoScroll" checked>
+                        Auto-scroll
+                    </label>
+                </div>
+                <div class="config-item">
+                    <label>
+                        <input type="checkbox" id="showTokens">
+                        Mostrar tokens
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="exportChat()" class="btn btn-secondary btn-small" style="width: 100%;">
+                📥 Exportar Conversa
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../js/main.js"></script>
+    <script src="../js/ia-chat.js"></script>
+</body>
+</html>

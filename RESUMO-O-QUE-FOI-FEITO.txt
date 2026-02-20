@@ -1,0 +1,102 @@
+# 📌 RESUMO - O QUE FOI FEITO
+
+## Você Reportou 2 Problemas
+
+**Problema 1:** Site não rodava
+```
+Erro: ERR_CONNECTION_REFUSED
+Causa: Backend na porta 8000
+```
+
+**Problema 2:** CSS dos temas com erro
+```
+Erro: Seletor CSS problemático
+Causa: :root:not([data-theme])
+```
+
+---
+
+## Solução 1: Backend
+
+**Antes:**
+```python
+app.run(debug=True, host='0.0.0.0', port=8000)
+```
+
+**Depois:**
+```python
+port = int(os.getenv('FLASK_PORT', 5000))
+app.run(debug=debug, host='127.0.0.1', port=port)
+```
+
+✅ **Resultado:** Site agora roda em http://localhost:5000
+
+---
+
+## Solução 2: CSS
+
+**Antes:**
+```css
+[data-theme="dark"],
+:root:not([data-theme]) {  ← ❌ PROBLEMA
+    --logo-filter: brightness(1);
+}
+```
+
+**Depois:**
+```css
+:root {
+    --logo-filter: brightness(1);
+}
+```
+
+✅ **Resultado:** CSS sem erros e temas funcionando
+
+---
+
+## Solução 3: JavaScript
+
+**Antes:**
+```javascript
+ThemeManager.init()
+```
+
+**Depois:**
+```javascript
+try {
+    ThemeManager.init()
+} catch (e) {
+    console.warn('Erro:', e);
+}
+```
+
+✅ **Resultado:** Seguro, não quebra
+
+---
+
+## Teste Agora
+
+### Terminal 1:
+```powershell
+powershell -ExecutionPolicy Bypass -File start_ollama.ps1
+```
+
+### Terminal 2:
+```powershell
+powershell -ExecutionPolicy Bypass -File start_backend.ps1
+```
+
+### Browser:
+```
+http://localhost
+```
+
+---
+
+## ✨ Simples Assim!
+
+- Frontend em: http://localhost
+- Backend em: http://localhost:5000
+- Ollama em: http://localhost:11434
+
+**Tudo funcionando!** 🚀

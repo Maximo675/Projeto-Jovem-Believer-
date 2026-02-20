@@ -3,7 +3,7 @@
    ========================================== */
 
 // API base URL
-const API_URL = 'http://localhost:8000/api';
+const API_URL = 'http://localhost:5001/api';
 
 // ==========================================
 // GERENCIAMENTO DE TOKEN
@@ -33,6 +33,8 @@ const TokenManager = {
 
 const ApiClient = {
     async request(method, endpoint, data = null) {
+        console.log(`[API] ${method} ${endpoint}`, data || '');
+        
         const options = {
             method,
             headers: {
@@ -46,7 +48,11 @@ const ApiClient = {
         }
 
         try {
-            const response = await fetch(`${API_URL}${endpoint}`, options);
+            const url = `${API_URL}${endpoint}`;
+            console.log(`[API] Fetching: ${url}`);
+            
+            const response = await fetch(url, options);
+            console.log(`[API] Response status: ${response.status}`);
             
             if (response.status === 401) {
                 // Token expirado
@@ -56,14 +62,17 @@ const ApiClient = {
             }
 
             const result = await response.json();
+            console.log(`[API] Response body:`, result);
 
             if (!response.ok) {
-                throw new Error(result.erro || 'Erro ao fazer requisição');
+                console.error(`[API] Error response:`, result);
+                throw new Error(result.erro || `HTTP ${response.status}: Erro ao fazer requisição`);
             }
 
+            console.log(`[API] Success response`);
             return result;
         } catch (error) {
-            console.error('Erro na requisição:', error);
+            console.error(`[API] Catch error:`, error);
             throw error;
         }
     },
@@ -79,27 +88,32 @@ const ApiClient = {
 // ==========================================
 
 const Auth = {
-    async login(email, senha) {
+    async login(email, password) {
         try {
-            const result = await ApiClient.post('/auth/login', { email, senha });
+            console.log('[AUTH] Login attempt:', email);
+            const result = await ApiClient.post('/auth/login', { email, senha: password });
             TokenManager.set(result.token);
+            console.log('[AUTH] Login success');
             return result;
         } catch (error) {
-            console.error('Erro no login:', error);
+            console.error('[AUTH] Login error:', error);
             throw error;
         }
     },
 
     async register(email, nome, senha, hospitalId) {
         try {
-            return await ApiClient.post('/auth/register', {
+            console.log('[AUTH] Register attempt:', { email, nome, hospitalId });
+            const result = await ApiClient.post('/auth/register', {
                 email,
                 nome,
                 senha,
                 hospital_id: hospitalId
             });
+            console.log('[AUTH] Register success:', result);
+            return result;
         } catch (error) {
-            console.error('Erro no registro:', error);
+            console.error('[AUTH] Register error:', error);
             throw error;
         }
     },
@@ -113,27 +127,64 @@ const Auth = {
 };
 
 // ==========================================
-// UTILITÁRIOS DE UI
+// INTERFACE DO USUÁRIO
 // ==========================================
 
 const UI = {
-    showMessage: (message, type = 'info') => {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type}`;
-        alertDiv.textContent = message;
-        document.body.insertBefore(alertDiv, document.body.firstChild);
-
-        setTimeout(() => alertDiv.remove(), 5000);
+    showError: (message) => {
+        const container = document.getElementById('alertContainer');
+        if (!container) {
+            alert(message);
+            return;
+        }
+        
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-error';
+        alert.innerHTML = `
+            <div style="background: #f8d7da; color: #721c24; padding: 12px 20px; border-radius: 4px; border-left: 4px solid #dc3545; margin-bottom: 16px;">
+                <strong>Erro:</strong> ${message}
+            </div>
+        `;
+        container.innerHTML = '';
+        container.appendChild(alert);
+        
+        setTimeout(() => {
+            alert.remove();
+        }, 5000);
     },
 
-    showError: (message) => UI.showMessage(message, 'danger'),
-    showSuccess: (message) => UI.showMessage(message, 'success'),
-    showInfo: (message) => UI.showMessage(message, 'info'),
+    showSuccess: (message) => {
+        const container = document.getElementById('alertContainer');
+        if (!container) {
+            alert(message);
+            return;
+        }
+        
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success';
+        alert.innerHTML = `
+            <div style="background: #d4edda; color: #155724; padding: 12px 20px; border-radius: 4px; border-left: 4px solid #28a745; margin-bottom: 16px;">
+                <strong>Sucesso:</strong> ${message}
+            </div>
+        `;
+        container.innerHTML = '';
+        container.appendChild(alert);
+    },
 
-    loading: (show = true) => {
-        const loader = document.getElementById('loader');
-        if (loader) {
-            loader.style.display = show ? 'block' : 'none';
+    loading: (show) => {
+        const registerForm = document.getElementById('registerForm');
+        const submitBtn = registerForm?.querySelector('button[type="submit"]');
+        
+        if (!submitBtn) return;
+        
+        if (show) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ Processando...';
+            submitBtn.style.opacity = '0.6';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Criar Conta';
+            submitBtn.style.opacity = '1';
         }
     }
 };

@@ -3,144 +3,659 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Winged Mind</title>
+    <title>Dashboard - Plataforma de Aprendizado</title>
     <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/theme.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0066cc;
+            --secondary-blue: #004499;
+            --success-green: #388e3c;
+            --warning-orange: #ff9800;
+            --danger-red: #d32f2f;
+            --light-bg: #f5f7fa;
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .dashboard-container {
+            display: flex;
+            height: 100vh;
+            background: #f0f2f5;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+            color: white;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar-logo img {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+        }
+
+        .sidebar-logo h2 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 8px;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .sidebar-menu a span {
+            font-size: 1.5rem;
+        }
+
+        /* MAIN CONTENT */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* TOP BAR */
+        .top-bar {
+            background: white;
+            padding: 16px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #0066cc, #004499);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .logout-btn {
+            background: var(--danger-red);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            background: #b71c1c;
+        }
+
+        /* CONTENT AREA */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .welcome-section {
+            margin-bottom: 40px;
+        }
+
+        .welcome-section h1 {
+            font-size: 2rem;
+            margin: 0 0 8px 0;
+            color: #1a1a1a;
+        }
+
+        .welcome-section p {
+            font-size: 1rem;
+            color: #666;
+            margin: 0;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 12px 0;
+            font-size: 1rem;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+        }
+
+        .tab-btn:hover {
+            color: #666;
+        }
+
+        /* TAB CONTENT */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* COURSES GRID */
+        .courses-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .course-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .course-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+
+        .course-icon {
+            font-size: 2.5rem;
+        }
+
+        .course-level {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e3f2fd;
+            color: var(--primary-blue);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .course-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 12px 0 8px 0;
+            color: #1a1a1a;
+        }
+
+        .course-description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 16px;
+        }
+
+        .course-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .course-progress {
+            flex: 1;
+        }
+
+        .progress-label {
+            font-size: 0.8rem;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-blue), var(--success-green));
+            transition: width 0.3s ease;
+        }
+
+        .course-action {
+            margin-left: 16px;
+        }
+
+        .btn {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background: var(--secondary-blue);
+        }
+
+        /* AI CHAT */
+        .ai-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .ai-status {
+            width: 12px;
+            height: 12px;
+            background: var(--success-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .ai-header h3 {
+            margin: 0;
+            flex: 1;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: var(--primary-blue);
+            color: white;
+            align-self: flex-end;
+            border-radius: 8px 0px 8px 8px;
+        }
+
+        .message.ai {
+            background: #f0f0f0;
+            color: #1a1a1a;
+            align-self: flex-start;
+            border-radius: 0px 8px 8px 8px;
+        }
+
+        .chat-input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .chat-input-group button {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* STATS */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* LOADING */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+            }
+
+            .courses-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .course-card {
+                padding: 16px;
+            }
+
+            .ai-section {
+                height: 400px;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                height: auto;
+            }
+
+            .sidebar-menu {
+                display: flex;
+                overflow-x: auto;
+                gap: 8px;
+            }
+
+            .sidebar-menu li {
+                min-width: 100px;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .content-area {
+                padding: 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="dashboard-wrapper">
-        <!-- Header -->
-        <div class="container">
-            <div class="dashboard-header">
-                <div class="dashboard-logo">
-                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 50px; height: auto;">
-                    <h1>Winged Mind</h1>
-                </div>
-                
-                <div class="user-menu">
-                    <span id="userNameDisplay" style="color: white; font-weight: 500;"></span>
-                    <div class="user-avatar" id="userAvatar">U</div>
-                    <button class="btn btn-secondary btn-small" onclick="logout()">Sair</button>
-                </div>
+    <div class="dashboard-container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                <img src="../assets/logo/Jade_versão_branco.jpg" alt="Logo">
+                <h2>Aprendizado</h2>
             </div>
+
+            <ul class="sidebar-menu">
+                <li>
+                    <a class="menu-item active" data-tab="courses">
+                        <span>📚</span>
+                        <span>Cursos</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="menu-item" data-tab="ai-chat">
+                        <span>🤖</span>
+                        <span>Assistente IA</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="menu-item" data-tab="progress">
+                        <span>📊</span>
+                        <span>Progresso</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="menu-item" data-tab="certificates">
+                        <span>🏆</span>
+                        <span>Certificados</span>
+                    </a>
+                </li>
+            </ul>
         </div>
 
-        <!-- Main Content -->
-        <div class="container">
-            <!-- Welcome Section -->
-            <div style="margin-bottom: 50px; color: white;">
-                <h2 style="font-size: 2.5rem; margin-bottom: 0.5rem;">Bem-vindo ao Winged Mind</h2>
-                <p style="font-size: 1.1rem; opacity: 0.9;">Plataforma de treinamento e onboarding para profissionais de saúde</p>
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- TOP BAR -->
+            <div class="top-bar">
+                <div class="welcome-section" style="margin: 0;">
+                    <h1 style="font-size: 1.5rem; margin: 0;">Bem-vindo!</h1>
+                </div>
+                
+                <div class="user-info">
+                    <div>
+                        <p id="userName" style="margin: 0; font-weight: 600; color: #1a1a1a;">Carregando...</p>
+                        <p id="userHospital" style="margin: 0; font-size: 0.85rem; color: #999;"></p>
+                    </div>
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <button class="logout-btn" onclick="logout()">Sair</button>
+                </div>
             </div>
 
-            <!-- Dashboard Content Grid -->
-            <div class="dashboard-content">
-                <!-- Courses Card -->
-                <div class="card">
-                    <div class="card-icon">📚</div>
-                    <h3 class="card-title">Cursos Disponíveis</h3>
-                    <p class="card-description">Acesse cursos estruturados sobre coleta biométrica e onboarding.</p>
-                    <div class="card-meta">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 45%;"></div>
+            <!-- CONTENT AREA -->
+            <div class="content-area">
+                <!-- CURSOS TAB -->
+                <div id="courses" class="tab-content active">
+                    <div class="welcome-section">
+                        <h1>Cursos Disponíveis</h1>
+                        <p>Escolha um curso para começar sua jornada de aprendizado</p>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalCourses">0</div>
+                            <div class="stat-label">Cursos Disponíveis</div>
                         </div>
-                        <span style="margin-left: 12px; font-weight: 600; color: var(--primary-blue);">45%</span>
-                    </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Cursos</button>
-                </div>
-
-                <!-- AI Chat Card -->
-                <div class="card">
-                    <div class="card-icon">🤖</div>
-                    <h3 class="card-title">Assistente IA 24/7</h3>
-                    <p class="card-description">Converse com nossa IA especializada em suporte e treinamento.</p>
-                    <div class="card-meta">
-                        <span style="color: #388e3c; font-weight: 600;">✓ Online</span>
-                    </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Iniciar Chat</button>
-                </div>
-
-                <!-- Progress Card -->
-                <div class="card">
-                    <div class="card-icon">📊</div>
-                    <h3 class="card-title">Seu Progresso</h3>
-                    <p class="card-description">Acompanhe seu progresso nos cursos e certificações.</p>
-                    <div class="card-meta">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 70%;"></div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="enrolledCourses">0</div>
+                            <div class="stat-label">Em Andamento</div>
                         </div>
-                        <span style="margin-left: 12px; font-weight: 600; color: var(--primary-blue);">70%</span>
+                        <div class="stat-card">
+                            <div class="stat-number" id="completedCourses">0</div>
+                            <div class="stat-label">Concluídos</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="overallProgress">0%</div>
+                            <div class="stat-label">Progresso Geral</div>
+                        </div>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Detalhes</button>
+
+                    <div class="courses-grid" id="coursesContainer">
+                        <div class="loading">Carregando cursos...</div>
+                    </div>
                 </div>
 
-                <!-- Certificates Card -->
-                <div class="card">
-                    <div class="card-icon">🏆</div>
-                    <h3 class="card-title">Certificados</h3>
-                    <p class="card-description">Visualize e baixe seus certificados de conclusão.</p>
-                    <div class="card-meta">
-                        <span style="color: #d32f2f; font-weight: 600;">2 Certificados</span>
+                <!-- IA CHAT TAB -->
+                <div id="ai-chat" class="tab-content">
+                    <div class="welcome-section">
+                        <h1>Assistente IA 24/7</h1>
+                        <p>Faça perguntas e obtenha orientações em tempo real</p>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Certificados</button>
+
+                    <div class="ai-section">
+                        <div class="ai-header">
+                            <div class="ai-status"></div>
+                            <h3>Assistente Winged Mind</h3>
+                            <span style="font-size: 0.85rem; color: #999;">Online</span>
+                        </div>
+
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="message ai">
+                                Olá! Sou o Assistente IA. Como posso ajudá-lo(a) hoje?<br>
+                                📚 Dúvidas sobre cursos?<br>
+                                🎓 Dúvidas sobre progresso?<br>
+                                ❓ Perguntas gerais?
+                            </div>
+                        </div>
+
+                        <div class="chat-input-group">
+                            <input 
+                                type="text" 
+                                id="chatInput" 
+                                placeholder="Digite sua pergunta..." 
+                                autocomplete="off"
+                            >
+                            <button onclick="sendChatMessage()">Enviar</button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Documents Card -->
-                <div class="card">
-                    <div class="card-icon">📄</div>
-                    <h3 class="card-title">Documentos</h3>
-                    <p class="card-description">Acesse guias, manuais e documentação técnica.</p>
-                    <div class="card-meta">
-                        <span style="color: var(--dark-gray); font-weight: 600;">12 Documentos</span>
+                <!-- PROGRESS TAB -->
+                <div id="progress" class="tab-content">
+                    <div class="welcome-section">
+                        <h1>Seu Progresso</h1>
+                        <p>Acompanhe sua evolução nos cursos</p>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Ver Documentos</button>
+
+                    <div id="progressContainer" class="loading">
+                        Carregando dados de progresso...
+                    </div>
                 </div>
 
-                <!-- Profile Card -->
-                <div class="card">
-                    <div class="card-icon">👤</div>
-                    <h3 class="card-title">Perfil</h3>
-                    <p class="card-description">Edite suas informações e preferências de conta.</p>
-                    <div class="card-meta">
-                        <span id="hospitalDisplay" style="color: var(--dark-gray); font-weight: 600;"></span>
+                <!-- CERTIFICATES TAB -->
+                <div id="certificates" class="tab-content">
+                    <div class="welcome-section">
+                        <h1>Certificados</h1>
+                        <p>Seus certificados de conclusão e reconhecimentos</p>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 16px;">Editar Perfil</button>
+
+                    <div id="certificatesContainer" class="loading">
+                        Carregando certificados...
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Check authentication
-        document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = '/pages/login.html';
-                return;
-            }
-
-            // Decode JWT to get user info
-            try {
-                const base64Url = token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(
-                    atob(base64).split('').map((c) => {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join('')
-                );
-
-                const userData = JSON.parse(jsonPayload);
-                document.getElementById('userNameDisplay').textContent = `Olá, ${userData.nome || 'Usuário'}!`;
-                document.getElementById('userAvatar').textContent = (userData.nome?.charAt(0) || 'U').toUpperCase();
-                document.getElementById('hospitalDisplay').textContent = userData.hospital || 'Hospital';
-            } catch (error) {
-                console.error('Erro ao decodificar token:', error);
-            }
-        });
-
-        function logout() {
-            localStorage.removeItem('token');
-            window.location.href = '/pages/login.html';
-        }
-    </script>
+    <script src="../js/main.js"></script>
+    <script src="../js/dashboard.js"></script>
 </body>
 </html>

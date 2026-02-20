@@ -1,0 +1,169 @@
+<!-- 
+    EXEMPLO: Como Adicionar Painel de Controle de Tema
+    
+    Este arquivo mostra como integrar o sistema de temas
+    com controles interativos em suas páginas.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo - Controle de Temas</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/theme-controls.css">
+    <script src="../js/theme.js"></script>
+</head>
+<body>
+    <!-- OPÇÃO 1: Botão Simples de Toggle -->
+    <div style="padding: 20px; margin: 20px; background: white; border-radius: 8px;">
+        <h3>Opção 1: Botão Simples</h3>
+        <button class="theme-toggle-btn" onclick="ThemeManager.toggleLightDark()">
+            🌙 Alternar Tema
+        </button>
+    </div>
+
+    <!-- OPÇÃO 2: Seletor Horizontal de Temas -->
+    <div style="padding: 20px; margin: 20px; background: white; border-radius: 8px;">
+        <h3>Opção 2: Seletor Horizontal</h3>
+        <div class="theme-selector">
+            <span class="theme-selector-label">Escolha um tema:</span>
+            <button class="theme-option active" onclick="ThemeManager.setTheme('dark')">
+                🌙 Escuro
+            </button>
+            <button class="theme-option" onclick="ThemeManager.setTheme('light')">
+                ☀️ Claro
+            </button>
+            <button class="theme-option" onclick="ThemeManager.setTheme('alternative')">
+                🎨 Alternativo
+            </button>
+        </div>
+    </div>
+
+    <!-- OPÇÃO 3: Dropdown de Temas -->
+    <div style="padding: 20px; margin: 20px; background: white; border-radius: 8px;">
+        <h3>Opção 3: Menu Dropdown</h3>
+        <div class="theme-dropdown" id="themeDropdown">
+            <button class="theme-dropdown-btn" onclick="toggleThemeDropdown()">
+                🎨 Tema: <span id="currentThemeLabel">Escuro</span>
+            </button>
+            <div class="theme-dropdown-menu">
+                <div class="theme-dropdown-item active" onclick="selectTheme('dark')">
+                    <span class="theme-icon">🌙</span>
+                    <span>Escuro (Logo Branca)</span>
+                </div>
+                <div class="theme-dropdown-item" onclick="selectTheme('light')">
+                    <span class="theme-icon">☀️</span>
+                    <span>Claro (Logo Preta)</span>
+                </div>
+                <div class="theme-dropdown-item" onclick="selectTheme('alternative')">
+                    <span class="theme-icon">🎨</span>
+                    <span>Alternativo (Logo Azul)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPÇÃO 4: Painel Completo (Recomendado para Dashboard) -->
+    <div style="padding: 20px; margin: 20px; background: white; border-radius: 8px;">
+        <h3>Opção 4: Painel Completo</h3>
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px;">
+            <div style="margin-bottom: 16px;">
+                <strong>Tema Atualmente Ativo:</strong>
+                <div class="theme-indicator" id="themeIndicator">
+                    Escuro
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div onclick="ThemeManager.setTheme('dark')" style="padding: 16px; background: #001A3D; color: white; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🌙</div>
+                    <div style="font-size: 12px;">Escuro</div>
+                    <div style="font-size: 10px; opacity: 0.8;">Logo Branca</div>
+                </div>
+                
+                <div onclick="ThemeManager.setTheme('light')" style="padding: 16px; background: #F5F5F5; color: #333; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s; border: 2px solid #E0E0E0;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">☀️</div>
+                    <div style="font-size: 12px;">Claro</div>
+                    <div style="font-size: 10px; opacity: 0.8;">Logo Preta</div>
+                </div>
+                
+                <div onclick="ThemeManager.setTheme('alternative')" style="padding: 16px; background: linear-gradient(135deg, #0088D9 0%, #00A8E8 100%); color: white; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.3s;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🎨</div>
+                    <div style="font-size: 12px;">Alternativo</div>
+                    <div style="font-size: 10px; opacity: 0.9;">Logo Azul</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demonstração de Logo com Tema -->
+    <div style="padding: 20px; margin: 20px; background: white; border-radius: 8px; text-align: center;">
+        <h3>Logo em Tempo Real</h3>
+        <p style="color: #666; margin-bottom: 20px;">A logo muda conforme você alterna os temas</p>
+        <img id="demoLogo" src="../assets/logo/Jade_versão_branco.jpg" alt="Logo Demonstração" style="width: 150px; height: auto; border: 2px solid #E0E0E0; padding: 10px; border-radius: 8px;" data-logo>
+    </div>
+
+    <script>
+        // Atualizar interface quando tema mudar
+        window.addEventListener('themeChanged', (event) => {
+            const theme = event.detail.theme;
+            
+            // Atualizar botões do seletor
+            document.querySelectorAll('.theme-option').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeBtn = document.querySelector(
+                `.theme-option[onclick*="setTheme('${theme}')"]`
+            );
+            if (activeBtn) activeBtn.classList.add('active');
+            
+            // Atualizar dropdown
+            document.querySelectorAll('.theme-dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            const activeItem = document.querySelector(
+                `.theme-dropdown-item[onclick*="selectTheme('${theme}')"]`
+            );
+            if (activeItem) activeItem.classList.add('active');
+            
+            // Atualizar label do dropdown
+            const themeLabels = {
+                'dark': 'Escuro',
+                'light': 'Claro',
+                'alternative': 'Alternativo'
+            };
+            document.getElementById('currentThemeLabel').textContent = themeLabels[theme];
+            
+            // Atualizar indicador
+            document.getElementById('themeIndicator').textContent = themeLabels[theme];
+        });
+
+        // Função para toggle do dropdown
+        function toggleThemeDropdown() {
+            const dropdown = document.getElementById('themeDropdown');
+            dropdown.classList.toggle('active');
+        }
+
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('themeDropdown');
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        // Função para selecionar tema via dropdown
+        function selectTheme(theme) {
+            ThemeManager.setTheme(theme);
+            document.getElementById('themeDropdown').classList.remove('active');
+        }
+
+        // Estilos adicionais para botões interativos
+        document.querySelectorAll('[onclick*="ThemeManager.setTheme"], [onclick*="selectTheme"], [onclick*="ThemeManager.toggleLightDark"]').forEach(btn => {
+            btn.style.cursor = 'pointer';
+        });
+    </script>
+</body>
+</html>

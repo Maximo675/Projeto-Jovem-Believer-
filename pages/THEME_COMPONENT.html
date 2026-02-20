@@ -1,0 +1,140 @@
+<!-- 
+    COMPONENTE REUTILIZÁVEL: Seletor de Tema para Navbar
+    
+    Copie este código para sua navbar e adapte conforme necessário
+-->
+
+<!-- Incluir no <head> do seu HTML -->
+<link rel="stylesheet" href="../css/theme-controls.css">
+<script src="../js/theme.js"></script>
+
+<!-- Incluir na navbar (próximo ao menu de navegação) -->
+<div class="theme-dropdown" id="navThemeDropdown" style="display: inline-block;">
+    <button class="theme-dropdown-btn" onclick="toggleNavThemeDropdown()">
+        🎨 Tema
+    </button>
+    <div class="theme-dropdown-menu">
+        <div class="theme-dropdown-item" onclick="selectNavTheme('dark')">
+            <span class="theme-icon">🌙</span>
+            <span>Escuro</span>
+        </div>
+        <div class="theme-dropdown-item" onclick="selectNavTheme('light')">
+            <span class="theme-icon">☀️</span>
+            <span>Claro</span>
+        </div>
+        <div class="theme-dropdown-item" onclick="selectNavTheme('alternative')">
+            <span class="theme-icon">🎨</span>
+            <span>Alternativo</span>
+        </div>
+    </div>
+</div>
+
+<!-- Script para o componente -->
+<script>
+    // Inicializar item ativo
+    document.addEventListener('DOMContentLoaded', () => {
+        updateNavThemeUI();
+    });
+
+    // Atualizar UI quando tema muda
+    window.addEventListener('themeChanged', () => {
+        updateNavThemeUI();
+    });
+
+    function toggleNavThemeDropdown() {
+        const dropdown = document.getElementById('navThemeDropdown');
+        dropdown.classList.toggle('active');
+    }
+
+    function selectNavTheme(theme) {
+        ThemeManager.setTheme(theme);
+        document.getElementById('navThemeDropdown').classList.remove('active');
+        updateNavThemeUI();
+    }
+
+    function updateNavThemeUI() {
+        const currentTheme = ThemeManager.getTheme();
+        document.querySelectorAll('#navThemeDropdown .theme-dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        const activeItem = document.querySelector(
+            `#navThemeDropdown .theme-dropdown-item[onclick*="selectNavTheme('${currentTheme}')"]`
+        );
+        if (activeItem) activeItem.classList.add('active');
+    }
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('navThemeDropdown');
+        const btn = dropdown.querySelector('.theme-dropdown-btn');
+        if (!dropdown.contains(e.target) && e.target !== btn) {
+            dropdown.classList.remove('active');
+        }
+    });
+</script>
+
+<!-- 
+    ALTERNATIVA SIMPLES: Um botão minimalista
+    Se preferir apenas um botão sem dropdown, use isto:
+-->
+<!--
+<button style="
+    padding: 8px 12px;
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+    margin-left: 12px;
+" onclick="ThemeManager.toggleLightDark()" title="Alternar tema (claro/escuro)">
+    🎨 Tema
+</button>
+-->
+
+<!-- 
+    IMPLEMENTAÇÃO NO index.html (Exemplo completo):
+    
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">
+                <img src="assets/logo/Jade_versão_branco.jpg" alt="INFANT.ID Logo" 
+                     class="logo-img" data-logo>
+                <div class="logo-text">
+                    <h1>INFANT.ID</h1>
+                    <p>Plataforma de Onboarding</p>
+                </div>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="index.html">Início</a></li>
+                <li><a href="pages/courses.html">Cursos</a></li>
+                <li><a href="pages/dashboard.html">Meu Dashboard</a></li>
+                <li><a href="pages/login.html" class="btn-login">Login</a></li>
+                
+                <!-- NOVO: Seletor de Tema -->
+                <li>
+                    <div class="theme-dropdown" id="navThemeDropdown" style="display: inline-block;">
+                        <button class="theme-dropdown-btn" onclick="toggleNavThemeDropdown()">
+                            🎨 Tema
+                        </button>
+                        <div class="theme-dropdown-menu">
+                            <div class="theme-dropdown-item" onclick="selectNavTheme('dark')">
+                                <span class="theme-icon">🌙</span>
+                                <span>Escuro</span>
+                            </div>
+                            <div class="theme-dropdown-item" onclick="selectNavTheme('light')">
+                                <span class="theme-icon">☀️</span>
+                                <span>Claro</span>
+                            </div>
+                            <div class="theme-dropdown-item" onclick="selectNavTheme('alternative')">
+                                <span class="theme-icon">🎨</span>
+                                <span>Alternativo</span>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </nav>
+-->

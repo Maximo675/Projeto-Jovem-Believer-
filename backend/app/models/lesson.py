@@ -36,6 +36,7 @@ class Lesson(db.Model):
             'curso_id': self.curso_id,
             'titulo': self.titulo,
             'descricao': self.descricao,
+            'conteudo': self.conteudo,
             'ordem': self.ordem,
             'duracao': self.duracao,
             'video_url': self.video_url

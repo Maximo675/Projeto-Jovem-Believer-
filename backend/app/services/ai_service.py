@@ -1,11 +1,19 @@
 """
 Serviço de IA para consultar e gerar respostas.
-Suporta: OpenAI (remoto), Ollama (local), ou Mock (demo).
+Suporta: OpenAI (remoto), Ollama (local), Knowledge Base, ou Mock (demo).
 """
 
 import os
 from openai import OpenAI
 from flask import current_app
+
+# Importar knowledge base
+try:
+    from .knowledge_base import buscar_resposta, KNOWLEDGE_BASE
+    KB_DISPONIVEL = True
+except ImportError:
+    KB_DISPONIVEL = False
+    KNOWLEDGE_BASE = {}
 
 class AiService:
     """Serviço para interações com IA."""
@@ -47,7 +55,7 @@ class AiService:
     
     def responder_pergunta(self, pergunta, contexto_curso=None):
         """
-        Responde uma pergunta usando IA.
+        Responde uma pergunta usando Knowledge Base primeiro, depois IA.
         
         Args:
             pergunta (str): Pergunta do usuário
@@ -56,13 +64,25 @@ class AiService:
         Returns:
             tuple: (resposta, tokens_usados)
         """
-        # Modo MOCK para fins de demonstração (sempre funciona)
+        # CAMADA 1: Tentar buscar na Knowledge Base primeiro
+        if KB_DISPONIVEL:
+            resultado_kb = buscar_resposta(pergunta, contexto_curso)
+            if resultado_kb['sucesso'] and resultado_kb['confianca'] > 0.8:
+                # Respostaboa foi encontrada na KB
+                resposta = resultado_kb['resposta']
+                # Adicionar links das aulas
+                if resultado_kb.get('links_aulas'):
+                    resposta += "\n\n📚 **Aulas Recomendadas:**\n"
+                    for link in resultado_kb['links_aulas']:
+                        resposta += f"→ [{link['texto']}](/aula/{link['aula_id']})\n"
+                
+                return resposta, 0  # 0 tokens = da knowledge base, não da IA
+        
+        # CAMADA 2: Modo MOCK para fins de demonstração (sempre funciona)
         if self.mode == 'mock':
             return self._responder_mock(pergunta, contexto_curso), 0
         
-        # Modo Ollama ou OpenAI (mesma interface)
-        if not self.client:
-            return "IA não configurada. Configure OPENAI_API_KEY ou instale Ollama", 0
+        # CAMADA 3: Modo Ollama ou OpenAI (mesma interface)
         
         try:
             # Construir prompt com contexto

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Winged Mind</title>
     <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/theme.js"></script>
 </head>
 <body>
     <div class="auth-wrapper">
@@ -12,7 +13,7 @@
             <!-- Left Side - Form -->
             <div class="auth-left">
                 <div class="logo-section">
-                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 100px; height: auto;">
+                    <img src="../assets/logo/Jade_versão_branco.jpg" alt="Winged Mind Logo" style="width: 100px; height: auto;" data-logo>
                 </div>
 
                 <h1>Bem-vindo!</h1>
@@ -99,13 +100,13 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, senha: password })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('authToken', data.token);
                     window.location.href = '/pages/dashboard.html';
                 } else {
                     alert('Erro ao fazer login: ' + data.error);

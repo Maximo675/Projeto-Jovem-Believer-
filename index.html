@@ -3,76 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>INFANT.ID - Plataforma de Onboarding</title>
-    <link rel="stylesheet" href="../css/style.css">
+    <title>Winged Mind - Plataforma de Onboarding Hospitalar</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/theme.js"></script>
+    <link rel="icon" href="public/favicon.ico" type="image/x-icon">
 </head>
 <body>
+    <!-- NAVBAR -->
     <nav class="navbar">
         <div class="container">
-            <div class="logo">
-                <img src="assets/logo/logo.png" alt="INFANT.ID Logo" class="logo-img">
-                <div class="logo-text">
-                    <h1>INFANT.ID</h1>
-                    <p>Plataforma de Onboarding</p>
+            <div class="navbar-brand">
+                <img src="assets/logo/Jade_versão_preto.png" alt="Winged Mind Logo" class="logo-img" data-logo style="height: 50px; width: auto;">
+                <div class="brand-text">
+                    <h1>Winged Mind</h1>
                 </div>
             </div>
-            <ul class="nav-menu">
-                <li><a href="index.html">Início</a></li>
-                <li><a href="pages/courses.html">Cursos</a></li>
-                <li><a href="pages/dashboard.html">Meu Dashboard</a></li>
-                <li><a href="pages/login.html" class="btn-login">Login</a></li>
+            <ul class="nav-links">
+                <li><a href="#inicio">Início</a></li>
+                <li><a href="#recursos">Recursos</a></li>
+                <li><a href="#sobre">Sobre</a></li>
+                <li><a href="pages/login.html" class="btn-login">Login / Cadastro</a></li>
             </ul>
         </div>
     </nav>
 
-    <main>
-        <section class="hero">
-            <div class="container">
-                <h2>Bem-vindo ao INFANT.ID</h2>
-                <p>Aumentamos sua taxa de sucesso do onboarding com educação de qualidade</p>
-                <button class="btn btn-primary">Começar Agora</button>
-            </div>
-        </section>
-
-        <section class="features">
-            <div class="container">
-                <h2>Recursos Principais</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <h3>📚 Cursos Estruturados</h3>
-                        <p>Conteúdo profissional desenvolvido especificamente para sua instituição.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🤖 IA Integrada</h3>
-                        <p>Assistente inteligente para responder suas dúvidas 24/7.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>📊 Rastreamento de Progresso</h3>
-                        <p>Acompanhe seu desenvolvimento através de análises detalhadas.</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3>🏆 Certificados</h3>
-                        <p>Obtenha certificados ao concluir cada curso.</p>
-                    </div>
+    <!-- HERO SECTION -->
+    <section class="hero" id="inicio">
+        <div class="container">
+            <div class="hero-content">
+                <h2 class="hero-title">Transforme o Onboarding com Winged Mind</h2>
+                <p class="hero-subtitle">Plataforma completa de educação e integração para profissionais de saúde</p>
+                <div class="hero-buttons">
+                    <a href="pages/login.html" class="btn btn-primary">Começar Agora</a>
+                    <a href="#recursos" class="btn btn-secondary">Saiba Mais</a>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section class="cta">
-            <div class="container">
-                <h2>Pronto para melhorar seus resultados?</h2>
-                <p>Junte-se aos hospitais de 9 estados que já usam INFANT.ID</p>
-                <button class="btn btn-secondary">Cadastre-se Agora</button>
-            </div>
-        </section>
-    </main>
-
-    <footer>
+    <!-- RECURSOS SECTION -->
+    <section class="recursos" id="recursos">
         <div class="container">
-            <p>&copy; 2024 INFANT.ID - Plataforma de Onboarding. Desenvolvido pela Group Akiyama.</p>
+            <h2 class="section-title">Recursos Principais</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <h3>Cursos Estruturados</h3>
+                    <p>Conteúdo profissional desenvolvido especificamente para sua instituição hospitalar.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>IA Integrada</h3>
+                    <p>Assistente inteligente com Ollama para responder dúvidas técnicas 24/7.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Rastreamento</h3>
+                    <p>Acompanhe o desenvolvimento e progresso de cada profissional em tempo real.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Certificados</h3>
+                    <p>Obtenha certificados oficiais ao concluir cada módulo de treinamento.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SOBRE SECTION -->
+    <section class="sobre" id="sobre">
+        <div class="container">
+            <h2 class="section-title">Por Que Escolher INFANT.ID?</h2>
+            <div class="sobre-grid">
+                <div class="sobre-item">
+                    <h3>✓ Específico para Hospitais</h3>
+                    <p>Desenvolvido com expertise em processos hospitalares e saúde.</p>
+                </div>
+                <div class="sobre-item">
+                    <h3>✓ Fácil de Usar</h3>
+                    <p>Interface intuitiva que qualquer profissional consegue dominar em minutos.</p>
+                </div>
+                <div class="sobre-item">
+                    <h3>✓ Suporte 24/7</h3>
+                    <p>IA integrada e equipe técnica pronta para ajudar a qualquer hora.</p>
+                </div>
+                <div class="sobre-item">
+                    <h3>✓ Econômico</h3>
+                    <p>Reduz custos de treinamento e aumenta retenção de colaboradores.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA SECTION -->
+    <section class="cta">
+        <div class="container">
+            <h2>Pronto para Revolucionar seu Onboarding?</h2>
+            <p>Junte-se a hospitais em todo Brasil usando Winged Mind</p>
+            <a href="pages/login.html" class="btn btn-primary-large">Começar Gratuitamente</a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Winged Mind - Plataforma de Onboarding Hospitalar. Desenvolvido com ❤️ pela Group Akiyama.</p>
         </div>
     </footer>
 
-    <script src="../js/main.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

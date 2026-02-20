@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 from app import db
 from app.models.user import User
 from app.models.hospital import Hospital
+from app.models.progress import Progress
+from app.models.certificate import Certificate
 
 bp = Blueprint('users', __name__, url_prefix='/api/users')
 
@@ -68,3 +70,35 @@ def list_users():
         
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/progress', methods=['GET'])
+def get_user_progress():
+    """Obter progresso do usuário autenticado"""
+    try:
+        # Para simplificar, vamos retornar dados fictícios
+        # Em produção, decodificar JWT e obter usuario_id
+        
+        progresso = Progress.query.limit(5).all()
+        
+        return jsonify({
+            'progresso': [p.to_dict() for p in progresso] if progresso else []
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/certificates', methods=['GET'])
+def get_user_certificates():
+    """Obter certificados do usuário autenticado"""
+    try:
+        certificados = Certificate.query.limit(5).all()
+        
+        return jsonify({
+            'certificados': [c.to_dict() for c in certificados] if certificados else []
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+

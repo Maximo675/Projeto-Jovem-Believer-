@@ -10,6 +10,7 @@ bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 @bp.route('/register', methods=['POST'])
 def register():
+    
     """Registrar novo usuário"""
     try:
         data = request.get_json()
@@ -51,13 +52,14 @@ def login():
     """Fazer login"""
     try:
         data = request.get_json()
-        
+        print(f"Login attempt: {data}")
         if not data or not data.get('email') or not data.get('senha'):
             return jsonify({'erro': 'Email e senha são obrigatórios'}), 400
-        
-        usuario = User.query.filter_by(email=data['email']).first()
-        
-        if not usuario or not usuario.check_password(data['senha']):
+        print("TOTAL USERS:", User.query.count(), flush=True)
+ 
+        usuario = User.query.filter_by(email=data.get('email')).first()
+        print(usuario)
+        if not usuario or not usuario.check_password(data.get('senha')):
             return jsonify({'erro': 'Email ou senha inválidos'}), 401
         
         if not usuario.ativo:

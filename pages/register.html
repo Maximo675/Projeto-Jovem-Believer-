@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrar - Winged Mind</title>
     <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/theme.js"></script>
 </head>
 <body>
     <div class="auth-wrapper">
@@ -12,7 +13,7 @@
             <!-- Left Side - Form -->
             <div class="auth-left">
                 <div class="logo-section">
-                    <img src="../assets/logo/logo.png" alt="Winged Mind Logo" style="width: 100px; height: auto;">
+                    <img src="../assets/logo/Jade_versão_branco.jpg" alt="Winged Mind Logo" style="width: 100px; height: auto;" data-logo>
                 </div>
 
                 <h1>Criar Conta</h1>
@@ -127,54 +128,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <script>
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const nome = document.getElementById('nome').value;
-            const email = document.getElementById('email').value;
-            const hospital = document.getElementById('hospital').value;
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            if (password !== confirmPassword) {
-                alert('As senhas não correspondem!');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        nome,
-                        email,
-                        hospital_id: hospital,
-                        password
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert('Conta criada com sucesso! Faça login para continuar.');
-                    window.location.href = '/pages/login.html';
-                } else {
-                    alert('Erro: ' + data.error);
-                }
-            } catch (error) {
-                alert('Erro ao registrar: ' + error.message);
-            }
-        });
-    </script>
-</body>
-</html>
-            </ul>
         </div>
     </div>
 

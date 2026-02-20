@@ -9,6 +9,32 @@ bp = Blueprint('ai', __name__, url_prefix='/api/ia')
 
 ai_service = AiService()
 
+@bp.route('/chat', methods=['POST'])
+def chat_ia():
+    """Endpoint de chat com IA (para dashboard)"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('mensagem'):
+            return jsonify({'erro': 'Mensagem é obrigatória'}), 400
+        
+        mensagem = data['mensagem']
+        
+        # Consultar IA
+        resposta, tokens = ai_service.responder_pergunta(mensagem)
+        
+        return jsonify({
+            'mensagem': mensagem,
+            'resposta': resposta,
+            'tokens': tokens
+        }), 200
+        
+    except Exception as e:
+        traceback.print_exc()
+        print(f"[AI ERROR] {str(e)}")
+        return jsonify({'erro': f'Erro ao processar mensagem: {str(e)}'}), 500
+
+
 @bp.route('/consult', methods=['POST'])
 def consult_ia():
     """Consultar IA para dúvidas"""

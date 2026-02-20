@@ -4,11 +4,26 @@ Script principal para executar a aplicação.
 """
 
 import os
-from app import create_app, db
-from app.models import *
+import sys
+
+# Adicionar diretório do app ao path
+sys.path.insert(0, os.path.dirname(__file__))
+
+try:
+    from app import create_app, db
+    from app.models import *
+except ImportError as e:
+    print(f"[ERROR] Erro ao importar módulos: {e}")
+    print("Certifique-se de que todas as dependências estão instaladas:")
+    print("  pip install -r requirements.txt")
+    sys.exit(1)
 
 # Criar aplicação
-app = create_app()
+try:
+    app = create_app()
+except Exception as e:
+    print(f"[ERROR] Erro ao criar a aplicação: {e}")
+    sys.exit(1)
 
 @app.shell_context_processor
 def make_shell_context():
@@ -22,7 +37,7 @@ def make_shell_context():
 def init_db():
     """Inicializa o banco de dados."""
     db.create_all()
-    print("✅ Banco de dados inicializado")
+    print("[OK] Banco de dados inicializado")
 
 @app.cli.command()
 def seed_db():
@@ -97,7 +112,47 @@ def seed_db():
         
         db.session.commit()
     
-    print("✅ Banco de dados populado com dados de exemplo")
+    print("[OK] Banco de dados populado com dados de exemplo")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    # Configurar porta (padrão 5001)
+    port = int(os.getenv('FLASK_PORT', 5001))
+    debug = os.getenv('FLASK_DEBUG', 'true').lower() == 'true'
+    
+    try:
+        print("")
+        print("=" * 60)
+        print(f"[OK] Iniciando servidor Flask na porta {port}...")
+        print("=" * 60)
+        print("")
+        print(f"WEB Abra no navegador: http://localhost:{port}")
+        print(f"API Disponível em: http://localhost:{port}/api")
+        print("")
+        print("Pressione CTRL+C para parar o servidor")
+        print("")
+        
+        # Iniciar servidor
+        app.run(debug=debug, host='127.0.0.1', port=port, use_reloader=debug)
+        
+    except OSError as e:
+        if "Address already in use" in str(e):
+            print("")
+            print("[ERROR] ERRO: Porta {} já está em uso!".format(port))
+            print("")
+            print("Solução:")
+            print("  1. Feche outras aplicações usando essa porta")
+            print("  2. Ou use outra porta: FLASK_PORT=5002 python backend/run.py")
+            print("")
+            sys.exit(1)
+        else:
+            print(f"[ERROR] Erro ao iniciar servidor: {e}")
+            sys.exit(1)
+    except KeyboardInterrupt:
+        print("")
+        print("[OK] Servidor encerrado pelo usuário")
+        sys.exit(0)
+    except Exception as e:
+        print(f"[ERROR] Erro inesperado: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

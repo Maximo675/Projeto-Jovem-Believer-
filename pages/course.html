@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curso - Plataforma de Aprendizado</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/theme.js"></script>
+    <style>
+        :root {
+            --primary-blue: #0066cc;
+            --secondary-blue: #004499;
+            --success-green: #388e3c;
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .course-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR MINI */
+        .course-sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #0066cc 0%, #004499 100%);
+            color: white;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(0, 102, 204, 0.15);
+        }
+
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .back-link:hover {
+            color: white;
+            border-bottom-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .course-sidebar h3 {
+            margin: 30px 0 18px 0;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .lesson-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .lesson-item {
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .lesson-item:hover,
+        .lesson-item.active {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transform: translateX(4px);
+        }
+
+        /* MAIN CONTENT */
+        .course-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .course-header {
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+            padding: 30px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 102, 204, 0.2);
+        }
+
+        .course-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: white;
+            font-weight: 700;
+        }
+
+        .course-progress-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+            flex: 1;
+        }
+
+        .progress-display {
+            font-weight: 700;
+            color: #e0f0ff;
+            font-size: 1.1rem;
+        }
+
+        .progress-visual {
+            width: 100%;
+            max-width: 250px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88 0%, #00cc88 100%);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+        }
+
+        /* CONTENT AREA */
+        .course-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+        }
+
+        .lesson-header {
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, rgba(0, 102, 204, 0.08) 0%, rgba(0, 168, 232, 0.05) 100%);
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 5px solid var(--primary-blue);
+        }
+
+        .lesson-title {
+            font-size: 2.2rem;
+            margin: 0 0 12px 0;
+            color: #0066cc;
+            font-weight: 700;
+        }
+
+        .lesson-description {
+            font-size: 1.05rem;
+            color: #666;
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .lesson-body {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .lesson-body h2 {
+            font-size: 1.5rem;
+            margin-top: 30px;
+            margin-bottom: 16px;
+            color: var(--primary-blue);
+            font-weight: 700;
+            border-bottom: 3px solid var(--primary-blue);
+            padding-bottom: 10px;
+        }
+
+        .lesson-body h3 {
+            font-size: 1.2rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: #1a1a1a;
+            font-weight: 600;
+        }
+
+        .lesson-body h4 {
+            font-size: 1.05rem;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .lesson-body p {
+            margin: 0 0 16px 0;
+            text-align: justify;
+        }
+
+        .lesson-body ul,
+        .lesson-body ol {
+            margin: 16px 0 16px 40px;
+            padding: 0;
+        }
+
+        .lesson-body li {
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+
+        .lesson-body ul li::marker {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .lesson-body ol li::marker {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        /* TABELAS */
+        .lesson-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .lesson-body table thead {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #0066a1 100%);
+            color: white;
+        }
+
+        .lesson-body table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+        }
+
+        .lesson-body table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.95rem;
+        }
+
+        .lesson-body table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .lesson-body table tbody tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .lesson-body table tbody tr:hover {
+            background: #f0f7ff;
+            transition: background 0.2s ease;
+        }
+
+        .lesson-body table strong {
+            color: var(--primary-blue);
+        }
+
+        /* LISTAS ESPECIAIS */
+        .lesson-body section,
+        .lesson-body article {
+            margin: 24px 0;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .lesson-body section h3,
+        .lesson-body article h3 {
+            margin-top: 0;
+            color: var(--primary-blue);
+        }
+
+        /* BOXES DE DESTAQUE */
+        .highlight-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #e1f5ff 100%);
+            border-left: 5px solid var(--primary-blue);
+            border-radius: 8px;
+            padding: 18px;
+            margin: 24px 0;
+            box-shadow: 0 2px 8px rgba(0, 136, 217, 0.1);
+        }
+
+        .highlight-box strong {
+            color: var(--primary-blue);
+            display: block;
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+        }
+
+        /* CAIXAS DE INFORMAÇÃO */
+        .lesson-body .info-box,
+        .lesson-body .note-box,
+        .lesson-body .warning-box,
+        .lesson-body .success-box {
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 5px solid;
+        }
+
+        .lesson-body .info-box {
+            background: #e3f2fd;
+            border-left-color: var(--primary-blue);
+            color: #0044aa;
+        }
+
+        .lesson-body .note-box {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #e65100;
+        }
+
+        .lesson-body .warning-box {
+            background: #ffebee;
+            border-left-color: #f44336;
+            color: #c62828;
+        }
+
+        .lesson-body .success-box {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+            color: #1b5e20;
+        }
+
+        /* LISTAS COM ÍCONES/PASSOS */
+        .lesson-body .steps-list {
+            list-style: none;
+            counter-reset: step-counter;
+            margin: 20px 0;
+            padding: 0;
+        }
+
+        .lesson-body .steps-list li {
+            counter-increment: step-counter;
+            margin-bottom: 16px;
+            padding-left: 50px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .lesson-body .steps-list li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: var(--primary-blue);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        /* LINKS */
+        .lesson-body a {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .lesson-body a:hover {
+            border-bottom-color: var(--primary-blue);
+            padding-bottom: 2px;
+        }
+
+        /* CÓDIGO */
+        .lesson-body code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+            font-size: 0.9em;
+        }
+
+        .lesson-body pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+            line-height: 1.5;
+        }
+
+        .lesson-body pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        /* IMAGENS */
+        .lesson-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease;
+        }
+
+        .lesson-body img:hover {
+            transform: scale(1.02);
+        }
+
+        /* BLOCKQUOTES */
+        .lesson-body blockquote {
+            border-left: 5px solid var(--primary-blue);
+            padding-left: 20px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            margin: 20px 0;
+            font-style: italic;
+            color: #666;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        /* HR */
+        .lesson-body hr {
+            border: none;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-blue), transparent);
+            margin: 30px 0;
+        }
+
+        /* LESSON NAVIGATION */
+        .lesson-navigation {
+            display: flex;
+            gap: 16px;
+            margin-top: 40px;
+            padding-top: 24px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .nav-btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .nav-btn.prev {
+            background: #f5f5f5;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .nav-btn.prev:hover:not(:disabled) {
+            background: #e8e8e8;
+            border-color: #d0d0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            transform: translateX(-2px);
+        }
+
+        .nav-btn.next {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, #0066a1 100%);
+            color: white;
+            margin-left: auto;
+        }
+
+        .nav-btn.next:hover:not(:disabled) {
+            box-shadow: 0 6px 20px rgba(0, 102, 204, 0.3);
+            transform: translateX(2px);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* LOADING */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            color: #999;
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e0e0e0;
+            border-top-color: var(--primary-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .course-container {
+                flex-direction: column;
+            }
+
+            .course-sidebar {
+                width: 100%;
+                max-height: 150px;
+            }
+
+            .lesson-list {
+                display: flex;
+                overflow-x: auto;
+                gap: 8px;
+            }
+
+            .lesson-item {
+                min-width: 120px;
+            }
+
+            .course-content {
+                padding: 20px;
+            }
+
+            .lesson-body {
+                padding: 20px;
+            }
+
+            .course-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .course-progress-bar {
+                width: 100%;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .progress-visual {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="course-container">
+        <!-- SIDEBAR COM AULAS -->
+        <div class="course-sidebar">
+            <a class="back-link" onclick="goBack()">
+                <span>←</span>
+                <span>Voltar</span>
+            </a>
+
+            <h3>Aulas do Curso</h3>
+            <ul class="lesson-list" id="lessonList">
+                <li class="lesson-item loading">Carregando aulas...</li>
+            </ul>
+        </div>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div class="course-main">
+            <!-- HEADER -->
+            <div class="course-header">
+                <h1 id="courseTitle">Curso</h1>
+                <div class="course-progress-bar">
+                    <span class="progress-display" id="progressLabel">0%</span>
+                    <div class="progress-visual">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTEÚDO -->
+            <div class="course-content">
+                <div id="contentArea" class="loading">
+                    Carregando conteúdo...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        const CourseViewer = {
+            courseId: null,
+            courseTitle: null,
+            lessons: [],
+            currentLessonIndex: 0,
+            
+            init() {
+                console.log('[COURSE] Iniciando visualizador de curso...');
+                
+                // Verificar autenticação
+                const token = localStorage.getItem('authToken');
+                if (!token) {
+                    window.location.href = '/pages/login.html';
+                    return;
+                }
+                
+                // Obter ID do curso da URL
+                const params = new URLSearchParams(window.location.search);
+                this.courseId = params.get('id');
+                
+                // Obter título do sessionStorage
+                const currentCourse = sessionStorage.getItem('currentCourse');
+                if (currentCourse) {
+                    const data = JSON.parse(currentCourse);
+                    this.courseTitle = data.title;
+                }
+                
+                console.log('[COURSE] Course ID:', this.courseId, 'Title:', this.courseTitle);
+                
+                if (!this.courseId) {
+                    this.showError('Nenhum curso selecionado');
+                    return;
+                }
+                
+                this.loadCourse();
+            },
+            
+            async loadCourse() {
+                try {
+                    console.log('[COURSE] Carregando dados do curso...');
+                    
+                    const response = await fetch(`/api/courses/${this.courseId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('[COURSE] Dados recebidos:', data);
+                    
+                    this.courseTitle = data.curso.titulo;
+                    this.lessons = data.aulas || [];
+                    
+                    // Atualizar title
+                    document.getElementById('courseTitle').textContent = this.courseTitle;
+                    document.title = `${this.courseTitle} - Plataforma de Aprendizado`;
+                    
+                    if (this.lessons.length === 0) {
+                        this.showError('Este curso não possui aulas ainda');
+                        return;
+                    }
+                    
+                    console.log('[COURSE] Total de aulas:', this.lessons.length);
+                    
+                    this.renderLessonList();
+                    this.showLesson(0);
+                    
+                } catch (error) {
+                    console.error('[COURSE] Erro ao carregar curso:', error);
+                    this.showError(`Erro ao carregar curso: ${error.message}`);
+                }
+            },
+            
+            renderLessonList() {
+                const listContainer = document.getElementById('lessonList');
+                listContainer.innerHTML = this.lessons.map((lesson, index) => `
+                    <li class="lesson-item ${index === 0 ? 'active' : ''}" 
+                        onclick="CourseViewer.showLesson(${index})"
+                        style="cursor: pointer;">
+                        ${index + 1}. ${lesson.titulo}
+                    </li>
+                `).join('');
+            },
+            
+            showLesson(index) {
+                if (index < 0 || index >= this.lessons.length) return;
+                
+                this.currentLessonIndex = index;
+                const lesson = this.lessons[index];
+                
+                console.log('[COURSE] Exibindo aula:', lesson.titulo);
+                
+                // Atualizar lista lateral
+                document.querySelectorAll('.lesson-item').forEach((el, i) => {
+                    el.classList.toggle('active', i === index);
+                });
+                
+                // Atualizar conteúdo
+                const contentArea = document.getElementById('contentArea');
+                contentArea.innerHTML = `
+                    <div class="lesson-header">
+                        <h2 class="lesson-title">${lesson.titulo}</h2>
+                        <p class="lesson-description">${lesson.descricao || 'Conteúdo do curso'}</p>
+                    </div>
+                    
+                    <div class="lesson-body">
+                        ${lesson.conteudo || '<p>Conteúdo em desenvolvimento...</p>'}
+                    </div>
+                    
+                    <div class="lesson-navigation">
+                        <button class="nav-btn prev" onclick="CourseViewer.showLesson(${index - 1})" 
+                                ${index === 0 ? 'disabled' : ''}>
+                            ← Aula Anterior
+                        </button>
+                        <button class="nav-btn next" onclick="CourseViewer.showLesson(${index + 1})"
+                                ${index === this.lessons.length - 1 ? 'disabled' : ''}>
+                            Próxima Aula →
+                        </button>
+                    </div>
+                `;
+                
+                // Atualizar progresso
+                const progress = Math.round(((index + 1) / this.lessons.length) * 100);
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressLabel').textContent = progress + '%';
+                
+                // Scroll to top
+                document.querySelector('.course-content').scrollTop = 0;
+            },
+            
+            showError(message) {
+                document.getElementById('contentArea').innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: #d32f2f;">
+                        <h2>Erro</h2>
+                        <p>${message}</p>
+                        <a href="/pages/dashboard.html" style="color: var(--primary-blue); text-decoration: none; font-weight: 600;">
+                            Voltar ao Dashboard
+                        </a>
+                    </div>
+                `;
+            }
+        };
+        
+        function goBack() {
+            window.location.href = '/pages/dashboard.html';
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            CourseViewer.init();
+        });
+    </script>
+</body>
+</html>

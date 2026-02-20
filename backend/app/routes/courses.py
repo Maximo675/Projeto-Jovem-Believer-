@@ -34,10 +34,10 @@ def get_course(course_id):
         if not curso:
             return jsonify({'erro': 'Curso não encontrado'}), 404
         
-        curso_dict = curso.to_dict()
-        curso_dict['aulas'] = [a.to_dict() for a in curso.aulas]
-        
-        return jsonify(curso_dict), 200
+        return jsonify({
+            'curso': curso.to_dict(),
+            'aulas': [a.to_dict() for a in curso.aulas]
+        }), 200
         
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
