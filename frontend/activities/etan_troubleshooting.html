@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividade: Diagnóstico de Problemas - ETAN</title>
+    <!-- WebSocket -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/js/etan-websocket-client.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .progress-container {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 0 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .timer {
+            font-weight: 600;
+            color: #f5576c;
+            font-size: 18px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .problema-container {
+            background: #fff5f7;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 4px solid #f5576c;
+        }
+
+        .problema-titulo {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .problema-numero {
+            display: inline-block;
+            background: #f5576c;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            line-height: 40px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .sintomes-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #ffe6eb;
+        }
+
+        .sintomes-titulo {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sintomas-lista {
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .sintoma {
+            padding: 10px;
+            background: #fff5f7;
+            border-radius: 6px;
+            color: #5a6c7d;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sintoma::before {
+            content: '⚠️';
+        }
+
+        .diagnosticos-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .diagnostico-opcao {
+            padding: 18px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .diagnostico-opcao:hover {
+            border-color: #f5576c;
+            background: #fff5f7;
+        }
+
+        .diagnostico-opcao input[type="radio"] {
+            margin-right: 12px;
+            cursor: pointer;
+        }
+
+        .diagnostico-opcao.selecionado {
+            border-color: #f5576c;
+            background: #fff5f7;
+        }
+
+        .opcao-principal {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .opcao-descricao {
+            font-size: 13px;
+            color: #8b94a5;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .solucoes-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 8px;
+            border-left: 4px solid #f5576c;
+            display: none;
+        }
+
+        .solucoes-section.visible {
+            display: block;
+        }
+
+        .solucoes-titulo {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .solucoes-lista {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .solucoes-lista li {
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+            color: #5a6c7d;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .solucoes-lista li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #f5576c;
+            font-weight: bold;
+        }
+
+        .botoes {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-diagnosticar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-diagnosticar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-diagnosticar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-proximo {
+            background: white;
+            color: #f5576c;
+            border: 2px solid #f5576c;
+        }
+
+        .btn-proximo:hover {
+            background: #fff5f7;
+        }
+
+        .feedback {
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback.correto {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+
+        .feedback.incorreto {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+
+        .resultado-final {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .resultado-final h2 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .score-badge {
+            font-size: 80px;
+            line-height: 1;
+            margin: 20px 0;
+        }
+
+        .resultado-descricao {
+            font-size: 18px;
+            color: #5a6c7d;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .resultado-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #8b94a5;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f5576c;
+        }
+
+        .btn-reiniciar {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 14px 40px;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .progress-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .progress-bar {
+                margin: 0;
+                width: 100%;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .problema-container {
+                padding: 20px;
+            }
+
+            .sintomas-lista {
+                grid-template-columns: 1fr;
+            }
+
+            .botoes {
+                flex-direction: column;
+            }
+
+            .diagnosticos-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 Diagnóstico de Problemas</h1>
+            <p>Identifique e resolva problemas comuns na captura biométrica</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <span id="problema-info">Problema 0/4</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="completion"></div>
+            </div>
+            <div class="timer" id="timer">0:00</div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Problemas -->
+            <div id="problemas-content"></div>
+
+            <!-- Resultado Final -->
+            <div id="resultado" class="hidden resultado-final">
+                <h2>🎓 Treinamento Concluído!</h2>
+                <div class="score-badge" id="finalScore"></div>
+                <div class="resultado-descricao" id="scoreDescription"></div>
+                
+                <div class="resultado-stats">
+                    <div class="stat">
+                        <div class="stat-label">Diagnósticos Corretos</div>
+                        <div class="stat-value" id="acertos">0/4</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Tempo</div>
+                        <div class="stat-value" id="tempoTotal">0:00</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Tentativas</div>
+                        <div class="stat-value" id="tentativasTotal">1</div>
+                    </div>
+                </div>
+
+                <button class="btn-reiniciar" onclick="reiniciarAtividade()">↻ Tentar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================
+        // DADOS DOS PROBLEMAS
+        // ===========================================
+
+        const problemas = [
+            {
+                numero: 1,
+                titulo: 'Imagens Continuam com NFIQ < 40',
+                sintomas: [
+                    'Múltiplas tentativas mas qualidade não melhora',
+                    'Preview mostra padrão fraco',
+                    'ROI (Região de Interesse) não está bem localizada',
+                    'Dedo parece estar em boa condição'
+                ],
+                diagnosticos: [
+                    {
+                        texto: 'Problema de Posicionamento',
+                        descricao: 'Dedo não está permitindo contato completo com sensor',
+                        correto: true,
+                        solucoes: [
+                            'Verifique se todos os 5 dedos estão tocando a superfície uniformemente',
+                            'Use a visualização ao vivo para confirmar colocação adequada',
+                            'Ajuste ângulo e pressão para obter contato máximo',
+                            'Recalibre o sensor se necessário'
+                        ]
+                    },
+                    {
+                        texto: 'Qualidade Inerente do Padrão',
+                        descricao: 'Os dedos da criança têm baixa qualidade natural',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Sensor Defeituoso',
+                        descricao: 'O dispositivo de captura precisa ser trocado',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Software Desatualizado',
+                        descricao: 'Necessário atualizar versão do ETAN SDK',
+                        correto: false,
+                        solucoes: []
+                    }
+                ]
+            },
+            {
+                numero: 2,
+                titulo: 'Erro: "Padrão Muito Úmido"',
+                sintomas: [
+                    'Sistema rejeita imagens rejeitadas',
+                    'Dedo está visivelmente molhado ou suado',
+                    'Feedback: "Moisture Level Too High"',
+                    'Imagens aparecem embaçadas em branco'
+                ],
+                diagnosticos: [
+                    {
+                        texto: 'Umidade Excessiva do Bebê',
+                        descricao: 'Suor, leite ou saliva no dedo',
+                        correto: true,
+                        solucoes: [
+                            'Seque com papel macio descartável NÃO-irritante',
+                            'Use álcool isopropílico 70% se disponível',
+                            'Aguarde 1-2 minutos se o bebê está muito suado',
+                            'Limpe o sensor também com álcool e ar comprimido'
+                        ]
+                    },
+                    {
+                        texto: 'Calibração do Sensor',
+                        descricao: 'Sensor está miscalibrizado para umidade',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Temperatura da Sala',
+                        descricao: 'Ambiente está muito quente',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Versão do Firmware',
+                        descricao: 'Firmware do sensor precisa ser atualizado',
+                        correto: false,
+                        solucoes: []
+                    }
+                ]
+            },
+            {
+                numero: 3,
+                titulo: 'Erro: "Dedo Não Detectado" Intermitente',
+                sintomas: [
+                    'Às vezes funciona, às vezes não',
+                    'Mesma criança, problemas inconsistentes',
+                    'Toque parece inadequado',
+                    'Sensor pode estar sujo ou desgastado'
+                ],
+                diagnosticos: [
+                    {
+                        texto: 'Sujeira/Desgaste do Sensor',
+                        descricao: 'Sensor requer limpeza ou está danificado',
+                        correto: true,
+                        solucoes: [
+                            'Desligue o dispositivo completamente',
+                            'Limpe com pano macio seco (microfibra ideal)',
+                            'Use ar comprimido para remover poeira interna',
+                            'Se persisti, substitua membrante do sensor',
+                            'Realize testes de continuidade no sensor'
+                        ]
+                    },
+                    {
+                        texto: 'Ligação USB Instável',
+                        descricao: 'Conexão física está solta',
+                        correto: true,
+                        solucoes: [
+                            'Teste com diferente porta USB',
+                            'Teste com segundo cabo USB',
+                            'Reinsira com firmeza o conector'
+                        ]
+                    },
+                    {
+                        texto: 'Contato do Dedo Fraco',
+                        descricao: 'Apenas problema de técnica ',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Problema de Drives',
+                        descricao: 'Sistema operacional detectaria erro crítico',
+                        correto: false,
+                        solucoes: []
+                    }
+                ]
+            },
+            {
+                numero: 4,
+                titulo: 'Processamento Muito Lento (>30 seg por imagem)',
+                sintomas: [
+                    'Captura funciona mas processamento demora',
+                    'CPU está sempre em 100%',
+                    'RAM parece estar cheia',
+                    'Sem gpu disponível detectada'
+                ],
+                diagnosticos: [
+                    {
+                        texto: 'GPU Não Acelerada / Processamento CPU',
+                        descricao: 'GPU não está sendo usada, tudo é CPU',
+                        correto: true,
+                        solucoes: [
+                            'Instale drivers NVIDIA/AMD atualizados',
+                            'Habilite aceleração GPU na configuração do ETAN',
+                            'Verifique se CUDA/OpenGL estão ativados',
+                            'Considere usar máquina com GPU melhor',
+                            'Use `-gpu 1` na inicialização se suportado'
+                        ]
+                    },
+                    {
+                        texto: 'Muitos Processos em Background',
+                        descricao: 'Outros softwares usando recursos',
+                        correto: true,
+                        solucoes: [
+                            'Feche navegadores, antivírus, atualizações',
+                            'Monitore task manager durante operação',
+                            'Disable antivírus real-time se possível',
+                            'Reinicie antes de captura crítica'
+                        ]
+                    },
+                    {
+                        texto: 'Versão Antiga do ETAN SDK',
+                        descricao: 'V2.3 ou anteriores têm otimização pior',
+                        correto: false,
+                        solucoes: []
+                    },
+                    {
+                        texto: 'Resolução de Tela Muito Alta',
+                        descricao: 'Display 4K causando lentidão',
+                        correto: false,
+                        solucoes: []
+                    }
+                ]
+            }
+        ];
+
+        // ===========================================
+        // GERENCIAMENTO DA ATIVIDADE
+        // ===========================================
+
+        let problemaAtual = 0;
+        let respostasUser = {};
+        let tempoInicio = Date.now();
+        let tentativas = 1;
+        let acertosTotal = 0;
+
+        // Inicializar atividade
+        function inicializarAtividade() {
+            renderizarProblemas();
+            iniciarTimer();
+            internalHandler?.notifyActivityStarted?.();
+        }
+
+        // Renderizar todos os problemas
+        function renderizarProblemas() {
+            const container = document.getElementById('problemas-content');
+            container.innerHTML = '';
+
+            problemas.forEach((problema, idx) => {
+                const problemaEl = document.createElement('div');
+                problemaEl.className = 'problema-container';
+                problemaEl.id = `problema-${idx}`;
+
+                problemaEl.innerHTML = `
+                    <div class="problema-titulo">
+                        <span class="problema-numero">${problema.numero}</span>
+                        <span>${problema.titulo}</span>
+                    </div>
+
+                    <div class="sintomes-section">
+                        <div class="sintomes-titulo">⚠️ Sintomas Observados</div>
+                        <ul class="sintomas-lista">
+                            ${problema.sintomas.map(s => `<li class="sintoma">${s}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <div style="font-weight: 600; color: #2c3e50; margin-bottom: 12px;">Qual é o Diagnóstico Correto?</div>
+                        <div class="diagnosticos-container">
+                            ${problema.diagnosticos.map((diag, diagIdx) => `
+                                <label class="diagnostico-opcao" onclick="selecionarDiagnostico(${idx}, ${diagIdx})">
+                                    <input type="radio" name="problema-${idx}" value="${diagIdx}">
+                                    <span>
+                                        <span class="opcao-principal">${diag.texto}</span>
+                                        <span class="opcao-descricao">${diag.descricao}</span>
+                                    </span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="solucoes-section" id="solucoes-${idx}">
+                        <div class="solucoes-titulo">✓ Solução Recomendada:</div>
+                        <ul class="solucoes-lista" id="solucoes-lista-${idx}"></ul>
+                    </div>
+
+                    <div class="botoes">
+                        <button class="btn-diagnosticar" onclick="verificarDiagnostico(${idx})">🔍 DIAGNOSTICAR</button>
+                        ${idx < problemas.length - 1 ? `
+                            <button class="btn-proximo" onclick="proximoProblema(${idx})" style="display:none;" id="proximo-${idx}">PRÓXIMO →</button>
+                        ` : ''}
+                    </div>
+                    <div id="feedback-${idx}"></div>
+                `;
+
+                container.appendChild(problemaEl);
+            });
+        }
+
+        // Selecionar diagnóstico
+        function selecionarDiagnostico(problemaIdx, diagIdx) {
+            const labels = document.querySelectorAll(`input[name="problema-${problemaIdx}"]`).forEach((inp, i) => {
+                inp.parentElement.classList.toggle('selecionado', i === diagIdx);
+            });
+        }
+
+        // Verificar diagnóstico
+        function verificarDiagnostico(problemaIdx) {
+            const problema = problemas[problemaIdx];
+            const resposta = document.querySelector(`input[name="problema-${problemaIdx}"]:checked`);
+
+            if (!resposta) {
+                alert('Selecione um diagnóstico!');
+                return;
+            }
+
+            const diagIdx = parseInt(resposta.value);
+            const diagnosticoCorreto = problema.diagnosticos[diagIdx].correto;
+
+            respostasUser[problemaIdx] = {
+                diagnosticoIndex: diagIdx,
+                correto: diagnosticoCorreto,
+                tempo: (Date.now() - tempoInicio) / 1000
+            };
+
+            if (diagnosticoCorreto) {
+                acertosTotal++;
+            }
+
+            // Mostrar solução
+            const solucoes = problema.diagnosticos[diagIdx].solucoes;
+            if (solucoes.length > 0) {
+                const solucoesList = document.getElementById(`solucoes-lista-${problemaIdx}`);
+                solucoesList.innerHTML = solucoes.map(s => `<li>${s}</li>`).join('');
+                document.getElementById(`solucoes-${problemaIdx}`).classList.add('visible');
+            }
+
+            // Mostrar feedback
+            const feedbackEl = document.getElementById(`feedback-${problemaIdx}`);
+            const feedbackClass = diagnosticoCorreto ? 'feedback correto' : 'feedback incorreto';
+            const feedbackIcon = diagnosticoCorreto ? '✅' : '❌';
+            const feedbackText = diagnosticoCorreto ? 'Diagnóstico correto!' : 'Diagnóstico incorreto.';
+
+            feedbackEl.className = feedbackClass;
+            feedbackEl.innerHTML = `
+                <strong>${feedbackIcon} ${feedbackText}</strong>
+                <p style="margin-top: 10px;">${diagnosticoCorreto ? 
+                    'Você identificou o problema corretamente. A solução foi apresentada acima.' :
+                    'O diagnóstico correto é: <strong>' + problema.diagnosticos.find(d => d.correto).texto + '</strong>'
+                }</p>
+            `;
+
+            // Mostrar botão próximo
+            if (problemaIdx < problemas.length - 1) {
+                document.getElementById(`proximo-${problemaIdx}`).style.display = 'inline-block';
+            } else {
+                setTimeout(finalizarAtividade, 2000);
+            }
+
+            // Desabilitar inputs
+            document.querySelectorAll(`input[name="problema-${problemaIdx}"]`).forEach(inp => inp.disabled = true);
+            document.querySelector(`[onclick="verificarDiagnostico(${problemaIdx})"]`).disabled = true;
+
+            // Notificar tentativa
+            const score = Math.round((acertosTotal / (problemaIdx + 1)) * 100);
+            internalHandler?.notifyAttemptRecorded?.({}, score, (Date.now() - tempoInicio) / 1000);
+
+            // Atualizar progress
+            atualizarProgresso();
+        }
+
+        // Próximo problema
+        function proximoProblema(problemaIdx) {
+            problemaAtual = problemaIdx + 1;
+            atualizarProgresso();
+        }
+
+        // Atualizar progresso
+        function atualizarProgresso() {
+            const percentual = (Object.keys(respostasUser).length / problemas.length) * 100;
+            document.getElementById('completion').style.width = percentual + '%';
+            document.getElementById('problema-info').textContent = `Problema ${Object.keys(respostasUser).length}/${problemas.length}`;
+        }
+
+        // Timer
+        function iniciarTimer() {
+            setInterval(() => {
+                const tempo = Math.floor((Date.now() - tempoInicio) / 1000);
+                const minutos = Math.floor(tempo / 60);
+                const segundos = tempo % 60;
+                document.getElementById('timer').textContent =
+                    `${minutos}:${segundos.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Finalizar atividade
+        function finalizarAtividade() {
+            const tempoTotal = (Date.now() - tempoInicio) / 1000;
+            const scoreTotal = Math.round((acertosTotal / problemas.length) * 100);
+
+            // Mostrar resultado
+            document.getElementById('problemas-content').style.display = 'none';
+            const resultadoEl = document.getElementById('resultado');
+            resultadoEl.classList.remove('hidden');
+
+            // Badges
+            let scoreEmoji = '😢';
+            let descricao = 'Continue praticando troubleshooting!';
+
+            if (scoreTotal >= 90) {
+                scoreEmoji = '🏆';
+                descricao = 'Excelente! Você está pronto para resolver problemas em produção!';
+            } else if (scoreTotal >= 70) {
+                scoreEmoji = '👍';
+                descricao = 'Bom trabalho! Você tem sólido conhecimento de troubleshooting.';
+            } else if (scoreTotal >= 50) {
+                scoreEmoji = '📚';
+                descricao = 'Você está aprendendo. Estude os casos de erro mais comuns.';
+            }
+
+            document.getElementById('finalScore').textContent = scoreEmoji;
+            document.getElementById('scoreDescription').textContent = descricao;
+            document.getElementById('acertos').textContent = `${acertosTotal}/${problemas.length}`;
+            document.getElementById('tempoTotal').textContent =
+                `${Math.floor(tempoTotal / 60)}:${Math.floor(tempoTotal % 60).toString().padStart(2, '0')}`;
+            document.getElementById('tentativasTotal').textContent = tentativas;
+
+            // Notificar conclusão
+            internalHandler?.notifyActivityCompleted?.(scoreTotal, tempoTotal, tentativas);
+        }
+
+        // Reiniciar atividade
+        function reiniciarAtividade() {
+            problemaAtual = 0;
+            respostasUser = {};
+            tempoInicio = Date.now();
+            tentativas++;
+            acertosTotal = 0;
+
+            document.getElementById('resultado').classList.add('hidden');
+            document.getElementById('problemas-content').style.display = '';
+
+            inicializarAtividade();
+        }
+
+        // ===========================================
+        // HANDLER INTERNO DE COMUNICAÇÃO
+        // ===========================================
+
+        class InternalActivityHandler {
+            constructor() {
+                this.activityId = null;
+                this.startTime = Date.now();
+                this.setupParentListener();
+            }
+
+            setupParentListener() {
+                window.addEventListener('message', (event) => {
+                    if (event.origin !== window.location.origin) return;
+                    const data = event.data;
+                    if (data.action === 'SET_ACTIVITY_ID') {
+                        this.activityId = data.payload.activityId;
+                    }
+                });
+            }
+
+            notifyActivityStarted() {
+                window.parent.postMessage({
+                    action: 'ACTIVITY_STARTED',
+                    payload: { startTime: this.startTime }
+                }, '*');
+            }
+
+            notifyAttemptRecorded(responses, score, timeTaken) {
+                window.parent.postMessage({
+                    action: 'ATTEMPT_RECORDED',
+                    payload: { responses, score, time_taken: timeTaken }
+                }, '*');
+            }
+
+            notifyActivityCompleted(score, totalTime, attempts) {
+                window.parent.postMessage({
+                    action: 'ACTIVITY_COMPLETED',
+                    payload: { score, time_total: totalTime, attempts }
+                }, '*');
+            }
+        }
+
+        const internalHandler = new InternalActivityHandler();
+
+        // Inicializar ao carregar
+        document.addEventListener('DOMContentLoaded', inicializarAtividade);
+    </script>
+</body>
+</html>

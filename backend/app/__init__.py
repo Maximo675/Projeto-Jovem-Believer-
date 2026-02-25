@@ -5,6 +5,7 @@ Arquivo __init__ para testes
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_socketio import SocketIO
 import os
 from dotenv import load_dotenv
 from app.config import config
@@ -12,8 +13,9 @@ from app.config import config
 # Carregar variáveis de ambiente
 load_dotenv()
 
-# Inicializar banco de dados
+# Inicializar banco de dados e SocketIO
 db = SQLAlchemy()
+socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app():
     """Factory para criar a aplicação Flask"""
@@ -24,6 +26,7 @@ def create_app():
     
     # Inicializar extensões
     db.init_app(app)
+    socketio.init_app(app, cors_allowed_origins="*")
     
     # Configurar CORS
     cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5001,http://127.0.0.1:3000,http://127.0.0.1:5001').split(',')
@@ -37,13 +40,14 @@ def create_app():
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Registrar blueprints
-    from app.routes import auth, courses, users, ai, hospitals, documents
+    from app.routes import auth, courses, users, ai, hospitals, documents, activities
     app.register_blueprint(auth.bp)
     app.register_blueprint(courses.bp)
     app.register_blueprint(users.bp)
     app.register_blueprint(ai.bp)
     app.register_blueprint(hospitals.bp)
     app.register_blueprint(documents.bp)
+    app.register_blueprint(activities.activities_bp)
     
     # ====== SERVIR ARQUIVOS ESTÁTICOS ======
     # Caminho raiz do projeto (acima de backend)
@@ -67,17 +71,34 @@ def create_app():
         css_path = os.path.join(root_path, 'css')
         return send_from_directory(css_path, filename, mimetype='text/css')
     
-    # Rota catch-all para JS
+    # Rota catch-all para JS (tenta frontend/js primeiro, depois js)
     @app.route('/js/<filename>')
     def serve_js(filename):
+        # Tentar em frontend/js primeiro
+        js_path = os.path.join(root_path, 'frontend', 'js')
+        if os.path.exists(os.path.join(js_path, filename)):
+            return send_from_directory(js_path, filename, mimetype='application/javascript')
+        # Fallback para js raiz
         js_path = os.path.join(root_path, 'js')
         return send_from_directory(js_path, filename, mimetype='application/javascript')
     
-    # Rota catch-all para imagens
-    @app.route('/images/<filename>')
-    def serve_images(filename):
-        images_path = os.path.join(root_path, 'images')
-        return send_from_directory(images_path, filename)
+    # Rota catch-all para imagens (comentada pois pasta foi removida)
+    # @app.route('/images/<filename>')
+    # def serve_images(filename):
+    #     images_path = os.path.join(root_path, 'images')
+    #     return send_from_directory(images_path, filename)
+    
+    # Rota para arquivos públicos (favicons, ícones)
+    @app.route('/public/<filename>')
+    def serve_public(filename):
+        public_path = os.path.join(root_path, 'public')
+        return send_from_directory(public_path, filename)
+    
+    # Rota para atividades práticas
+    @app.route('/activities/<filename>')
+    def serve_activities(filename):
+        activities_path = os.path.join(root_path, 'frontend', 'activities')
+        return send_from_directory(activities_path, filename, mimetype='text/html')
     
     # Rota catch-all para assets (logos, documentos, etc)
     @app.route('/assets/<path:filename>')
@@ -90,8 +111,14 @@ def create_app():
     def health():
         return {'status': 'ok', 'message': 'Server is running'}
     
-    # Criar tabelas se não existirem
+    # Registrar WebSocket handlers
+    from . import websocket_handlers
+    
+    # Criar tabelas se não existirem - dentro do contexto
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"[WARNING] Erro ao criar tabelas: {e}")
     
     return app

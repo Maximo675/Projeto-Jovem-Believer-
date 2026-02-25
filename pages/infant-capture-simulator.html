@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Captura Sequencial ETAN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e2e;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .capture-area {
+            flex: 2;
+            background: #2d2d3d;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .capture-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #2a2a3a 0%, #3a3a4a 100%);
+            position: relative;
+            border-bottom: 2px solid #667eea;
+            gap: 30px;
+            padding: 40px;
+        }
+
+        .finger-display {
+            text-align: center;
+        }
+
+        .finger-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .finger-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .finger-instruction {
+            font-size: 16px;
+            color: #aaa;
+            margin-top: 15px;
+        }
+
+        .capture-button-area {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .countdown-timer {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 80px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .countdown-timer.capturing {
+            color: #4ade80;
+            animation: pulse-fast 0.5s infinite;
+        }
+
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .instruction-text {
+            font-size: 16px;
+            color: #aaa;
+            text-align: center;
+        }
+
+        .capture-info {
+            padding: 20px;
+            background: #252535;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #2d2d3d;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: #252535;
+            border-top: 1px solid #3a3a4a;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary {
+            background: #3a3a4a;
+            color: #aaa;
+            flex: 1;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #4a4a5a;
+            color: #fff;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .scanner-frame {
+            width: 250px;
+            height: 250px;
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(102, 126, 234, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scanner-frame.active {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            animation: scan 2s infinite;
+        }
+
+        @keyframes scan {
+            0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(74, 222, 128, 0.8); }
+        }
+
+        .scanner-text {
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        #fingerprintCanvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            display: none;
+        }
+
+        #fingerprintCanvas.showing {
+            display: block;
+        }
+
+        .quality-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: none;
+        }
+
+        .quality-indicator.showing {
+            display: block;
+        }
+
+        .quality-label {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 3px;
+        }
+
+        .quality-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .quality-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #fbbf24 50%, #4ade80 100%);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .real-time-quality-text {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #4ade80;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: monospace;
+            border: 1px solid #4ade80;
+        }
+
+        .real-time-quality-text.showing {
+            display: block;
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #4ade80, transparent);
+            top: 50%;
+            animation: scanning 1.5s linear infinite;
+        }
+
+        @keyframes scanning {
+            0% { transform: translateY(-125px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(125px); opacity: 0; }
+        }
+
+        .sequence-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .sequence-item {
+            padding: 10px;
+            background: #3a3a4a;
+            border-radius: 5px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid #666;
+        }
+
+        .sequence-item.current {
+            border-left-color: #667eea;
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .sequence-item.completed {
+            border-left-color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            color: #4ade80;
+        }
+
+        .sequence-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .sequence-item.completed .sequence-number {
+            background: #4ade80;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 13px;
+            color: #999;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                flex-direction: row;
+            }
+
+            .scanner-frame {
+                width: 200px;
+                height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Simulador de Captura Sequencial ETAN</h1>
+        <div class="connection-status">
+            <div class="status-dot"></div>
+            <span>Sistema Pronto</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="capture-area">
+            <div class="capture-screen">
+                <div class="finger-display">
+                    <div class="finger-icon" id="fingerIcon">👆</div>
+                    <div class="finger-name" id="fingerName">Aguardando...</div>
+                    <div class="finger-instruction" id="fingerInstruction">
+                        Posicione o dedo e clique no botão para capturar
+                    </div>
+                </div>
+
+                <div class="scanner-frame" id="scannerFrame">
+                    <div class="scanner-text" id="scannerText">Procurando por dedo...</div>
+                    <canvas id="fingerprintCanvas"></canvas>
+                    <div class="scan-line"></div>
+                    <div class="real-time-quality-text" id="qualityText">Qualidade: 0%</div>
+                    <div class="quality-indicator" id="qualityIndicator">
+                        <div class="quality-label">Qualidade da Leitura</div>
+                        <div class="quality-bar-container">
+                            <div class="quality-bar-fill" id="qualityBarFill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="capture-button-area">
+                    <div class="instruction-text">Posicione o dedo no sensor</div>
+                    <div class="countdown-timer" id="countdownTimer">5</div>
+                </div>
+            </div>
+
+            <div class="capture-info">
+                <div class="info-item">
+                    <div class="info-label">Qualidade (NFIQ)</div>
+                    <div class="info-value" id="qualityValue">0/100</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Pressão</div>
+                    <div class="info-value" id="pressureValue">0 mmHg</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value" id="statusValue" style="color: #fbbf24;">Pronto</div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button class="btn-secondary" id="resetBtn" onclick="resetCapture()">
+                    🔄 Limpar Tudo e Reiniciar
+                </button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="panel">
+                <h3>📊 Progresso</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0/10 dedos capturados</div>
+            </div>
+
+            <div class="panel">
+                <h3>✅ Dedos Capturados</h3>
+                <div class="results" id="resultsList">
+                    <div style="color: #999; font-size: 13px; text-align: center; padding: 20px;">
+                        Nenhum dedo capturado ainda...
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>📋 Sequência</h3>
+                <div class="sequence-list" id="sequenceList">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../frontend/js/etan-image-processor.js"></script>
+    <script>
+        const fingers = [
+            { id: 'thumb_l', name: 'Polegar Esquerdo', icon: '👍', hand: 'E' },
+            { id: 'index_l', name: 'Indicador Esquerdo', icon: '☝️', hand: 'E' },
+            { id: 'middle_l', name: 'Médio Esquerdo', icon: '☝️', hand: 'E' },
+            { id: 'ring_l', name: 'Anular Esquerdo', icon: '☝️', hand: 'E' },
+            { id: 'pinky_l', name: 'Mínimo Esquerdo', icon: '☝️', hand: 'E' },
+            { id: 'thumb_r', name: 'Polegar Direito', icon: '👍', hand: 'D' },
+            { id: 'index_r', name: 'Indicador Direito', icon: '☝️', hand: 'D' },
+            { id: 'middle_r', name: 'Médio Direito', icon: '☝️', hand: 'D' },
+            { id: 'ring_r', name: 'Anular Direito', icon: '☝️', hand: 'D' },
+            { id: 'pinky_r', name: 'Mínimo Direito', icon: '☝️', hand: 'D' }
+        ];
+
+        let currentIndex = 0;
+        let captured = new Map();
+        let isCapturing = false;
+        let countdownTimeout = null;
+        let countdownInterval = null;
+        let video = null;
+        let cameraStream = null;
+        let isCameraActive = false;
+        let analysisInterval = null;
+        
+        // Inicializar processador de imagem avançado
+        const imageProcessor = new ETANImageProcessor(250, 250);
+
+        function getCurrentFinger() {
+            return fingers[currentIndex];
+        }
+
+        function updateDisplay() {
+            const finger = getCurrentFinger();
+            if (!finger) {
+                completePractice();
+                return;
+            }
+
+            document.getElementById('fingerIcon').textContent = finger.icon;
+            document.getElementById('fingerName').textContent = finger.name;
+            document.getElementById('fingerInstruction').textContent = 
+                `Mão ${finger.hand === 'E' ? 'Esquerda' : 'Direita'} - Posicione o dedo no sensor`;
+
+            updateSequenceList();
+            updateResults();
+            
+            // Iniciar contagem regressiva para captura automática
+            startCountdown();
+        }
+
+        /**
+         * Inicializar câmera ETAN
+         */
+        async function initializeCamera() {
+            try {
+                if (!cameraStream) {
+                    // Solicitar acesso à câmera com preferência ao ETAN
+                    const constraints = {
+                        video: {
+                            width: { ideal: 500 },
+                            height: { ideal: 500 },
+                            facingMode: 'environment' // Câmera traseira/externa
+                        },
+                        audio: false
+                    };
+
+                    cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    
+                    // Criar elemento de vídeo para capturar o stream
+                    if (!video) {
+                        video = document.createElement('video');
+                        video.srcObject = cameraStream;
+                        video.play().catch(e => console.error('Erro ao reproduzir vídeo:', e));
+                        isCameraActive = true;
+                    }
+                }
+                return true;
+            } catch (error) {
+                console.error('❌ Erro ao acessar câmera:', error);
+                showMessage('❌ Não foi possível acessar a câmera do ETAN. Verifique as permissões.', 'error');
+                return false;
+            }
+        }
+
+        /**
+         * Parar câmera
+         */
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+                isCameraActive = false;
+            }
+            if (analysisInterval) {
+                clearInterval(analysisInterval);
+                analysisInterval = null;
+            }
+        }
+
+        /**
+         * Processar frame de vídeo e detectar dedo
+         */
+        function analyzeVideoFrame(canvas) {
+            if (!video || !isCameraActive) return null;
+
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = 250;
+            const height = canvas.height = 250;
+
+            try {
+                // Desenhar o frame do vídeo no canvas
+                ctx.drawImage(video, 0, 0, width, height);
+
+                // Obter dados da imagem para análise
+                const imageData = ctx.getImageData(0, 0, width, height);
+                
+                // Usar processador avançado para análise detalhada
+                const advancedAnalysis = imageProcessor.analyzeFrameQuality(imageData);
+                
+                // Armazenar no histórico
+                imageProcessor.storeFrame(imageData);
+                
+                // Análise simplificada alternativa (mais rápida)
+                const data = imageData.data;
+                let darkerPixels = 0;
+                let redChannel = 0, greenChannel = 0, blueChannel = 0;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const brightness = (r + g + b) / 3;
+
+                    redChannel += r;
+                    greenChannel += g;
+                    blueChannel += b;
+
+                    if (brightness < 100) {
+                        darkerPixels++;
+                    }
+                }
+
+                const totalPixels = width * height;
+                const avgRed = Math.round(redChannel / totalPixels);
+                const avgGreen = Math.round(greenChannel / totalPixels);
+                const avgBlue = Math.round(blueChannel / totalPixels);
+
+                // Usar score NFIQ avançado quando disponível
+                const quality = advancedAnalysis.nfiqScore || (
+                    Math.min(100, 
+                        Math.abs(avgRed - avgBlue) * 0.5 + 
+                        Math.max(0, (darkerPixels / totalPixels) * 150)
+                    )
+                );
+
+                const contrast = Math.abs(avgRed - avgGreen) + Math.abs(avgGreen - avgBlue);
+                
+                return {
+                    quality: Math.round(quality),
+                    fingerDetection: Math.round(advancedAnalysis.roiDetection.confidence),
+                    avgColor: { r: avgRed, g: avgGreen, b: avgBlue },
+                    contrast: Math.round(contrast),
+                    isFingerDetected: advancedAnalysis.roiDetection.detected,
+                    nfiq: advancedAnalysis.nfiqScore,
+                    pressure: advancedAnalysis.estimatedPressure,
+                    roiArea: advancedAnalysis.roiDetection.roiArea
+                };
+
+            } catch (error) {
+                console.error('Erro ao analisar frame:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Iniciar captura automática com câmera
+         */
+        function startCountdown() {
+            let countdown = 5;
+            const timerEl = document.getElementById('countdownTimer');
+            
+            // Limpar timeouts anteriores
+            if (countdownTimeout) clearTimeout(countdownTimeout);
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            // Inicializar câmera primeiro
+            initializeCamera().then(success => {
+                if (!success) {
+                    return;
+                }
+
+                // Resetar timer visual
+                timerEl.textContent = countdown;
+                timerEl.classList.remove('capturing');
+
+                // Atualizar a cada segundo
+                countdownInterval = setInterval(() => {
+                    countdown--;
+                    timerEl.textContent = countdown;
+
+                    if (countdown <= 0) {
+                        clearInterval(countdownInterval);
+                        captureAutomatically();
+                    }
+                }, 1000);
+
+                // Fallback: capturar após 5 segundos se interval não terminar
+                countdownTimeout = setTimeout(() => {
+                    clearInterval(countdownInterval);
+                    captureAutomatically();
+                }, 5000);
+            });
+        }
+
+        function captureAutomatically() {
+            const finger = getCurrentFinger();
+            if (!finger || isCapturing) return;
+
+            isCapturing = true;
+            const timerEl = document.getElementById('countdownTimer');
+            timerEl.textContent = '📸';
+            timerEl.classList.add('capturing');
+            document.getElementById('statusValue').textContent = 'Capturando...';
+            document.getElementById('statusValue').style.color = '#667eea';
+
+            // Simulação de captura com câmera
+            const scanner = document.getElementById('scannerFrame');
+            scanner.classList.add('active');
+
+            // Mostrar canvas, esconder texto e indicador
+            const canvas = document.getElementById('fingerprintCanvas');
+            const scannerText = document.getElementById('scannerText');
+            const qualityIndicator = document.getElementById('qualityIndicator');
+            const qualityText = document.getElementById('qualityText');
+
+            canvas.classList.add('showing');
+            qualityIndicator.classList.add('showing');
+            qualityText.classList.add('showing');
+            scannerText.style.display = 'none';
+
+            // Iniciar captura de frames da câmera
+            let captureProgress = 0;
+            let qualityValues = [];
+            let finalQuality = 0;
+            let bestPressure = 0;
+            let fingerDetectionCount = 0;
+
+            analysisInterval = setInterval(() => {
+                captureProgress++;
+                
+                // Capturar frame e analisar
+                const analysis = analyzeVideoFrame(canvas);
+                
+                if (analysis) {
+                    qualityValues.push(analysis.quality);
+                    if (analysis.isFingerDetected) {
+                        fingerDetectionCount++;
+                    }
+                    
+                    // Média móvel de qualidade
+                    const recentQuality = qualityValues.slice(-5);
+                    const avgQuality = Math.round(
+                        recentQuality.reduce((a, b) => a + b, 0) / recentQuality.length
+                    );
+                    
+                    // Usar pressão real do processador se disponível
+                    bestPressure = Math.max(
+                        bestPressure,
+                        analysis.pressure || (
+                            analysis.isFingerDetected ? 
+                                (60 + Math.random() * 50) : 
+                                (20 + Math.random() * 30)
+                        )
+                    );
+
+                    // Atualizar barra de qualidade
+                    document.getElementById('qualityBarFill').style.width = avgQuality + '%';
+                    
+                    // Indicador detalhado
+                    const detectionRate = Math.round((fingerDetectionCount / captureProgress) * 100);
+                    qualityText.textContent = `Qualidade: ${avgQuality}% | Detecção: ${detectionRate}%`;
+                    document.getElementById('qualityValue').textContent = avgQuality + '/100';
+                    document.getElementById('pressureValue').textContent = Math.round(bestPressure) + ' mmHg';
+
+                    // Debug: mostrar análise detalhada
+                    console.log(`📊 Frame ${captureProgress}:`, {
+                        quality: avgQuality,
+                        nfiq: analysis.nfiq,
+                        fingerDetected: analysis.isFingerDetected,
+                        detectionRate: detectionRate,
+                        pressure: Math.round(bestPressure),
+                        roiArea: analysis.roiArea
+                    });
+                }
+
+                if (captureProgress >= 15) {
+                    clearInterval(analysisInterval);
+                    finalQuality = qualityValues.length > 0 ? 
+                        Math.round(qualityValues.reduce((a, b) => a + b, 0) / qualityValues.length) : 60;
+                    completeCapture(finger, finalQuality, bestPressure, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl);
+                }
+            }, 100);
+        }
+
+        function drawFingerprint(canvas, quality = 1) {
+            // Esta função agora é substituída pela captura do vídeo
+            // mas mantemos a compatibilidade
+            if (!video || !isCameraActive) {
+                // Fallback: desenho simulado se câmera não estiver disponível
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width = 250;
+                const height = canvas.height = 250;
+
+                ctx.fillStyle = 'rgba(20, 20, 30, 0.8)';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.strokeStyle = '#4ade80';
+                ctx.lineWidth = 1.5;
+                ctx.globalAlpha = Math.min(quality, 1);
+
+                const numLines = Math.floor(30 * quality);
+                for (let i = 0; i < numLines; i++) {
+                    const startX = Math.random() * width;
+                    const startY = Math.random() * height;
+                    const angle = Math.random() * Math.PI * 2;
+                    const length = 20 + Math.random() * 40;
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(
+                        startX + Math.cos(angle) * length,
+                        startY + Math.sin(angle) * length
+                    );
+                    ctx.stroke();
+                }
+
+                ctx.globalAlpha = Math.min(quality * 1.2, 1);
+                ctx.fillStyle = '#4ade80';
+                const numPoints = Math.floor(15 * quality);
+                for (let i = 0; i < numPoints; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const radius = 1.5 + Math.random() * 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                if (quality > 0.3) {
+                    ctx.globalAlpha = 0.6;
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(width / 2, height / 2, (width / 3) * quality, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function completeCapture(finger, quality, pressure, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl) {
+            if (quality >= 60) {
+                // Sucesso na captura
+                captured.set(finger.id, {
+                    quality: quality,
+                    pressure: pressure,
+                    timestamp: new Date()
+                });
+
+                document.getElementById('statusValue').textContent = '✅ Capturado!';
+                document.getElementById('statusValue').style.color = '#4ade80';
+
+                // Mostrar mensagem de sucesso
+                showMessage(`✅ ${finger.name} capturado com sucesso! (${quality}/100)`, 'success');
+
+                // Avançar para o próximo dedo após 2 segundos
+                setTimeout(() => {
+                    currentIndex++;
+                    isCapturing = false;
+                    scanner.classList.remove('active');
+                    timerEl.classList.remove('capturing');
+                    
+                    // Limpar visual
+                    canvas.classList.remove('showing');
+                    qualityIndicator.classList.remove('showing');
+                    qualityText.classList.remove('showing');
+                    scannerText.style.display = 'flex';
+                    document.getElementById('qualityBarFill').style.width = '0%';
+                    
+                    // Se chegou ao final
+                    if (currentIndex >= fingers.length) {
+                        timerEl.textContent = '✅';
+                        completePractice();
+                    } else {
+                        document.getElementById('statusValue').textContent = 'Pronto';
+                        document.getElementById('statusValue').style.color = '#fbbf24';
+                        updateDisplay();
+                    }
+                }, 2000);
+            } else {
+                // Falha - tentar novamente
+                showMessage(`❌ Qualidade baixa (${quality}/100). Tentando novamente...`, 'error');
+                document.getElementById('statusValue').textContent = 'Tentando novamente...';
+                document.getElementById('statusValue').style.color = '#ef4444';
+                
+                setTimeout(() => {
+                    isCapturing = false;
+                    scanner.classList.remove('active');
+                    timerEl.classList.remove('capturing');
+                    
+                    // Limpar visual
+                    canvas.classList.remove('showing');
+                    qualityIndicator.classList.remove('showing');
+                    qualityText.classList.remove('showing');
+                    scannerText.style.display = 'flex';
+                    document.getElementById('qualityBarFill').style.width = '0%';
+                    
+                    document.getElementById('statusValue').textContent = 'Pronto';
+                    document.getElementById('statusValue').style.color = '#fbbf24';
+                    // Tentar novamente o mesmo dedo
+                    startCountdown();
+                }, 2000);
+            }
+        }
+
+        function updateSequenceList() {
+            const list = document.getElementById('sequenceList');
+            list.innerHTML = fingers.map((finger, idx) => {
+                let className = 'sequence-item';
+                let icon = '⭕ ';
+                
+                if (idx === currentIndex) {
+                    className += ' current';
+                    icon = '🎯 ';
+                } else if (idx < currentIndex || captured.has(finger.id)) {
+                    className += ' completed';
+                    icon = '✅ ';
+                }
+
+                return `
+                    <div class="${className}">
+                        <span class="sequence-number">${idx + 1}</span>
+                        <span>${finger.name}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateResults() {
+            const list = document.getElementById('resultsList');
+            const count = captured.size;
+            const percentage = Math.round((count / fingers.length) * 100);
+
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = `${count}/${fingers.length} dedos capturados`;
+
+            if (count === 0) {
+                list.innerHTML = '<div style="color: #999; font-size: 13px; text-align: center; padding: 20px;">Nenhum dedo capturado ainda...</div>';
+                return;
+            }
+
+            list.innerHTML = Array.from(captured.entries()).map(([fingerId, data]) => {
+                const finger = fingers.find(f => f.id === fingerId);
+                return `
+                    <div class="result-item">
+                        <div>
+                            <div style="font-weight: bold;">${finger.name}</div>
+                            <div style="font-size: 12px; color: #999;">Qualidade: ${data.quality}/100 | Pressão: ${data.pressure} mmHg</div>
+                            <div class="quality-bar">
+                                <div class="quality-fill" style="width: ${data.quality}%"></div>
+                            </div>
+                        </div>
+                        <div class="result-icon">✅</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showMessage(text, type) {
+            const panel = document.querySelector('.panel');
+            const existingMsg = document.querySelector('.message');
+            if (existingMsg) {
+                existingMsg.remove();
+            }
+
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            msg.style.cssText = `
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 15px;
+                font-size: 14px;
+                text-align: center;
+                background: ${type === 'success' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+                color: ${type === 'success' ? '#4ade80' : '#ef4444'};
+                border: 1px solid ${type === 'success' ? '#4ade80' : '#ef4444'};
+            `;
+            panel.parentNode.insertBefore(msg, panel);
+
+            setTimeout(() => {
+                msg.remove();
+            }, 3000);
+        }
+
+        function resetCapture() {
+            if (confirm('Deseja realmente limpar todos os dados e recomeçar?')) {
+                // Parar câmera
+                stopCamera();
+                
+                // Limpar timeouts
+                if (countdownTimeout) clearTimeout(countdownTimeout);
+                if (countdownInterval) clearInterval(countdownInterval);
+                
+                // Limpar elementos visuais
+                const canvas = document.getElementById('fingerprintCanvas');
+                const scannerText = document.getElementById('scannerText');
+                const qualityIndicator = document.getElementById('qualityIndicator');
+                const qualityText = document.getElementById('qualityText');
+                const scanner = document.getElementById('scannerFrame');
+                
+                canvas.classList.remove('showing');
+                qualityIndicator.classList.remove('showing');
+                qualityText.classList.remove('showing');
+                scanner.classList.remove('active');
+                scannerText.style.display = 'flex';
+                document.getElementById('qualityBarFill').style.width = '0%';
+                document.getElementById('countdownTimer').classList.remove('capturing');
+                
+                currentIndex = 0;
+                captured.clear();
+                isCapturing = false;
+                document.getElementById('statusValue').textContent = 'Pronto';
+                document.getElementById('statusValue').style.color = '#fbbf24';
+                document.getElementById('countdownTimer').textContent = '5';
+                updateDisplay();
+            }
+        }
+
+        function completePractice() {
+            // Parar câmera
+            stopCamera();
+            
+            // Limpar timeouts
+            if (countdownTimeout) clearTimeout(countdownTimeout);
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            document.getElementById('countdownTimer').disabled = true;
+            document.getElementById('statusValue').textContent = '🎉 Completo!';
+            document.getElementById('statusValue').style.color = '#4ade80';
+
+            // Enviar mensagem para página pai
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'CAPTURE_COMPLETED',
+                    data: {
+                        fingersCapt: Array.from(captured.keys()),
+                        totalCaptured: captured.size,
+                        timestamp: new Date().toISOString()
+                    }
+                }, '*');
+            }
+
+            showMessage('✅ Prática concluída com sucesso!', 'success');
+            setTimeout(() => {
+                window.location.href = document.referrer || '/pages/aula-com-atividades.html';
+            }, 3000);
+        }
+
+        // Inicializar
+        updateDisplay();
+
+        // Limpar recursos quando sair da página
+        window.addEventListener('beforeunload', () => {
+            stopCamera();
+        });
+
+        // Tratamento de erro de câmera
+        window.addEventListener('error', (event) => {
+            if (event.message && event.message.includes('getUserMedia')) {
+                console.error('Erro de câmera:', event.message);
+                showMessage('❌ Erro ao acessar a câmera. Verifique as permissões do sistema.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

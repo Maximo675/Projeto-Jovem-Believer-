@@ -76,16 +76,35 @@ def list_users():
 def get_user_progress():
     """Obter progresso do usuário autenticado"""
     try:
-        # Para simplificar, vamos retornar dados fictícios
-        # Em produção, decodificar JWT e obter usuario_id
+        # 🔐 Extrair usuario_id do JWT
+        auth_header = request.headers.get('Authorization', '')
+        usuario_id = None
         
-        progresso = Progress.query.limit(5).all()
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+            import base64
+            import json
+            try:
+                parts = token.split('.')
+                if len(parts) == 3:
+                    decoded = json.loads(base64.urlsafe_b64decode(parts[1] + '=='))
+                    usuario_id = decoded.get('sub') or decoded.get('usuario_id') or decoded.get('user_id') or decoded.get('id')
+            except Exception as e:
+                print(f'[AUTH] Erro ao decodificar: {e}')
+        
+        if not usuario_id:
+            return jsonify({'erro': 'Não autenticado'}), 401
+        
+        # Retornar progressos do usuário
+        progresso = Progress.query.filter_by(usuario_id=usuario_id).all()
+        print(f'[PROGRESS] Retornando {len(progresso)} progressos para usuario {usuario_id}')
         
         return jsonify({
             'progresso': [p.to_dict() for p in progresso] if progresso else []
         }), 200
         
     except Exception as e:
+        print(f'[ERROR] Erro em get_user_progress: {e}')
         return jsonify({'erro': str(e)}), 500
 
 
@@ -93,12 +112,34 @@ def get_user_progress():
 def get_user_certificates():
     """Obter certificados do usuário autenticado"""
     try:
-        certificados = Certificate.query.limit(5).all()
+        # 🔐 Extrair usuario_id do JWT
+        auth_header = request.headers.get('Authorization', '')
+        usuario_id = None
+        
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+            import base64
+            import json
+            try:
+                parts = token.split('.')
+                if len(parts) == 3:
+                    decoded = json.loads(base64.urlsafe_b64decode(parts[1] + '=='))
+                    usuario_id = decoded.get('sub') or decoded.get('usuario_id') or decoded.get('user_id') or decoded.get('id')
+            except Exception as e:
+                print(f'[AUTH] Erro ao decodificar: {e}')
+        
+        if not usuario_id:
+            return jsonify({'erro': 'Não autenticado'}), 401
+        
+        # Retornar certificados do usuário
+        certificados = Certificate.query.filter_by(usuario_id=usuario_id).all()
+        print(f'[CERTIFICATES] Retornando {len(certificados)} certificados para usuario {usuario_id}')
         
         return jsonify({
             'certificados': [c.to_dict() for c in certificados] if certificados else []
         }), 200
         
     except Exception as e:
+        print(f'[ERROR] Erro em get_user_certificates: {e}')
         return jsonify({'erro': str(e)}), 500
 

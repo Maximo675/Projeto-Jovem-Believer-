@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividade: Protocolo ETAN - 5 Fases</title>
+    <!-- WebSocket -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/js/etan-websocket-client.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            margin-top: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            width: 20%;
+            transition: width 0.3s ease;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .fase-container {
+            display: none;
+        }
+
+        .fase-container.ativo {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fase-numero {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .fase-titulo {
+            font-size: 24px;
+            color: #1f2937;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fase-descricao {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .quiz-opcoes {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 25px 0;
+        }
+
+        .opcao {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .opcao:hover {
+            border-color: #667eea;
+            background: #f3f4f6;
+        }
+
+        .opcao input[type="radio"] {
+            margin-right: 12px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        .opcao input[type="radio"]:checked + label {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .opcao label {
+            cursor: pointer;
+            flex-grow: 1;
+            font-size: 15px;
+        }
+
+        .botoes {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-verificar {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-verificar:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-proximo {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-proximo:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-anterior {
+            background: #efefef;
+            color: #374151;
+        }
+
+        .btn-anterior:hover {
+            background: #d9d9d9;
+        }
+
+        .feedback {
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 14px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback.sucesso {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #047857;
+            display: block;
+        }
+
+        .feedback.erro {
+            background: #fee2e2;
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+            display: block;
+        }
+
+        .feedback i {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .sequencia-drop {
+            background: #f9fafb;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 150px;
+            margin: 20px 0;
+        }
+
+        .passo-item {
+            background: white;
+            border: 2px solid #e5e7eb;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: grab;
+        }
+
+        .passo-item:active {
+            cursor: grabbing;
+            opacity: 0.7;
+        }
+
+        .passo-numero {
+            background: #667eea;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .video-simulador {
+            background: #000;
+            border-radius: 8px;
+            aspect-ratio: 16 / 9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .digitacao-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .digito-card {
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .digito-card:hover {
+            border-color: #667eea;
+            background: #f3f4f6;
+        }
+
+        .digito-card.selecionado {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .resultado-final {
+            background: linear-gradient(135deg, #d1fae5 0%, #c1fae8 100%);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            display: none;
+        }
+
+        .resultado-final.mostrar {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .resultado-final h2 {
+            color: #047857;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .resultado-final p {
+            color: #065f46;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .resultado-score {
+            font-size: 48px;
+            color: #10b981;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        .resultado-itens {
+            text-align: left;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .resultado-item {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #065f46;
+            font-size: 14px;
+        }
+
+        .resultado-item i {
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .etapas-resumo {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin: 30px 0;
+        }
+
+        .etapa-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            background: #d1d5db;
+            transition: all 0.3s ease;
+        }
+
+        .etapa-item.completada {
+            background: #10b981;
+        }
+
+        .etapa-item.atual {
+            background: #667eea;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        .teste-pronto {
+            background: #fef3c7;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 15px;
+            color: #92400e;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+
+        .tempo-decorrido {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 12px;
+            color: #6b7280;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .etapas-resumo {
+                grid-template-columns: repeat(5, 1fr);
+            }
+
+            .digitacao-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tempo-decorrido {
+                position: relative;
+                top: 0;
+                right: 0;
+                margin-bottom: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="tempo-decorrido">
+        <span>⏱️ Tempo: <span id="tempo">0:00</span></span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Protocolo ETAN - 5 Fases Completas</h1>
+            <p>Aprender fazendo: execute cada fase com explicações práticas</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progresso"></div>
+            </div>
+            <div class="etapas-resumo">
+                <div class="etapa-item atual" id="etapa-1">1️⃣</div>
+                <div class="etapa-item" id="etapa-2">2️⃣</div>
+                <div class="etapa-item" id="etapa-3">3️⃣</div>
+                <div class="etapa-item" id="etapa-4">4️⃣</div>
+                <div class="etapa-item" id="etapa-5">5️⃣</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- FASE 1: Preparação -->
+            <div class="fase-container ativo" data-fase="1">
+                <span class="fase-numero">FASE 1 de 5</span>
+                <h2 class="fase-titulo">✓ Preparação</h2>
+                <p class="fase-descricao">
+                    Você está em uma maternidade. Um recém-nascido de 3000g acabou de nascer.
+                    Antes de qualquer coisa, você precisa verificar se o bebê está estável
+                    e preparar tudo para a coleta biométrica.
+                </p>
+
+                <h3 style="color: #374151; margin: 20px 0 15px 0; font-size: 16px;">
+                    ❓ Qual é o PRIMEIRO passo que você deve fazer?
+                </h3>
+
+                <div class="quiz-opcoes">
+                    <div class="opcao">
+                        <input type="radio" id="prep-a" name="preparacao" value="errado1">
+                        <label for="prep-a">Coletar biometria imediatamente para ganhar tempo</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="prep-b" name="preparacao" value="correto">
+                        <label for="prep-b">✓ Verificar sinais vitais (respiração, freq. cardíaca, SpO2, temperatura)</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="prep-c" name="preparacao" value="errado2">
+                        <label for="prep-c">Chamar a mãe imediatamente para agilizar o processo</label>
+                    </div>
+                </div>
+
+                <div class="botoes">
+                    <button class="btn-verificar" onclick="verificarFase(1)">VERIFICAR RESPOSTA</button>
+                </div>
+
+                <div class="feedback" id="feedback-1"></div>
+            </div>
+
+            <!-- FASE 2: Limpeza -->
+            <div class="fase-container" data-fase="2">
+                <span class="fase-numero">FASE 2 de 5</span>
+                <h2 class="fase-titulo">✓ Limpeza</h2>
+                <p class="fase-descricao">
+                    Os dedos têm vernix espesso (substância branca de proteção uterina).
+                    Você precisa limpar bem para que o scanner consiga capturar uma boa imagem.
+                    Qual é a sequência CORRETA de limpeza?
+                </p>
+
+                <h3 style="color: #374151; margin: 20px 0 15px 0; font-size: 16px;">
+                    🧼 Ordene os passos corretamente:
+                </h3>
+
+                <div class="teste-pronto">
+                    <strong>💡 Dica:</strong> Coloque os passos na sequência que faz sentido para limpeza eficaz.
+                </div>
+
+                <div class="quiz-opcoes">
+                    <div class="opcao">
+                        <input type="radio" id="limp-a" name="limpeza" value="correto">
+                        <label for="limp-a">✓ Aplicar solução ETAN → Aguardar 30s → Secar com gaze →Verificar limpeza</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="limp-b" name="limpeza" value="errado1">
+                        <label for="limp-b">Secar com gaze → Aplicar solução → Aguardar → Verificar</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="limp-c" name="limpeza" value="errado2">
+                        <label for="limp-c">Verificar → Aplicar → Secar → Aguardar</label>
+                    </div>
+                </div>
+
+                <div class="botoes">
+                    <button class="btn-anterior" onclick="voltarFase()">← ANTERIOR</button>
+                    <button class="btn-verificar" onclick="verificarFase(2)">VERIFICAR</button>
+                </div>
+
+                <div class="feedback" id="feedback-2"></div>
+            </div>
+
+            <!-- FASE 3: Captura Progenitora -->
+            <div class="fase-container" data-fase="3">
+                <span class="fase-numero">FASE 3 de 5</span>
+                <h2 class="fase-titulo">✓ Captura da Progenitora</h2>
+                <p class="fase-descricao">
+                    Agora é a vez de coletar os 10 dedos da mãe/responsável.
+                    Clique nos dedos na ordem CORRETA de captura (sempre começando pela mão direita).
+                </p>
+
+                <h3 style="color: #374151; margin: 20px 0 15px 0; font-size: 16px;">
+                    👆 Clique nos dedos na ordem correta (1-10):
+                </h3>
+
+                <div class="digitacao-grid" id="grid-digitacao">
+                    <!-- Será preenchido por JavaScript -->
+                </div>
+
+                <p style="color: #6b7280; font-size: 13px; margin-top: 15px;">
+                    <strong>Ordem selecionada:</strong> <span id="ordem-selecionada">Nenhum dedo selecionado</span>
+                </p>
+
+                <div class="botoes">
+                    <button class="btn-anterior" onclick="voltarFase()">← ANTERIOR</button>
+                    <button class="btn-verificar" onclick="verificarFase(3)">VERIFICAR ORDEM</button>
+                </div>
+
+                <div class="feedback" id="feedback-3"></div>
+            </div>
+
+            <!-- FASE 4: Captura RN -->
+            <div class="fase-container" data-fase="4">
+                <span class="fase-numero">FASE 4 de 5</span>
+                <h2 class="fase-titulo">✓ Captura do RN - Simulador</h2>
+                <p class="fase-descricao">
+                    Agora é a coleta dos 10 dedos do bebê. Se tiver um scanner disponível,
+                    clique no botão abaixo para abrir o simulador de captura.
+                    Caso contrário, responda a pergunta prática.
+                </p>
+
+                <h3 style="color: #374151; margin: 20px 0 15px 0; font-size: 16px;">
+                    🖥️ Simulador de Captura ETAN
+                </h3>
+
+                <div class="video-simulador">
+                    <div style="text-align: center;">
+                        <p style="font-size: 48px; margin-bottom: 10px;">📱</p>
+                        <p><strong>Simulador ETAN</strong></p>
+                        <p style="font-size: 12px; opacity: 0.8; margin-top: 5px;">
+                            Clique abaixo para abrir o simulador de captura
+                        </p>
+                    </div>
+                </div>
+
+                <div class="botoes">
+                    <button class="btn-verificar" id="btn-abrir-simulador" onclick="abrirSimulador()">
+                        🔌 ABRIR SIMULADOR DE CAPTURA
+                    </button>
+                </div>
+
+                <h3 style="color: #374151; margin: 30px 0 15px 0; font-size: 16px;">Ou responda:</h3>
+
+                <p class="fase-descricao">
+                    Qual é a pressão CORRETA que você deve usar ao capturar os dedos do bebê?
+                </p>
+
+                <div class="quiz-opcoes">
+                    <div class="opcao">
+                        <input type="radio" id="cap-a" name="captura_rn" value="errado1">
+                        <label for="cap-a">Pressão forte (como um aperto de mão adulto)</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="cap-b" name="captura_rn" value="errado2">
+                        <label for="cap-b">Pressão média (confortável)</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="cap-c" name="captura_rn" value="correto">
+                        <label for="cap-c">✓ Pressão MÍNIMA - praticamente um carinho (deixe scanner fazer trabalho)</label>
+                    </div>
+                </div>
+
+                <div class="botoes">
+                    <button class="btn-anterior" onclick="voltarFase()">← ANTERIOR</button>
+                    <button class="btn-verificar" onclick="verificarFase(4)">VERIFICAR</button>
+                </div>
+
+                <div class="feedback" id="feedback-4"></div>
+            </div>
+
+            <!-- FASE 5: Verificação -->
+            <div class="fase-container" data-fase="5">
+                <span class="fase-numero">FASE 5 de 5</span>
+                <h2 class="fase-titulo">✓ Verificação Final</h2>
+                <p class="fase-descricao">
+                    Você completou a captura dos 10 dedos! Agora o sistema analisa a qualidade
+                    de cada imagem usando o score NFIQ. Qual é a pontuação ACEITÁVEL?
+                </p>
+
+                <h3 style="color: #374151; margin: 20px 0 15px 0; font-size: 16px;">
+                    📊 Qual é a pontuação NFIQ ACEITÁVEL?
+                </h3>
+
+                <div class="quiz-opcoes">
+                    <div class="opcao">
+                        <input type="radio" id="verif-a" name="verificacao" value="errado1">
+                        <label for="verif-a">Qualquer coisa (não importa qualidade)</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="verif-b" name="verificacao" value="correto">
+                        <label for="verif-b">✓ NFIQ > 50 aceitável | NFIQ > 70 excelente</label>
+                    </div>
+                    <div class="opcao">
+                        <input type="radio" id="verif-c" name="verificacao" value="errado2">
+                        <label for="verif-c">Apenas NFIQ > 90 (muito rigoroso)</label>
+                    </div>
+                </div>
+
+                <h3 style="color: #374151; margin: 30px 0 15px 0; font-size: 16px;">
+                    ✍️ Pergunta Reflexiva:
+                </h3>
+
+                <p class="fase-descricao">
+                    Por que você acha que <strong>Qualidade > Velocidade</strong> é importante na coleta biométrica?
+                </p>
+
+                <textarea id="reflexao" style="width: 100%; min-height: 100px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;" placeholder="Digite sua resposta aqui..."></textarea>
+
+                <div class="botoes">
+                    <button class="btn-anterior" onclick="voltarFase()">← ANTERIOR</button>
+                    <button class="btn-proximo" onclick="verificarFase(5)">FINALIZAR ATIVIDADE</button>
+                </div>
+
+                <div class="feedback" id="feedback-5"></div>
+            </div>
+
+            <!-- Resultado Final -->
+            <div class="resultado-final" id="resultado-final">
+                <h2>🎉 Parabéns!</h2>
+                <p>Você completou a atividade <strong>Protocolo ETAN - 5 Fases Completas</strong>!</p>
+
+                <div class="resultado-score" id="score-final">95/100</div>
+
+                <p id="tempo-total">Tempo: 12 minutos e 30 segundos</p>
+
+                <div class="resultado-itens">
+                    <div class="resultado-item" id="item-1">
+                        <i>✓</i> <span>Fase 1 - Preparação: Corretamente identificado sinais vitais</span>
+                    </div>
+                    <div class="resultado-item" id="item-2">
+                        <i>✓</i> <span>Fase 2 - Limpeza: Sequência correta</span>
+                    </div>
+                    <div class="resultado-item" id="item-3">
+                        <i>✓</i> <span>Fase 3 - Captura Progenitora: Ordem perfeita</span>
+                    </div>
+                    <div class="resultado-item" id="item-4">
+                        <i>✓</i> <span>Fase 4 - Captura RN: Pressão adequada</span>
+                    </div>
+                    <div class="resultado-item" id="item-5">
+                        <i>✓</i> <span>Fase 5 - Verificação: Conhecimento de NFIQ</span>
+                    </div>
+                </div>
+
+                <button class="btn-proximo" onclick="proximaAula()">
+                    ➡️ PROXIMAAULA - CASOS ESPECIAIS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GERENCIAMENTO DE ESTADO
+        // ============================================
+        let faseAtual = 1;
+        let respostasUser = {};
+        let tempoInicio = Date.now();
+        let tempoTotal = 0;
+        const digitosOrdem = ['👍 Polegar D', '👆 Índice D', '🖐️ Médio D', '🤙 Anelar D', '🤞 Mínimo D',
+                              '👍 Polegar E', '👆 Índice E', '🖐️ Médio E', '🤙 Anelar E', '🤞 Mínimo E'];
+        let digitosSelecionados = [];
+
+        // ============================================
+        // FUNÇÕES PRINCIPAIS
+        // ============================================
+
+        function mostrarFase(numero) {
+            // Esconder todas as fases
+            document.querySelectorAll('.fase-container').forEach(el => {
+                el.classList.remove('ativo');
+            });
+
+            // Mostrar fase solicitada
+            document.querySelector(`[data-fase="${numero}"]`).classList.add('ativo');
+
+            // Atualizar progresso
+            const progresso = (numero / 5) * 100;
+            document.getElementById('progresso').style.width = progresso + '%';
+
+            // Atualizar visual das etapas
+            for (let i = 1; i <= 5; i++) {
+                const etapaEl = document.getElementById(`etapa-${i}`);
+                etapaEl.classList.remove('atual', 'completada');
+
+                if (i < numero) {
+                    etapaEl.classList.add('completada');
+                } else if (i === numero) {
+                    etapaEl.classList.add('atual');
+                }
+            }
+
+            faseAtual = numero;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Preparar fase específica
+            if (numero === 3) {
+                prepararFase3();
+            }
+        }
+
+        function proxFase() {
+            if (faseAtual < 5) {
+                mostrarFase(faseAtual + 1);
+            }
+        }
+
+        function voltarFase() {
+            if (faseAtual > 1) {
+                mostrarFase(faseAtual - 1);
+            }
+        }
+
+        function verificarFase(numero) {
+            const feedbackEl = document.getElementById(`feedback-${numero}`);
+
+            switch(numero) {
+                case 1:
+                    verificarFase1(feedbackEl);
+                    break;
+                case 2:
+                    verificarFase2(feedbackEl);
+                    break;
+                case 3:
+                    verificarFase3(feedbackEl);
+                    break;
+                case 4:
+                    verificarFase4(feedbackEl);
+                    break;
+                case 5:
+                    verificarFase5(feedbackEl);
+                    break;
+            }
+        }
+
+        // ============================================
+        // VERIFICAÇÕES POR FASE
+        // ============================================
+
+        function verificarFase1(feedbackEl) {
+            const resposta = document.querySelector('input[name="preparacao"]:checked')?.value;
+
+            if (!resposta) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Selecione uma resposta!');
+                return;
+            }
+
+            if (resposta === 'correto') {
+                respostasUser[1] = true;
+                mostrarFeedback(feedbackEl, true, '✅ Excelente! Sinais vitais são CRÍTICOS! Um bebê instável não deveria fazer coleta.');
+                setTimeout(() => {
+                    proxFase();
+                }, 1500);
+            } else {
+                respostasUser[1] = false;
+                mostrarFeedback(feedbackEl, false, '❌ Incorreto! Sempre verificar sinais vitais PRIMEIRO. Se o bebê estiver instável, consultar médico antes de qualquer coisa.');
+            }
+        }
+
+        function verificarFase2(feedbackEl) {
+            const resposta = document.querySelector('input[name="limpeza"]:checked')?.value;
+
+            if (!resposta) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Selecione uma resposta!');
+                return;
+            }
+
+            if (resposta === 'correto') {
+                respostasUser[2] = true;
+                mostrarFeedback(feedbackEl, true, '✅ Perfeito! Essa é a sequência correta. Limpeza bem feita = 80% do sucesso!');
+                setTimeout(() => {
+                    proxFase();
+                }, 1500);
+            } else {
+                respostasUser[2] = false;
+                mostrarFeedback(feedbackEl, false, '❌ Ordem incorreta! Lembre-se: APLICAR solução → AGUARDAR → SECAR → VERIFICAR. Paciência é essencial.');
+            }
+        }
+
+        function prepararFase3() {
+            const gridEl = document.getElementById('grid-digitacao');
+            if (gridEl.children.length === 0) {
+                gridEl.innerHTML = digitosOrdem.map((digito, idx) => `
+                    <div class="digito-card" onclick="selecionarDigito(${idx}, this)">
+                        ${digito}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function selecionarDigito(idx, el) {
+            if (digitosSelecionados.includes(idx)) {
+                digitosSelecionados = digitosSelecionados.filter(i => i !== idx);
+                el.classList.remove('selecionado');
+            } else {
+                digitosSelecionados.push(idx);
+                el.classList.add('selecionado');
+            }
+
+            atualizarOrdenSelecionada();
+        }
+
+        function atualizarOrdenSelecionada() {
+            const ordem = digitosSelecionados.map((idx, pos) => `${pos + 1}. ${digitosOrdem[idx]}`).join(' | ');
+            document.getElementById('ordem-selecionada').textContent = ordem || 'Nenhum dedo selecionado';
+        }
+
+        function verificarFase3(feedbackEl) {
+            const ordemCorreta = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; // Índices corretos
+
+            if (digitosSelecionados.length === 0) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Selecione os 10 dedos na ordem correta!');
+                return;
+            }
+
+            if (digitosSelecionados.length !== 10) {
+                mostrarFeedback(feedbackEl, false, `⚠️ Você selecionou apenas ${digitosSelecionados.length} dedos. Precisa de todos os 10!`);
+                return;
+            }
+
+            if (JSON.stringify(digitosSelecionados) === JSON.stringify(ordemCorreta)) {
+                respostasUser[3] = true;
+                mostrarFeedback(feedbackEl, true, '✅ Perfeito! Você capturou na ordem correta: mão direita primeiro, depois esquerda!');
+                setTimeout(() => {
+                    proxFase();
+                }, 1500);
+            } else {
+                respostasUser[3] = false;
+                mostrarFeedback(feedbackEl, false, '❌ Ordem incorreta! Sempre comece pela mão DIREITA, depois ESQUERDA. Tente novamente!');
+            }
+        }
+
+        function abrirSimulador() {
+            window.open('https://infant.akiyama.com.br/#/infant-capture?mode=tutorial', '_blank', 'width=1200,height=800');
+            setTimeout(() => {
+                mostrarFeedback(document.getElementById('feedback-4'), true, '✓ Simulador aberto! Quando terminar, continue respondendo a pergunta abaixo.');
+            }, 500);
+        }
+
+        function verificarFase4(feedbackEl) {
+            const resposta = document.querySelector('input[name="captura_rn"]:checked')?.value;
+
+            if (!resposta) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Selecione uma resposta!');
+                return;
+            }
+
+            if (resposta === 'correto') {
+                respostasUser[4] = true;
+                mostrarFeedback(feedbackEl, true, '✅ Correto! Pressão MÍNIMA é crítica em RN. Dedos delicados, deixar scanner fazer o trabalho. Paciência!');
+                setTimeout(() => {
+                    proxFase();
+                }, 1500);
+            } else {
+                respostasUser[4] = false;
+                mostrarFeedback(feedbackEl, false, '❌ Incorreto! Recém-nascidos têm pele muito frágil. Use pressão MÍNIMA. Se usar força, você machuca mesmo sem perceber!');
+            }
+        }
+
+        function verificarFase5(feedbackEl) {
+            const resposta = document.querySelector('input[name="verificacao"]:checked')?.value;
+            const reflexao = document.getElementById('reflexao').value.trim();
+
+            if (!resposta) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Selecione uma resposta!');
+                return;
+            }
+
+            if (!reflexao) {
+                mostrarFeedback(feedbackEl, false, '⚠️ Responda a pergunta reflexiva também!');
+                return;
+            }
+
+            if (resposta === 'correto') {
+                respostasUser[5] = { score: true, reflexao: reflexao };
+                mostrarFeedback(feedbackEl, true, '✅ Excelente reflexão! Você entendeu a filosofia correta.');
+                setTimeout(() => {
+                    finalizarAtividade();
+                }, 1500);
+            } else {
+                respostasUser[5] = { score: false, reflexao: reflexao };
+                mostrarFeedback(feedbackEl, false, '❌ Ainda não! NFIQ > 50 é aceitável,mas > 70 é ideal (excelente qualidade).');
+            }
+        }
+
+        // ============================================
+        // UTILIDADES
+        // ============================================
+
+        function mostrarFeedback(elemento, sucesso, mensagem) {
+            elemento.textContent = mensagem;
+            elemento.classList.remove('erro', 'sucesso');
+            elemento.classList.add(sucesso ? 'sucesso' : 'erro');
+        }
+
+        function finalizarAtividade() {
+            // Calcular score
+            let score = 0;
+            let itensCorretos = 0;
+
+            if (respostasUser[1]) {
+                score += 20;
+                itensCorretos++;
+            }
+            if (respostasUser[2]) {
+                score += 20;
+                itensCorretos++;
+            }
+            if (respostasUser[3]) {
+                score += 20;
+                itensCorretos++;
+            }
+            if (respostasUser[4]) {
+                score += 20;
+                itensCorretos++;
+            }
+            if (respostasUser[5]?.score) {
+                score += 20;
+                itensCorretos++;
+            }
+
+            // Calcular tempo
+            tempoTotal = Math.round((Date.now() - tempoInicio) / 1000);
+            const minutos = Math.floor(tempoTotal / 60);
+            const segundos = tempoTotal % 60;
+
+            // Mostrar resultado
+            document.getElementById('score-final').textContent = `${score}/100`;
+            document.getElementById('tempo-total').textContent = `Tempo: ${minutos} minuto${minutos !== 1 ? 's' : ''} e ${segundos} segundo${segundos !== 1 ? 's' : ''}`;
+
+            // Atualizar items
+            for (let i = 1; i <= 5; i++) {
+                const checkbox = respostasUser[i] ? '✓' : '✗';
+                const itemEl = document.getElementById(`item-${i}`);
+                if (itemEl) {
+                    itemEl.style.opacity = respostasUser[i] ? '1' : '0.5';
+                }
+            }
+
+            // Esconder fases, mostrar resultado
+            document.querySelectorAll('.fase-container').forEach(el => {
+                el.classList.remove('ativo');
+            });
+
+            document.getElementById('resultado-final').classList.add('mostrar');
+
+            // Log dos dados
+            console.log('Atividade Concluída:', {
+                score: score,
+                tempo: tempoTotal,
+                respostas: respostasUser,
+                itens_corretos: itensCorretos
+            });
+
+            // Enviar para backend
+            enviarParaBackend({
+                activity_id: 2, // Aula 2
+                score: score,
+                tempo_total: tempoTotal,
+                respostas: respostasUser
+            });
+        }
+
+        function proximaAula() {
+            // Aqui você redirecionaria para a próxima aula
+            alert('Próxima aula: Casos Especiais - Bebês Desafiadores');
+            // window.location.href = '/dashboard/curso/4/aula/3';
+        }
+
+        function enviarParaBackend(dados) {
+            // Aqui você faria uma chamada POST para o backend
+            // salvar progresso do usuário
+            fetch('/api/activities/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dados)
+            }).then(r => r.json()).then(data => {
+                console.log('Atividade salva:', data);
+            }).catch(err => {
+                console.error('Erro ao salvar:', err);
+            });
+        }
+
+        // ============================================
+        // TIMER
+        // ============================================
+
+        function atualizarTempo() {
+            const decorrido = Math.round((Date.now() - tempoInicio) / 1000);
+            const minutos = Math.floor(decorrido / 60);
+            const segundos = decorrido % 60;
+            document.getElementById('tempo').textContent = `${minutos}:${segundos.toString().padStart(2, '0')}`;
+        }
+
+        setInterval(atualizarTempo, 1000);
+
+        // ============================================
+        // INICIALIZAÇÃO
+        // ============================================
+
+        mostrarFase(1);
+    </script>
+</body>
+</html>

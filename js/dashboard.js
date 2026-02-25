@@ -8,6 +8,20 @@ const Dashboard = {
     courses: [],
     userProgress: {},
     
+    // Cache com timestamp
+    cache: {
+        courses: { data: null, timestamp: 0, ttl: 5 * 60 * 1000 }, // 5 minutos
+        progress: { data: null, timestamp: 0, ttl: 2 * 60 * 1000 },  // 2 minutos
+        certificates: { data: null, timestamp: 0, ttl: 1 * 60 * 1000 }  // 1 minuto (mais frequente)
+    },
+    
+    // Verificar se cache está válido
+    isCacheValid(cacheKey) {
+        const cache = this.cache[cacheKey];
+        if (!cache || !cache.data) return false;
+        return (Date.now() - cache.timestamp) < cache.ttl;
+    },
+    
     async init() {
         console.log('[DASHBOARD] Inicializando...');
         
@@ -18,11 +32,15 @@ const Dashboard = {
         // Carregar dados do usuário
         this.loadUserInfo(token);
         
-        // Carregar cursos
+        // Carregar cursos (com cache)
         await this.loadCourses();
         
-        // Carregar progresso
+        // Carregar progresso (com cache) - DEPOIS dos cursos
         await this.loadUserProgress();
+        
+        // RE-RENDERIZAR CURSOS AGORA COM PROGRESSO CARREGADO
+        this.renderCourses();
+        this.updateStats();
         
         // Carregar certificados
         await this.loadCertificates();
@@ -70,16 +88,27 @@ const Dashboard = {
     
     async loadCourses() {
         try {
+            // Verificar cache
+            if (this.isCacheValid('courses')) {
+                console.log('[DASHBOARD] Usando cache de cursos');
+                this.courses = this.cache.courses.data;
+                // NÃO renderizar aqui - será renderizado no init() após progresso ser carregado
+                return;
+            }
+            
             console.log('[DASHBOARD] Carregando cursos...');
             
             const response = await fetch('/api/courses');
             const data = await response.json();
             
             this.courses = data.cursos || [];
-            console.log('[DASHBOARD] Cursos carregados:', this.courses.length);
             
-            this.renderCourses();
-            this.updateStats();
+            // Guardar em cache
+            this.cache.courses.data = this.courses;
+            this.cache.courses.timestamp = Date.now();
+            
+            console.log('[DASHBOARD] Cursos carregados:', this.courses.length);
+            // NÃO renderizar aqui - será renderizado no init() após progresso ser carregado
         } catch (error) {
             console.error('[DASHBOARD] Erro ao carregar cursos:', error);
             document.getElementById('coursesContainer').innerHTML = 
@@ -89,6 +118,14 @@ const Dashboard = {
     
     async loadUserProgress() {
         try {
+            // Verificar cache
+            if (this.isCacheValid('progress')) {
+                console.log('[DASHBOARD] Usando cache de progresso');
+                this.userProgress = this.cache.progress.data;
+                this.renderProgress();
+                return;
+            }
+            
             console.log('[DASHBOARD] Carregando progresso do usuário...');
             
             const response = await fetch(`/api/users/progress`, {
@@ -100,6 +137,11 @@ const Dashboard = {
             if (response.ok) {
                 const data = await response.json();
                 this.userProgress = data.progresso || [];
+                
+                // Guardar em cache
+                this.cache.progress.data = this.userProgress;
+                this.cache.progress.timestamp = Date.now();
+                
                 console.log('[DASHBOARD] Progresso carregado:', this.userProgress.length);
                 this.renderProgress();
             } else {
@@ -120,11 +162,16 @@ const Dashboard = {
             return;
         }
         
-        container.innerHTML = this.courses.map(course => `
-            <div class="course-card">
+        container.innerHTML = this.courses.map(course => {
+            const progress = this.getProgressForCourse(course.id);
+            const isCompleted = this.isCourseCompleted(course.id);
+            
+            return `
+            <div class="course-card" style="${isCompleted ? 'border-top: 4px solid #388e3c; background: linear-gradient(135deg, rgba(56, 142, 60, 0.05) 0%, transparent 100%);' : ''}">
                 <div class="course-header">
                     <div class="course-icon">${this.getIconForLevel(course.nivel)}</div>
                     <span class="course-level">${course.nivel || 'Básico'}</span>
+                    ${isCompleted ? '<span style="background: #388e3c; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: auto;">✓ Concluído</span>' : ''}
                 </div>
                 
                 <h3 class="course-title">${course.titulo}</h3>
@@ -133,33 +180,78 @@ const Dashboard = {
                 <div class="course-footer">
                     <div class="course-progress">
                         <div class="progress-label">
-                            ${this.getProgressForCourse(course.id)}% completo
+                            ${progress}% completo
                         </div>
                         <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${this.getProgressForCourse(course.id)}%"></div>
+                            <div class="progress-fill" style="width: ${progress}%; background: ${progress === 100 ? 'linear-gradient(90deg, #388e3c 0%, #2e7d32 100%)' : 'linear-gradient(90deg, var(--primary-blue), #00a8e8)'}"></div>
                         </div>
                     </div>
                     <div class="course-action">
-                        <button class="btn" onclick="Dashboard.startCourse(${course.id}, '${course.titulo}')">
-                            ${this.getProgressForCourse(course.id) > 0 ? 'Continuar' : 'Começar'}
+                        <button class="btn" onclick="Dashboard.startCourse(${course.id}, '${course.titulo}')" style="${isCompleted ? 'background: #388e3c;' : ''}">
+                            ${progress === 0 ? 'Começar' : progress === 100 ? 'Revisar' : 'Continuar'}
                         </button>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     },
     
     getIconForLevel(level) {
         const icons = {
-            'basico': '🌱',
-            'intermediario': '📚',
-            'avancado': '🚀'
+            'basico': '⭐',
+            'intermediario': '⭐⭐',
+            'avancado': '⭐⭐⭐'
         };
-        return icons[level?.toLowerCase()] || '📖';
+        return icons[level?.toLowerCase()] || '⭐';
     },
     
     getProgressForCourse(courseId) {
-        return Math.round((Math.random() * 100)); // TODO: Conectar com API real
+        // Buscar progresso real do usuário para este curso
+        if (this.userProgress && Array.isArray(this.userProgress)) {
+            const progress = this.userProgress.find(p => p.curso_id === courseId);
+            if (progress) {
+                return Math.round(progress.percentual || 0);
+            }
+        }
+        // Se não temos dados de progresso específicos, tentar via API
+        if (this.user && this.user.sub) {
+            fetch(`/api/courses/${courseId}/progress/${this.user.sub}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.progresso) {
+                    // Atualizar em cache local
+                    const index = this.userProgress.findIndex(p => p.curso_id === courseId);
+                    if (index >= 0) {
+                        this.userProgress[index].percentual = data.progresso.percentual;
+                        this.userProgress[index].concluido = data.progresso.concluido;
+                    } else {
+                        this.userProgress.push({
+                            curso_id: courseId,
+                            percentual: data.progresso.percentual,
+                            concluido: data.progresso.concluido
+                        });
+                    }
+                    // Re-renderizar cursos
+                    this.renderCourses();
+                }
+            })
+            .catch(err => console.log('[PROGRESS] Erro ao carregar progresso:', err));
+        }
+        return 0;
+    },
+    
+    isCourseCompleted(courseId) {
+        if (this.userProgress && Array.isArray(this.userProgress)) {
+            const progress = this.userProgress.find(p => p.curso_id === courseId);
+            if (progress && progress.concluido) {
+                return true;
+            }
+        }
+        return false;
     },
     
     renderProgress() {
@@ -180,13 +272,13 @@ const Dashboard = {
         container.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
                 ${this.userProgress.map(p => `
-                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                    <div style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); border-left: 5px solid ${p.percentual === 100 ? '#388e3c' : 'var(--primary-blue)'};">
                         <h3 style="margin: 0 0 12px 0; color: #1a1a1a;">Curso ${p.curso_id || '?'}</h3>
                         <div style="margin-bottom: 12px;">
                             <div style="height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
-                                <div style="height: 100%; background: linear-gradient(90deg, var(--primary-blue), var(--success-green)); width: ${p.percentual_completo || 0}%;"></div>
+                                <div style="height: 100%; background: ${p.percentual === 100 ? 'linear-gradient(90deg, #388e3c, #2e7d32)' : 'linear-gradient(90deg, var(--primary-blue), var(--success-green))'}; width: ${p.percentual || 0}%;"></div>
                             </div>
-                            <p style="margin: 8px 0 0 0; font-weight: 600; color: var(--primary-blue);">${p.percentual_completo || 0}% Completo</p>
+                            <p style="margin: 8px 0 0 0; font-weight: 600; color: ${p.percentual === 100 ? '#388e3c' : 'var(--primary-blue)'};>${p.percentual || 0}%  ${p.percentual === 100 ? '✓ Concluído' : 'Completo'}</p>
                         </div>
                     </div>
                 `).join('')}
@@ -208,18 +300,42 @@ const Dashboard = {
     
     async loadCertificates() {
         try {
+            // Verificar cache
+            if (this.isCacheValid('certificates')) {
+                console.log('[DASHBOARD] Usando cache de certificados');
+                this.renderCertificates(this.cache.certificates.data || []);
+                return;
+            }
+            
             console.log('[DASHBOARD] Carregando certificados...');
             
-            const response = await fetch(`/api/users/certificates`, {
+            // Tentar novo endpoint primeiro, depois fallback
+            let response = await fetch(`/api/courses/certificates`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                 }
             });
             
+            // Se não existir, tentar endpoint antigo
+            if (response.status === 404) {
+                response = await fetch(`/api/users/certificates`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    }
+                });
+            }
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('[DASHBOARD] Certificados carregados:', data.certificados?.length || 0);
+                
+                // Guardar em cache
+                this.cache.certificates.data = data.certificados || [];
+                this.cache.certificates.timestamp = Date.now();
+                
                 this.renderCertificates(data.certificados || []);
             } else {
+                console.warn('[DASHBOARD] Status:', response.status);
                 this.renderCertificatesEmpty();
             }
         } catch (error) {
@@ -242,15 +358,30 @@ const Dashboard = {
         }
         
         container.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px;">
                 ${certificates.map(c => `
-                    <div style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); border-top: 4px solid var(--primary-blue);">
-                        <div style="text-align: center; margin-bottom: 16px; font-size: 2.5rem;">🏆</div>
-                        <h3 style="margin: 0 0 8px 0; color: #1a1a1a; text-align: center;">Certificado</h3>
-                        <p style="margin: 0 0 12px 0; color: #666; text-align: center;">${c.titulo || 'Conclusão de Curso'}</p>
-                        <p style="margin: 0; color: #999; font-size: 0.85rem; text-align: center;">
-                            ${c.data_emissao ? new Date(c.data_emissao).toLocaleDateString('pt-BR') : 'Data'}
+                    <div style="background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%); padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-left: 5px solid #388e3c; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 10px; right: 10px; font-size: 3rem; opacity: 0.1;">🏆</div>
+                        
+                        <div style="text-align: center; margin-bottom: 16px; font-size: 2.5rem;">🎓</div>
+                        
+                        <h3 style="margin: 0 0 8px 0; color: #1a1a1a; text-align: center; font-size: 1.1rem;">
+                            ${c.curso?.titulo || 'Conclusão de Curso'}
+                        </h3>
+                        
+                        <p style="margin: 8px 0; color: #666; text-align: center; font-size: 0.9rem;">
+                            Certificado # ${c.numero_certificado}
                         </p>
+                        
+                        <p style="margin: 8px 0 16px 0; color: #999; font-size: 0.85rem; text-align: center;">
+                            Emitido em ${c.data_emissao ? new Date(c.data_emissao).toLocaleDateString('pt-BR') : 'N/A'}
+                        </p>
+                        
+                        <div style="border-top: 1px solid #e0e0e0; padding-top: 12px; margin-top: 12px;">
+                            <button onclick="Dashboard.downloadCertificate('${c.numero_certificado}')" style="width: 100%; padding: 8px 12px; background: #388e3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.9rem; transition: background 0.3s;">
+                                📥 Baixar Certificado
+                            </button>
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -267,28 +398,86 @@ const Dashboard = {
         `;
     },
     
-    updateStats() {
-        document.getElementById('totalCourses').textContent = this.courses.length;
-        document.getElementById('enrolledCourses').textContent = Math.ceil(this.courses.length * 0.7);
-        document.getElementById('completedCourses').textContent = Math.floor(this.courses.length * 0.3);
+    
+    downloadCertificate(certNumber) {
+        console.log('[DASHBOARD] Baixando certificado:', certNumber);
         
-        const overallProgress = Math.round(
-            this.courses.reduce((sum, c) => sum + this.getProgressForCourse(c.id), 0) / this.courses.length
-        );
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            alert('Você não está autenticado');
+            return;
+        }
+        
+        // Fazer download via fetch
+        fetch(`/api/courses/certificates/${certNumber}/download`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(res => {
+            if (!res.ok) throw new Error(`Erro ${res.status}`);
+            return res.blob();
+        })
+        .then(blob => {
+            // Criar URL para download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Certificado_${certNumber}.html`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            console.log('[DASHBOARD] ✓ Certificado baixado:', certNumber);
+        })
+        .catch(err => {
+            console.error('[DASHBOARD] Erro ao baixar certificado:', err);
+            alert('Erro ao baixar certificado: ' + err.message);
+        });
+    },
+    
+    updateStats() {
+        const totalCourses = this.courses.length;
+        const completedCourses = this.courses.filter(c => this.isCourseCompleted(c.id)).length;
+        const enrolledCourses = this.courses.filter(c => {
+            const progress = this.getProgressForCourse(c.id);
+            return progress > 0; // Iniciado mas não concluído
+        }).length;
+        
+        document.getElementById('totalCourses').textContent = totalCourses;
+        document.getElementById('enrolledCourses').textContent = enrolledCourses;
+        document.getElementById('completedCourses').textContent = completedCourses;
+        
+        const overallProgress = totalCourses > 0
+            ? Math.round(this.courses.reduce((sum, c) => sum + this.getProgressForCourse(c.id), 0) / totalCourses)
+            : 0;
         document.getElementById('overallProgress').textContent = overallProgress + '%';
     },
     
     startCourse(courseId, courseTitle) {
         console.log('[DASHBOARD] Iniciando curso:', courseId, courseTitle);
         
+        // Verificar se curso já foi concluído
+        const isCompleted = this.isCourseCompleted(courseId);
+        
         // Salvar curso atual
-        sessionStorage.setItem('currentCourse', JSON.stringify({
+        const courseData = {
             id: courseId,
-            title: courseTitle
-        }));
+            title: courseTitle,
+            isReview: isCompleted  // Adicionar flag para saber se é revisão
+        };
+        
+        sessionStorage.setItem('currentCourse', JSON.stringify(courseData));
+        
+        // Se curso foi concluído, mostrar mensagem
+        if (isCompleted) {
+            console.log('[DASHBOARD] Reabrindo curso concluído:', courseTitle);
+            // Adicionar flag de revisão ao sessionStorage
+            sessionStorage.setItem('courseReview', 'true');
+        }
         
         // Redirecionar para página do curso
-        window.location.href = `/pages/course.html?id=${courseId}`;
+        window.location.href = `/pages/course.html?id=${courseId}&review=${isCompleted ? 'true' : 'false'}`;
     },
     
     setupEventListeners() {

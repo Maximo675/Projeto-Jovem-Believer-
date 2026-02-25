@@ -12,9 +12,16 @@ const ThemeManager = {
 
     // Logos mapeadas por tema
     LOGOS: {
-        light: '../assets/logo/Jade_versão_preto.png',
-        dark: '../assets/logo/Jade_versão_branco.jpg',
-        alternative: '../assets/logo/Jade_versão_azul.jpg'
+        light: '/assets/logo/Winged mind_versãoAzul.jpg',
+        dark: '/assets/logo/Winged mind_versãoBranco.jpg',
+        alternative: '/assets/logo/Winged mind_versãoAzul.jpg'
+    },
+
+    // Favicons mapeados por tema
+    FAVICONS: {
+        light: '/public/icon-blue.ico',
+        dark: '/public/icon-white.ico',
+        alternative: '/public/icon-blue.ico'
     },
 
     // Tema atual
@@ -57,6 +64,27 @@ const ThemeManager = {
     },
 
     /**
+     * Atualiza o favicon baseado no tema
+     */
+    updateFavicon() {
+        try {
+            const faviconPath = this.FAVICONS[this.currentTheme];
+            let faviconLink = document.querySelector('link[rel="icon"]');
+            
+            if (!faviconLink) {
+                faviconLink = document.createElement('link');
+                faviconLink.rel = 'icon';
+                faviconLink.type = 'image/x-icon';
+                document.head.appendChild(faviconLink);
+            }
+            
+            faviconLink.href = faviconPath;
+        } catch (e) {
+            console.warn('Erro ao atualizar favicon:', e);
+        }
+    },
+
+    /**
      * Aplica o tema selecionado
      */
     applyTheme(theme) {
@@ -76,6 +104,9 @@ const ThemeManager = {
             
             // Atualizar todas as logos na página
             this.updateAllLogos();
+            
+            // Atualizar favicon
+            this.updateFavicon();
             
             // Disparar evento customizado
             try {
@@ -98,7 +129,8 @@ const ThemeManager = {
             
             logoImages.forEach(img => {
                 try {
-                    if (img.src && img.src.includes('assets/logo/')) {
+                    // Atualizar se tem atributo data-logo ou já contém assets/logo no src
+                    if (img.hasAttribute('data-logo') || (img.src && img.src.includes('assets/logo/'))) {
                         img.src = logoPath;
                     }
                 } catch (e) {

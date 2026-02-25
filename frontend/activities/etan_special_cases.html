@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividade: Casos Especiais - ETAN</title>
+    <!-- WebSocket -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/js/etan-websocket-client.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .progress-container {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 0 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .timer {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .caso-container {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+
+        .caso-titulo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .caso-descricao {
+            color: #5a6c7d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .opcoes-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .opcao-label {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .opcao-label:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .opcao-label input[type="radio"] {
+            margin-right: 12px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .opcao-label input[type="radio"]:checked + span {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .opcao-text {
+            flex: 1;
+            color: #2c3e50;
+        }
+
+        .opcao-text small {
+            display: block;
+            color: #8b94a5;
+            margin-top: 3px;
+            font-size: 12px;
+        }
+
+        .botoes {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-verificar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-verificar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-verificar:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-proximo {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-proximo:hover {
+            background: #f0f4ff;
+        }
+
+        .feedback {
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback.correto {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+
+        .feedback.incorreto {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+
+        .resultado-final {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .resultado-final h2 {
+            font-size: 32px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .score-badge {
+            font-size: 80px;
+            line-height: 1;
+            margin: 20px 0;
+        }
+
+        .resultado-descricao {
+            font-size: 18px;
+            color: #5a6c7d;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+
+        .resultado-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #8b94a5;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .btn-reiniciar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 40px;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .caso-numero {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            line-height: 32px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .dificuldade {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .dificuldade.facil {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .dificuldade.media {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .dificuldade.dificil {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .progress-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .progress-bar {
+                margin: 0;
+                width: 100%;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .caso-container {
+                padding: 20px;
+            }
+
+            .botoes {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏥 Casos Especiais ETAN</h1>
+            <p>Analise e tome decisões corretas em situações especiais</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-container">
+            <span id="caso-info">Caso 0/5</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="completion"></div>
+            </div>
+            <div class="timer" id="timer">0:00</div>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <!-- Casos -->
+            <div id="casos-content"></div>
+
+            <!-- Resultado Final -->
+            <div id="resultado" class="hidden resultado-final">
+                <h2>🎉 Desafio Completado!</h2>
+                <div class="score-badge" id="finalScore"></div>
+                <div class="resultado-descricao" id="scoreDescription"></div>
+                
+                <div class="resultado-stats">
+                    <div class="stat">
+                        <div class="stat-label">Acertos</div>
+                        <div class="stat-value" id="acertos">0/5</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Tempo</div>
+                        <div class="stat-value" id="tempoTotal">0:00</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Tentativas</div>
+                        <div class="stat-value" id="tentativasTotal">1</div>
+                    </div>
+                </div>
+
+                <button class="btn-reiniciar" onclick="reiniciarAtividade()">↻ Tentar Novamente</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================
+        // DADOS DOS CASOS ESPECIAIS
+        // ===========================================
+
+        const casos = [
+            {
+                numero: 1,
+                titulo: 'Bebê com Dermatite Severa',
+                dificuldade: 'média',
+                descricao: 'Uma criança de 8 meses apresenta dermatite severa nos dedos e palmas. Como você procederá com a captura biométrica?',
+                opcoes: [
+                    {
+                        texto: 'Usar solução salina estéril para limpeza, e se possível registrar dados do padrão de pele ainda visível',
+                        subTexto: 'Abordagem adaptada mantendo protocolos de higiene',
+                        correto: true
+                    },
+                    {
+                        texto: 'Adiar a captura até a pele se recuperar (protocolo rígido)',
+                        subTexto: 'Não é ideal quando possível fazer com adaptações',
+                        correto: false
+                    },
+                    {
+                        texto: 'Usar álcool para desinfetar antes da captura',
+                        subTexto: 'Pode irritar ainda mais a pele comprometida',
+                        correto: false
+                    },
+                    {
+                        texto: 'Forçar a captura mesmo com a inflamação',
+                        subTexto: 'Nunca - coloca o bebê em risco',
+                        correto: false
+                    }
+                ],
+                explicacao: 'Em casos de dermatite severa, adapte o protocolo mantendo a segurança e higiene. A solução salina estéril é não-irritante e permite limpeza suave. Sempre considere o bem-estar do bebê.'
+            },
+            {
+                numero: 2,
+                titulo: 'Movimento Involuntário (Espasticidade)',
+                dificuldade: 'dificil',
+                descricao: 'Criança de 6 meses com espasticidade nos membros superiores. Como adaptar o protocolo?',
+                opcoes: [
+                    {
+                        texto: 'Realizar captura com movimento - tenta múltiplas vezes e valida melhor imagem',
+                        subTexto: 'Com paciência, a maioria das imagens será válida',
+                        correto: true
+                    },
+                    {
+                        texto: 'Usar contenção manual suave apoiada contra a superfície de captura',
+                        subTexto: 'Suporte não-prejudicial para estabilizar',
+                        correto: true
+                    },
+                    {
+                        texto: 'Imobilizar com fita ou contenção forte',
+                        subTexto: 'Nunca - pode causar dor e desconforto',
+                        correto: false
+                    },
+                    {
+                        texto: 'Aguardar sono profundo mesmo que demore horas',
+                        subTexto: 'Impraticável - use abordagens ativas',
+                        correto: false
+                    }
+                ],
+                explicacao: 'A espasticidade é comum em bebês prematuros. Com NFIQ robusto, múltiplas capturas com movimento resultam em dados válidos. Paciência e múltiplas tentativas são mais eficazes que contenção.'
+            },
+            {
+                numero: 3,
+                titulo: 'Bebê Recusando Cooperação',
+                dificuldade: 'media',
+                descricao: 'Criança de 4 meses chora sempre que os dedos tocam o scanner. Qual é a melhor estratégia?',
+                opcoes: [
+                    {
+                        texto: 'Fazer pausa, acalmar a criança, tentar novamente quando mais tranquila',
+                        subTexto: 'Compassivo e mais eficaz - qualidade melhor com bebê calmo',
+                        correto: true
+                    },
+                    {
+                        texto: 'Insistir rapidamente para terminar mesmo com choro',
+                        subTexto: 'Cria traumatismo e resistência futura',
+                        correto: false
+                    },
+                    {
+                        texto: 'Usar distração com brinquedos e sons enquanto captura',
+                        subTexto: 'Estratégia complementar válida, mas pausa é primária',
+                        correto: true
+                    },
+                    {
+                        texto: 'Aumentar pressão do scanner para acelerar',
+                        subTexto: 'Prejudicial - causa desconforto desnecessário',
+                        correto: false
+                    }
+                ],
+                explicacao: 'Paciência maternal é essencial. Um bebê calmo oferece qualidade muito melhor, menos tentativas necessárias. Distração ajuda, mas a pausa fundamental é respeitar o estado emocional da criança.'
+            },
+            {
+                numero: 4,
+                titulo: 'Contaminação de Amostra',
+                dificuldade: 'facil',
+                descricao: 'Durante captura, há contato acidental com líquidos (leite, saliva). O que fazer?',
+                opcoes: [
+                    {
+                        texto: 'Limpeza imediata com papel estéril seco, depois solução salina, nova captura',
+                        subTexto: 'Protocolo correto de higiene',
+                        correto: true
+                    },
+                    {
+                        texto: 'Ignorar e capturar mesmo com contaminação',
+                        subTexto: 'Degrada qualidade da imagem e validação NFIQ',
+                        correto: false
+                    },
+                    {
+                        texto: 'Usar álcool imediatamente',
+                        subTexto: 'Irritante - salina estéril é preferível em bebês',
+                        correto: false
+                    },
+                    {
+                        texto: 'Esperar evaporação natural',
+                        subTexto: 'Desnecessário - pode deixar resíduos',
+                        correto: false
+                    }
+                ],
+                explicacao: 'Contaminação é comum em bebês. Sequência: papel estéril seco → solução salina estéril → nova captura. Mantém higiene e qualidade de imagem sem agressão à pele.'
+            },
+            {
+                numero: 5,
+                titulo: 'Falha Recorrente de Qualidade NFIQ',
+                dificuldade: 'dificil',
+                descricao: 'Múltiplas tentativas mas NFIQ sempre <50. Como diagnosticar?',
+                opcoes: [
+                    {
+                        texto: 'Verificar posicionamento do dedo, pressão adequada, limpeza - capturar com ROI visível no preview',
+                        subTexto: 'Diagnóstico sistemático - ROI é indicador chave',
+                        correto: true
+                    },
+                    {
+                        texto: 'Tentar 20+ vezes com mesma técnica esperando melhora',
+                        subTexto: 'Ineficiente - o problema é técnica, não sorte',
+                        correto: false
+                    },
+                    {
+                        texto: 'Assumir que os padrões do bebê são de qualidade baixa naturalmente',
+                        subTexto: 'Bebês têm padrões válidos - problema é técnica',
+                        correto: false
+                    },
+                    {
+                        texto: 'Mudar pressão do scanner para valor máximo',
+                        subTexto: 'Prejudicial - pressão adequada é crítica',
+                        correto: false
+                    }
+                ],
+                explicacao: 'NFIQ baixo recorrente indica problema técnico: posicionamento, pressão, limpeza ou sangue. Usar preview com ROI visível, ajustar técnica, validar que dedo está bem posicionado sobre área ativa.'
+            }
+        ];
+
+        // ===========================================
+        // GERENCIAMENTO DA ATIVIDADE
+        // ===========================================
+
+        let casoAtual = 0;
+        let respostasUser = {};
+        let tempoInicio = Date.now();
+        let tentativas = 1;
+        let acertosTotal = 0;
+
+        // Inicializar atividade
+        function inicializarAtividade() {
+            renderizarCasos();
+            iniciarTimer();
+            internalHandler?.notifyActivityStarted?.();
+        }
+
+        // Renderizar todos os casos
+        function renderizarCasos() {
+            const container = document.getElementById('casos-content');
+            container.innerHTML = '';
+
+            casos.forEach((caso, idx) => {
+                const casoEl = document.createElement('div');
+                casoEl.className = 'caso-container';
+                casoEl.id = `caso-${idx}`;
+
+                const dificuldadeClass = caso.dificuldade.toLowerCase();
+                const dificuldadeLabel = {
+                    'facil': 'Fácil',
+                    'media': 'Médio',
+                    'dificil': 'Difícil'
+                }[caso.dificuldade] || 'Médio';
+
+                casoEl.innerHTML = `
+                    <div class="caso-titulo">
+                        <span class="caso-numero">${caso.numero}</span>
+                        <span>${caso.titulo}</span>
+                        <span class="dificuldade ${dificuldadeClass}">${dificuldadeLabel}</span>
+                    </div>
+                    <p class="caso-descricao">${caso.descricao}</p>
+                    <div class="opcoes-container">
+                        ${caso.opcoes.map((opt, optIdx) => `
+                            <label class="opcao-label">
+                                <input type="radio" name="caso-${idx}" value="${optIdx}">
+                                <span class="opcao-text">
+                                    ${opt.texto}
+                                    <small>${opt.subTexto}</small>
+                                </span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <div class="botoes">
+                        <button class="btn-verificar" onclick="verificarResposta(${idx})">✓ VERIFICAR</button>
+                        ${idx < casos.length - 1 ? `
+                            <button class="btn-proximo" onclick="proximoCaso(${idx})" style="display:none;" id="proximo-${idx}">PRÓXIMO →</button>
+                        ` : ''}
+                    </div>
+                    <div id="feedback-${idx}"></div>
+                `;
+
+                container.appendChild(casoEl);
+            });
+        }
+
+        // Verificar resposta
+        function verificarResposta(casoIdx) {
+            const caso = casos[casoIdx];
+            const respostaSelecionada = document.querySelector(`input[name="caso-${casoIdx}"]:checked`);
+
+            if (!respostaSelecionada) {
+                alert('Selecione uma resposta!');
+                return;
+            }
+
+            const opcaoIdx = parseInt(respostaSelecionada.value);
+            const opcaoCorreta = caso.opcoes[opcaoIdx].correto;
+
+            respostasUser[casoIdx] = {
+                opcaoIndex: opcaoIdx,
+                correto: opcaoCorreta,
+                tempo: (Date.now() - tempoInicio) / 1000
+            };
+
+            if (opcaoCorreta) {
+                acertosTotal++;
+            }
+
+            // Mostrar feedback
+            const feedbackEl = document.getElementById(`feedback-${casoIdx}`);
+            const feedbackClass = opcaoCorreta ? 'feedback correto' : 'feedback incorreto';
+            const feedbackIcon = opcaoCorreta ? '✅' : '❌';
+            const feedbackText = opcaoCorreta ? 'Resposta correta!' : 'Resposta incorreta.';
+
+            feedbackEl.className = feedbackClass;
+            feedbackEl.innerHTML = `
+                <strong>${feedbackIcon} ${feedbackText}</strong>
+                <p style="margin-top: 10px;">${caso.explicacao}</p>
+            `;
+
+            // Mostrar botão próximo
+            if (casoIdx < casos.length - 1) {
+                document.getElementById(`proximo-${casoIdx}`).style.display = 'inline-block';
+            } else {
+                setTimeout(finalizarAtividade, 2000);
+            }
+
+            // Desabilitar inputs
+            document.querySelectorAll(`input[name="caso-${casoIdx}"]`).forEach(inp => inp.disabled = true);
+            document.querySelector(`[onclick="verificarResposta(${casoIdx})"]`).disabled = true;
+
+            // Notificar tentativa
+            const score = Math.round((acertosTotal / (casoIdx + 1)) * 100);
+            internalHandler?.notifyAttemptRecorded?.({}, score, (Date.now() - tempoInicio) / 1000);
+
+            // Atualizar progress
+            atualizarProgresso();
+        }
+
+        // Próximo caso
+        function proximoCaso(casoIdx) {
+            casoAtual = casoIdx + 1;
+            atualizarProgresso();
+        }
+
+        // Atualizar progresso
+        function atualizarProgresso() {
+            const percentual = (Object.keys(respostasUser).length / casos.length) * 100;
+            document.getElementById('completion').style.width = percentual + '%';
+            document.getElementById('caso-info').textContent = `Caso ${Object.keys(respostasUser).length}/${casos.length}`;
+        }
+
+        // Timer
+        function iniciarTimer() {
+            setInterval(() => {
+                const tempo = Math.floor((Date.now() - tempoInicio) / 1000);
+                const minutos = Math.floor(tempo / 60);
+                const segundos = tempo % 60;
+                document.getElementById('timer').textContent =
+                    `${minutos}:${segundos.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Finalizar atividade
+        function finalizarAtividade() {
+            const tempoTotal = (Date.now() - tempoInicio) / 1000;
+            const scoreTotal = Math.round((acertosTotal / casos.length) * 100);
+
+            // Mostrar resultado
+            document.getElementById('casos-content').style.display = 'none';
+            const resultadoEl = document.getElementById('resultado');
+            resultadoEl.classList.remove('hidden');
+
+            // Badges
+            let scoreEmoji = '😢';
+            let descricao = 'Continue praticando para melhorar!';
+
+            if (scoreTotal >= 90) {
+                scoreEmoji = '🌟';
+                descricao = 'Excelente! Você está pronto para situações complexas reais.';
+            } else if (scoreTotal >= 70) {
+                scoreEmoji = '👍';
+                descricao = 'Bom trabalho! Revise os casos incorretos.';
+            } else if (scoreTotal >= 50) {
+                scoreEmoji = '📚';
+                descricao = 'Você está aprendendo. Pratique mais para consolidar.';
+            }
+
+            document.getElementById('finalScore').textContent = scoreEmoji;
+            document.getElementById('scoreDescription').textContent = descricao;
+            document.getElementById('acertos').textContent = `${acertosTotal}/${casos.length}`;
+            document.getElementById('tempoTotal').textContent =
+                `${Math.floor(tempoTotal / 60)}:${Math.floor(tempoTotal % 60).toString().padStart(2, '0')}`;
+            document.getElementById('tentativasTotal').textContent = tentativas;
+
+            // Notificar conclusão
+            internalHandler?.notifyActivityCompleted?.(scoreTotal, tempoTotal, tentativas);
+        }
+
+        // Reiniciar atividade
+        function reiniciarAtividade() {
+            casoAtual = 0;
+            respostasUser = {};
+            tempoInicio = Date.now();
+            tentativas++;
+            acertosTotal = 0;
+
+            document.getElementById('resultado').classList.add('hidden');
+            document.getElementById('casos-content').style.display = '';
+
+            inicializarAtividade();
+        }
+
+        // ===========================================
+        // HANDLER INTERNO DE COMUNICAÇÃO
+        // ===========================================
+
+        class InternalActivityHandler {
+            constructor() {
+                this.activityId = null;
+                this.startTime = Date.now();
+                this.setupParentListener();
+            }
+
+            setupParentListener() {
+                window.addEventListener('message', (event) => {
+                    if (event.origin !== window.location.origin) return;
+                    const data = event.data;
+                    if (data.action === 'SET_ACTIVITY_ID') {
+                        this.activityId = data.payload.activityId;
+                    }
+                });
+            }
+
+            notifyActivityStarted() {
+                window.parent.postMessage({
+                    action: 'ACTIVITY_STARTED',
+                    payload: { startTime: this.startTime }
+                }, '*');
+            }
+
+            notifyAttemptRecorded(responses, score, timeTaken) {
+                window.parent.postMessage({
+                    action: 'ATTEMPT_RECORDED',
+                    payload: { responses, score, time_taken: timeTaken }
+                }, '*');
+            }
+
+            notifyActivityCompleted(score, totalTime, attempts) {
+                window.parent.postMessage({
+                    action: 'ACTIVITY_COMPLETED',
+                    payload: { score, time_total: totalTime, attempts }
+                }, '*');
+            }
+        }
+
+        const internalHandler = new InternalActivityHandler();
+
+        // Inicializar ao carregar
+        document.addEventListener('DOMContentLoaded', inicializarAtividade);
+    </script>
+</body>
+</html>

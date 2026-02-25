@@ -131,8 +131,9 @@ if __name__ == '__main__':
         print("Pressione CTRL+C para parar o servidor")
         print("")
         
-        # Iniciar servidor
-        app.run(debug=debug, host='127.0.0.1', port=port, use_reloader=debug)
+        # Iniciar servidor com SocketIO
+        from app import socketio
+        socketio.run(app, debug=debug, host='127.0.0.1', port=port, allow_unsafe_werkzeug=True)
         
     except OSError as e:
         if "Address already in use" in str(e):

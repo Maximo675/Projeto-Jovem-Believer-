@@ -20,6 +20,10 @@ try:
     # App simples para testes
     app = Flask(__name__)
     
+    # Configurar SocketIO
+    from flask_socketio import SocketIO
+    socketio = SocketIO(app, cors_allowed_origins="*")
+    
     @app.route('/')
     def home():
         """Homepage"""
@@ -110,12 +114,13 @@ try:
     print("✅ Register: http://localhost:8000/pages/register.html")
     print("="*60 + "\n")
     
-    # Rodar servidor
-    app.run(
+    # Rodar servidor com SocketIO
+    socketio.run(
+        app,
         debug=False,
         host='0.0.0.0',
         port=8000,
-        use_reloader=False
+        allow_unsafe_werkzeug=True
     )
     
 except ImportError as e:

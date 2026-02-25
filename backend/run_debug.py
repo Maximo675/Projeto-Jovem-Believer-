@@ -53,12 +53,15 @@ try:
     
     print("[3] Iniciando servidor na porta 5001...")
     port = int(os.getenv('FLASK_PORT', 5001))
-    app.run(
+    
+    from app import socketio
+    socketio.run(
+        app,
         host='127.0.0.1', 
         port=port, 
         debug=True,
+        allow_unsafe_werkzeug=True,
         use_reloader=False,
-        use_debugger=True,
         threaded=True
     )
     

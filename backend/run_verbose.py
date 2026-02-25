@@ -9,7 +9,7 @@ import sys
 # Configurar path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from app import create_app
+from app import create_app, socketio
 
 print("\n" + "=" * 60)
 print("DEBUG SERVER - LOGGING DETALHADO")
@@ -35,10 +35,12 @@ try:
     
     print("[3] Iniciando servidor na porta 5001...")
     port = int(os.getenv('FLASK_PORT', 5001))
-    app.run(
+    socketio.run(
+        app,
         host='127.0.0.1', 
         port=port, 
         debug=True,
+        allow_unsafe_werkzeug=True,
         use_reloader=False,
         threaded=True
     )

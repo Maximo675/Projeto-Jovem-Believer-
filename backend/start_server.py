@@ -16,7 +16,7 @@ try:
     print(f"✅ Flask importado com sucesso")
     
     print("✅ Importando create_app...")
-    from app import create_app
+    from app import create_app, socketio
     print("✅ create_app importado com sucesso")
     
     print("✅ Criando aplicação...")
@@ -30,12 +30,13 @@ try:
     print(f"Login: http://localhost:5000/pages/login.html")
     print("="*50 + "\n")
     
-    # Rodar servidor
-    app.run(
+    # Rodar servidor com SocketIO
+    socketio.run(
+        app,
         debug=False,
         host='0.0.0.0',
         port=5000,
-        use_reloader=False
+        allow_unsafe_werkzeug=True
     )
     
 except ImportError as e:
