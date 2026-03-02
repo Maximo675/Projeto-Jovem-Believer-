@@ -8,7 +8,7 @@ import json
 import time
 from datetime import datetime
 
-BASE_URL = 'http://localhost:5000'
+BASE_URL = 'http://localhost:5001'
 ACTIVITY_ID = 1
 USER_ID = 1
 LESSON_ID = 2
@@ -150,7 +150,7 @@ def print_summary():
    4. Banco de dados está acessível
 
 📖 Próximos passos:
-   1. Abra http://localhost:5000/pages/aula-com-atividades.html
+   1. Abra http://localhost:5001/pages/aula-com-atividades.html
    2. Abra console do navegador (F12)
    3. Complete uma atividade
    4. Verifique se eventos aparecem no log

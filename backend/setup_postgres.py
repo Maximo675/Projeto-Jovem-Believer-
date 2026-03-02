@@ -142,7 +142,7 @@ def setup_database():
         print("\n🚀 Agora rode o servidor:")
         print("   python run.py")
         print("\n🔗 Acesse em:")
-        print("   http://localhost:5000")
+        print("   http://localhost:5001")
         print("="*70 + "\n")
         
         return True

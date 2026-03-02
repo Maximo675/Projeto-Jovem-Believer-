@@ -72,14 +72,6 @@ html, body {
     width: auto;
 }
 
-.brand-text h1 {
-    font-size: 1.4rem;
-    color: var(--darker-blue);
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-}
-
 .nav-links {
     display: flex;
     list-style: none;
@@ -578,4 +570,26 @@ input:focus, select:focus, textarea:focus {
     .feature-card, .sobre-item {
         padding: 20px;
     }
+}
+
+/* ============================================
+   LOGO ADAPTATIVA POR TEMA
+   ============================================ */
+
+/* Logo em tema claro - deixar com aparência normal */
+html[data-theme="light"] [data-logo],
+html[data-theme="light"] .logo-img {
+    filter: brightness(1) contrast(1.1);
+}
+
+/* Logo em tema escuro - aumentar brilho e contraste */
+html[data-theme="dark"] [data-logo],
+html[data-theme="dark"] .logo-img {
+    filter: brightness(1.2) contrast(1.2);
+}
+
+/* Logo em tema alternativo */
+html[data-theme="alternative"] [data-logo],
+html[data-theme="alternative"] .logo-img {
+    filter: brightness(1.1) contrast(1.15);
 }

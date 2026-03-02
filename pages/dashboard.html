@@ -50,16 +50,15 @@
             gap: 12px;
             margin-bottom: 60px;
             padding-bottom: 0;
+           
         }
 
         .sidebar-logo img {
-            width: 250px;
-            height: 250px;
+            width: 200px;
+            height: auto;
             object-fit: contain;
-        }
-
-        .sidebar-logo h2 {
-            display: none;
+            margin-bottom: 20px;
+           
         }
 
         .sidebar-menu {
@@ -86,9 +85,9 @@
 
         .sidebar-menu a .menu-icon {
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
+            width: 48px;
+            height: 48px;
         }
 
         .sidebar-menu a:hover .menu-icon,
@@ -96,23 +95,26 @@
             opacity: 1;
         }
 
-        .sidebar-menu a:hover,
-        .sidebar-menu a.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
         .sidebar-menu a span {
             font-size: 1.1rem;
             font-weight: 500;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            transition: var(--transition);
         }
 
         .menu-icon {
             width: 48px;
             height: 48px;
-            object-fit: contain;
+            object-fit: cover;
             opacity: 0.9;
             transition: opacity 0.3s ease;
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            display: block;
         }
         
         .sidebar-menu a:hover .menu-icon {
@@ -529,36 +531,30 @@
     </style>
 </head>
 <body>
+   
     <div class="dashboard-container">
         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-logo">
-                <img src="/assets/logo/Winged mind_versãoBranco.jpg" alt="Logo" data-logo>
-                <h2>Aprendizado</h2>
+                <img src="/assets/logo/winged_mind_branco.png" alt="Logo">
             </div>
 
             <ul class="sidebar-menu">
                 <li>
                     <a class="menu-item active" data-tab="courses">
-                        <img src="/assets/icons/icon-4.jpg" alt="Cursos" class="menu-icon">
+                        <img src="/assets/logo/livros.png" alt="Cursos" class="menu-icon">
                         <span>Cursos</span>
                     </a>
                 </li>
                 <li>
-                    <a class="menu-item" data-tab="ai-chat">
-                        <img src="/assets/icons/icon-2.png" alt="IA" class="menu-icon">
-                        <span>Assistente IA</span>
-                    </a>
-                </li>
-                <li>
                     <a class="menu-item" data-tab="progress">
-                        <img src="/assets/icons/icon-3.jpg" alt="Progresso" class="menu-icon">
+                        <img src="/assets/logo/progress.png" alt="Progresso" class="menu-icon">
                         <span>Progresso</span>
                     </a>
                 </li>
                 <li>
                     <a class="menu-item" data-tab="certificates">
-                        <img src="/assets/icons/icon-1.png" alt="Certificados" class="menu-icon">
+                        <img src="/assets/logo/star.png" alt="Certificados" class="menu-icon">
                         <span>Certificados</span>
                     </a>
                 </li>
@@ -612,22 +608,38 @@
                     </div>
 
                     <!-- ATIVIDADES PRÁTICAS ETAN -->
-                    <div style="margin-top: 40px; padding: 24px; background: linear-gradient(135deg, #20b7c9 0%, #1a99ac 100%); border-radius: 8px; color: white;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <h2 style="margin: 0 0 8px 0; font-size: 1.5rem;">🎮 Atividades Práticas ETAN</h2>
-                                <p style="margin: 0; opacity: 0.9;">Pratique o protocolo de coleta biométrica com simuladores interativos</p>
-                            </div>
-                            <a href="/pages/aula-com-atividades.html?lesson_id=2&course_id=1&user_id=1" 
-                               style="background: white; color: #20b7c9; padding: 12px 24px; border-radius: 4px; text-decoration: none; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                                Acessar Atividades →
+                    <div style="margin-top: 40px; margin-bottom: 50px; padding: 28px; background: linear-gradient(135deg, #20b7c9 0%, #1a99ac 100%); border-radius: 12px; color: white; box-shadow: 0 4px 16px rgba(32, 183, 201, 0.3);">
+                        <h2 style="margin: 0 0 12px 0; font-size: 1.6rem; font-weight: 600;">🎮 Atividades Práticas ETAN</h2>
+                        <p style="margin: 0 0 20px 0; opacity: 0.95; font-size: 0.95rem; line-height: 1.5;">Pratique o protocolo de coleta biométrica com simuladores interativos</p>
+                        
+                        <!-- Grid de Atividades -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                            <!-- Card 1: Captura Biométrica Completa -->
+                            <a href="/frontend/activities/etan-captura-biometrica.html" 
+                               style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 8px; text-decoration: none; color: white; border: 2px solid rgba(255, 255, 255, 0.3); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 12px; cursor: pointer;">
+                                <div style="font-size: 2rem;">🔐</div>
+                                <div style="font-weight: 600; font-size: 1rem;">Captura de 10 Dedos</div>
+                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Protocolo ETAN completo com qualidade em tempo real</p>
+                                <div style="font-size: 0.8rem; opacity: 0.8;">→ Iniciar Simulador</div>
                             </a>
-                        </div>
-                        <div style="margin-top: 16px; display: flex; gap: 16px; font-size: 0.9rem;">
-                            <span>✓ 3 Atividades Práticas</span>
-                            <span>✓ Simulador ETAN Completo</span>
-                            <span>✓ Casos Especiais</span>
-                            <span>✓ Troubleshooting</span>
+
+                            <!-- Card 2: Protocolo ETAN -->
+                            <a href="/frontend/activities/etan_protocol_simulator.html" 
+                               style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 8px; text-decoration: none; color: white; border: 2px solid rgba(255, 255, 255, 0.3); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 12px; cursor: pointer;">
+                                <div style="font-size: 2rem;">📋</div>
+                                <div style="font-weight: 600; font-size: 1rem;">Protocolo ETAN</div>
+                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Aprenda as 5 fases do protocolo de captura</p>
+                                <div style="font-size: 0.8rem; opacity: 0.8;">→ Ver Protocolo</div>
+                            </a>
+
+                            <!-- Card 3: Casos Especiais -->
+                            <a href="/frontend/activities/etan_special_cases.html" 
+                               style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 8px; text-decoration: none; color: white; border: 2px solid rgba(255, 255, 255, 0.3); transition: all 0.3s ease; display: flex; flex-direction: column; gap: 12px; cursor: pointer;">
+                                <div style="font-size: 2rem;">⚠️</div>
+                                <div style="font-weight: 600; font-size: 1rem;">Casos Especiais</div>
+                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.9;">Aprenda a lidar com dedos danificados</p>
+                                <div style="font-size: 0.8rem; opacity: 0.8;">→ Ver Casos</div>
+                            </a>
                         </div>
                     </div>
 
@@ -636,40 +648,7 @@
                     </div>
                 </div>
 
-                <!-- IA CHAT TAB -->
-                <div id="ai-chat" class="tab-content">
-                    <div class="welcome-section">
-                        <h1>Assistente IA 24/7</h1>
-                        <p>Faça perguntas e obtenha orientações em tempo real</p>
-                    </div>
-
-                    <div class="ai-section">
-                        <div class="ai-header">
-                            <div class="ai-status"></div>
-                            <h3>Assistente Winged Mind</h3>
-                            <span style="font-size: 0.85rem; color: #999;">Online</span>
-                        </div>
-
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="message ai">
-                                Olá! Sou o Assistente IA. Como posso ajudá-lo(a) hoje?<br>
-                                📚 Dúvidas sobre cursos?<br>
-                                🎓 Dúvidas sobre progresso?<br>
-                                ❓ Perguntas gerais?
-                            </div>
-                        </div>
-
-                        <div class="chat-input-group">
-                            <input 
-                                type="text" 
-                                id="chatInput" 
-                                placeholder="Digite sua pergunta..." 
-                                autocomplete="off"
-                            >
-                            <button onclick="sendChatMessage()">Enviar</button>
-                        </div>
-                    </div>
-                </div>
+                <!-- IA CHAT TAB - REMOVIDA (agora é widget flutuante) -->
 
                 <!-- PROGRESS TAB -->
                 <div id="progress" class="tab-content">
@@ -700,5 +679,7 @@
 
     <script src="../js/main.js"></script>
     <script src="../js/dashboard.js"></script>
+    <script src="../js/chatbot-flutuante.js"></script>
 </body>
+
 </html>

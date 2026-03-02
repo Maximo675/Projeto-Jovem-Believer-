@@ -4,8 +4,8 @@ python --version
 Write-Host "`n2. Flask check:" -ForegroundColor Yellow
 python -c "import flask; print('Flask OK')"
 
-Write-Host "`n3. Port 5000 check:" -ForegroundColor Yellow
-netstat -ano | findstr ":5000"
+Write-Host "`n3. Port 5001 check:" -ForegroundColor Yellow
+netstat -ano | findstr ":5001"
 
 Write-Host "`n4. Ollama check:" -ForegroundColor Yellow
 $tcpClient = New-Object System.Net.Sockets.TcpClient
@@ -25,6 +25,6 @@ if (Test-Path ".env") {
 }
 
 Write-Host "`n6. Flask app test:" -ForegroundColor Yellow
-cd backend
+Set-Location backend
 python -c "from app import create_app; print('App OK')"
-cd ..
+Set-Location ..

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Script para iniciar o servidor Flask.
-Testa importações e inicia na porta 5000.
+Testa importações e inicia na porta 5001.
 """
 
 import sys
@@ -26,8 +26,8 @@ try:
     print("\n" + "="*50)
     print("🎉 SERVIDOR PRONTO PARA RODAR")
     print("="*50)
-    print(f"Acesse: http://localhost:5000")
-    print(f"Login: http://localhost:5000/pages/login.html")
+    print(f"Acesse: http://localhost:5001")
+    print(f"Login: http://localhost:5001/pages/login.html")
     print("="*50 + "\n")
     
     # Rodar servidor com SocketIO
@@ -35,7 +35,7 @@ try:
         app,
         debug=False,
         host='0.0.0.0',
-        port=5000,
+        port=5001,
         allow_unsafe_werkzeug=True
     )
     

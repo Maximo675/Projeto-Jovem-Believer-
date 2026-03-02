@@ -370,11 +370,11 @@ def mapErrorToUserMessage(error_code, error_message):
 
 
 def get_simulator_url(simulator_type):
-    """Gerar URL appropriada para simulador ou captura real"""
+    """Gerar URL appropriada para simulador de captura biométrica"""
     if simulator_type == 'practice':
         return '/activities/etan_simulador_pratica.html'
     elif simulator_type == 'real':
-        return 'https://infant.akiyama.com.br/#/infant-capture'  # URL do site real
+        return '/activities/biometric-capture-simulator.html'  # Simulador de captura biométrica integrado
     else:
         return '/activities/etan_protocol_simulator.html'
 

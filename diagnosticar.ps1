@@ -67,9 +67,9 @@ Write-Host ""
 # 6. Testar import da app
 Write-Host "[6] Verificando aplicacao Flask..." -ForegroundColor Yellow
 $currentDir = Get-Location
-cd backend
+Set-Location backend
 $testApp = python -c "from app import create_app; app = create_app(); print('Flask OK')" 2>&1
-cd $currentDir
+Set-Location $currentDir
 if ($testApp -like "*Flask OK*") {
     Write-Host "    [OK] Aplicacao Flask carrega corretamente" -ForegroundColor Green
 } else {

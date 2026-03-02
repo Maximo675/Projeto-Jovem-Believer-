@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividade: Protocolo ETAN - Captura Biométrica Completa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .progress-container {
+            padding: 20px 40px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .progress-stats {
+            display: flex;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .content {
+            display: flex;
+            gap: 30px;
+            padding: 40px;
+            min-height: 600px;
+        }
+
+        .scanner-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .scanner-display {
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            border-radius: 16px;
+            border: 4px solid #667eea;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+        }
+
+        .camera-feed {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #404040 0%, #1a1a1a 100%);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .finger-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .scanner-crosshair {
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            border: 3px solid #667eea;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 0.9; }
+        }
+
+        .quality-display {
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+        }
+
+        .quality-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .quality-bar {
+            background: #e5e7eb;
+            height: 10px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .quality-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 50%, #84cc16 75%, #22c55e 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .quality-score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .instructions-section {
+            flex: 1;
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .instruction-block {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .instruction-block h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .instruction-block p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .feedback-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .feedback-item {
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            animation: slideIn 0.3s ease;
+            border-left: 4px solid;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .feedback-success {
+            background: #dcfce7;
+            color: #166534;
+            border-left-color: #22c55e;
+        }
+
+        .feedback-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left-color: #eab308;
+        }
+
+        .feedback-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left-color: #ef4444;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .results-panel {
+            display: none;
+            background: #ecfdf5;
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .results-panel.show {
+            display: block;
+        }
+
+        .results-panel h3 {
+            color: #166534;
+            margin-bottom: 15px;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .result-item {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .result-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .result-value {
+            color: #666;
+            font-size: 14px;
+        }
+        iframe {
+
+  height:100vh;
+
+  width:100vw;
+
+}
+ 
+    </style>
+</head>
+<body>
+    <iframe src="https://infant.akiyama.com.br/#/infant-capture" width="100%" height="100%" />
+ 
+ 
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>🔐 Protocolo ETAN - Captura Biométrica</h1>
+            <p>Captura de 10 digitais com análise de qualidade em tempo real</p>
+        </div>
+
+        <!-- PROGRESS -->
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-info">
+                <div class="progress-stats">
+                    <div class="stat">
+                        <span class="stat-label">Digitais Capturadas</span>
+                        <span class="stat-value" id="captured-count">0/10</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Qualidade Média</span>
+                        <span class="stat-value" id="average-quality">0%</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Taxa de Sucesso</span>
+                        <span class="stat-value" id="success-rate">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENT -->
+        <div class="content">
+            <!-- SCANNER -->
+            <div class="scanner-section">
+                <div class="scanner-display">
+                    <div class="camera-feed">
+                        <div class="finger-label" id="finger-label">
+                            👆 Direita - Polegar (1/10)
+                        </div>
+                        <div class="scanner-crosshair"></div>
+                    </div>
+                </div>
+
+                <div class="quality-display">
+                    <div class="quality-title">Qualidade da Digital</div>
+                    <div class="quality-bar">
+                        <div class="quality-fill" id="quality-fill"></div>
+                    </div>
+                    <div class="quality-score" id="quality-score">0%</div>
+                </div>
+            </div>
+
+            <!-- INSTRUCTIONS -->
+            <div class="instructions-section">
+                <div class="instruction-block">
+                    <h3>📋 Instruções</h3>
+                    <p>Coloque o dedo sobre o scanner conforme indicado. A captura ocorre automaticamente quando a qualidade é suficiente.</p>
+                </div>
+
+                <div class="instruction-block">
+                    <h3>⚠️ Feedback em Tempo Real</h3>
+                    <div class="feedback-area" id="feedback-container"></div>
+                </div>
+
+                <div class="results-panel" id="results-panel">
+                    <h3>✅ Atividade Concluída!</h3>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <strong>Digitais Capturadas</strong>
+                            <span class="result-value" id="result-captured">0/10</span>
+                        </div>
+                        <div class="result-item">
+                            <strong>Qualidade Média</strong>
+                            <span class="result-value" id="result-quality">0%</span>
+                        </div>
+                        <div class="result-item">
+                            <strong>Tempo Total</strong>
+                            <span class="result-value" id="result-time">0s</span>
+                        </div>
+                        <div class="result-item">
+                            <strong>Taxa de Sucesso</strong>
+                            <span class="result-value" id="result-success">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="start-btn">▶️ Iniciar Captura</button>
+                    <button class="btn btn-secondary" id="retry-btn" style="display:none;">🔄 Tentar Novamente</button>
+                    <button class="btn btn-secondary" id="next-btn" style="display:none;">➡️ Próximo Dedo</button>
+                    <button class="btn btn-secondary" id="finish-btn" style="display:none;">✅ Finalizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/frontend/js/etan-simulator-manager.js"></script>
+    <script>
+        class ETANActivitySimulator {
+            constructor() {
+                this.manager = new ETANSimulatorManager({
+                    userId: this.getUserId(),
+                    activityId: 4,
+                    courseId: 1
+                });
+                
+                this.isCapturing = false;
+                this.currentQuality = 0;
+                this.captureStartTime = null;
+                
+                this.init();
+            }
+            
+            init() {
+                this.cacheDom();
+                this.bindEvents();
+                this.updateUI();
+            }
+            
+            cacheDom() {
+                this.startBtn = document.getElementById('start-btn');
+                this.retryBtn = document.getElementById('retry-btn');
+                this.nextBtn = document.getElementById('next-btn');
+                this.finishBtn = document.getElementById('finish-btn');
+                
+                this.fingerLabel = document.getElementById('finger-label');
+                this.qualityFill = document.getElementById('quality-fill');
+                this.qualityScore = document.getElementById('quality-score');
+                this.feedbackContainer = document.getElementById('feedback-container');
+                
+                this.progressFill = document.getElementById('progress-fill');
+                this.capturedCount = document.getElementById('captured-count');
+                this.averageQuality = document.getElementById('average-quality');
+                this.successRate = document.getElementById('success-rate');
+                
+                this.resultsPanel = document.getElementById('results-panel');
+            }
+            
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.startCapture());
+                this.retryBtn.addEventListener('click', () => this.retryFinger());
+                this.nextBtn.addEventListener('click', () => this.nextFinger());
+                this.finishBtn.addEventListener('click', () => this.finishActivity());
+            }
+            
+            startCapture() {
+                this.isCapturing = true;
+                this.captureStartTime = Date.now();
+                this.currentQuality = 0;
+                
+                this.startBtn.style.display = 'none';
+                this.feedback('🚀 Captura iniciada. Posicione o dedo...', 'warning');
+                
+                this.simulateCapture();
+            }
+            
+            simulateCapture() {
+                if (!this.isCapturing) return;
+                
+                // Simular melhora de qualidade
+                this.currentQuality = Math.min(100, this.currentQuality + Math.random() * 15);
+                
+                this.updateQualityDisplay();
+                
+                // Verificar se atingiu qualidade suficiente
+                if (this.currentQuality >= 70) {
+                    this.completeCapture();
+                    return;
+                }
+                
+                // Se passou de 5 segundos, falha
+                const elapsed = (Date.now() - this.captureStartTime) / 1000;
+                if (elapsed > 5) {
+                    this.failCapture();
+                    return;
+                }
+                
+                requestAnimationFrame(() => this.simulateCapture());
+            }
+            
+            updateQualityDisplay() {
+                const percent = Math.round(this.currentQuality);
+                this.qualityFill.style.width = percent + '%';
+                this.qualityScore.textContent = percent + '%';
+            }
+            
+            async completeCapture() {
+                this.isCapturing = false;
+                
+                const finger = this.manager.getCurrentFinger();
+                const quality = Math.round(this.currentQuality);
+                
+                const success = await this.manager.recordSuccessfulCapture(quality, {
+                    time: Date.now() - this.captureStartTime,
+                    nfiq: this.manager.calculateNFIQ(quality)
+                });
+                
+                if (success) {
+                    this.feedback(`✅ ${finger.hand} - ${finger.name} capturada com ${quality}% de qualidade!`, 'success');
+                    
+                    this.startBtn.style.display = 'none';
+                    this.retryBtn.style.display = 'block';
+                    this.nextBtn.style.display = 'block';
+                    
+                    // Verificar se é a última digital
+                    if (this.manager.currentFingerIndex === this.manager.fingerSequence.length - 1) {
+                        this.nextBtn.style.display = 'none';
+                        this.finishBtn.style.display = 'block';
+                    }
+                } else {
+                    this.failCapture();
+                }
+                
+                this.updateUI();
+            }
+            
+            failCapture() {
+                this.isCapturing = false;
+                
+                const finger = this.manager.getCurrentFinger();
+                const attempts = this.manager.getAttemptCount(finger.id) + 1;
+                
+                if (attempts >= this.manager.maxAttemptsPerFinger) {
+                    this.feedback(`❌ Máximo de tentativas atingido. Avançando...`, 'error');
+                    this.startBtn.style.display = 'none';
+                    this.retryBtn.style.display = 'none';
+                    this.nextBtn.style.display = 'block';
+                } else {
+                    this.feedback(`⚠️ Qualidade insuficiente. Tentativa ${attempts}/${this.manager.maxAttemptsPerFinger}`, 'warning');
+                    this.startBtn.style.display = 'block';
+                    this.retryBtn.style.display = 'none';
+                }
+                
+                this.currentQuality = 0;
+                this.updateQualityDisplay();
+            }
+            
+            retryFinger() {
+                const result = this.manager.retryCurrentFinger();
+                
+                if (!result.success) {
+                    this.feedback(result.message, 'warning');
+                    this.nextFinger();
+                } else {
+                    this.fingerLabel.textContent = `👆 ${result.finger.finger.hand} - ${result.finger.finger.name} (${result.finger.finger.order}/10)`;
+                    this.startCapture();
+                }
+            }
+            
+            nextFinger() {
+                this.currentQuality = 0;
+                this.updateQualityDisplay();
+                
+                const next = this.manager.advanceToNextFinger();
+                
+                if (!next) {
+                    this.finishActivity();
+                    return;
+                }
+                
+                const finger = next.finger || next.nextFinger;
+                if (finger) {
+                    this.fingerLabel.textContent = `👆 ${finger.hand} - ${finger.name} (${finger.order}/10)`;
+                    this.feedback(`Próximo dedo: ${finger.hand} - ${finger.name}`, 'info');
+                }
+                
+                this.startBtn.style.display = 'block';
+                this.retryBtn.style.display = 'none';
+                this.nextBtn.style.display = 'none';
+                this.finishBtn.style.display = 'none';
+                
+                this.updateUI();
+            }
+            
+            finishActivity() {
+                const results = this.manager.completeCaptureSession();
+                
+                document.getElementById('result-captured').textContent = `${results.total_fingers_captured}/10`;
+                document.getElementById('result-quality').textContent = `${results.average_quality}%`;
+                document.getElementById('result-time').textContent = `${results.total_time.toFixed(1)}s`;
+                document.getElementById('result-success').textContent = `${results.success_rate}%`;
+                
+                this.resultsPanel.classList.add('show');
+                
+                this.startBtn.style.display = 'none';
+                this.retryBtn.style.display = 'none';
+                this.nextBtn.style.display = 'none';
+                this.finishBtn.style.display = 'none';
+                
+                this.feedback('🎉 Atividade concluída!', 'success');
+            }
+            
+            feedback(message, type = 'info') {
+                const div = document.createElement('div');
+                div.className = `feedback-item feedback-${type}`;
+                div.textContent = message;
+                
+                this.feedbackContainer.prepend(div);
+                
+                if (this.feedbackContainer.children.length > 5) {
+                    this.feedbackContainer.removeChild(this.feedbackContainer.lastChild);
+                }
+            }
+            
+            updateUI() {
+                const summary = this.manager.getProgressSummary();
+                
+                this.progressFill.style.width = summary.percentage + '%';
+                this.capturedCount.textContent = summary.progress;
+                this.averageQuality.textContent = summary.average_quality + '%';
+                this.successRate.textContent = summary.success_rate + '%';
+            }
+            
+            getUserId() {
+                // Tentar extrair do token JWT
+                try {
+                    const token = localStorage.getItem('authToken');
+                    if (token) {
+                        const payload = JSON.parse(atob(token.split('.')[1]));
+                        return payload.sub || 1;
+                    }
+                } catch (e) {
+                    console.log('Usando userId padrão');
+                }
+                return 1;
+            }
+        }
+        
+        // Inicializar quando a página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            window.etanSimulator = new ETANActivitySimulator();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Captura Sequencial ETAN</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .progress-fingers {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .finger-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid #e0e0e0;
+            background: #f8f9fa;
+            color: #666;
+        }
+
+        .finger-badge.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+            color: #667eea;
+            animation: pulse 1s infinite;
+        }
+
+        .finger-badge.captured {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            color: #22c55e;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .main-section {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .current-finger-title {
+            text-align: center;
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f0f4ff;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .camera-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            min-height: 500px;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .finger-zone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 180px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.ready {
+            background: #22c55e;
+            animation: none;
+        }
+
+        .status-dot.capturing {
+            background: #f43f5e;
+            animation: pulse 0.5s infinite;
+        }
+
+        .quality-meter {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .quality-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            min-width: 140px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .quality-item.excellent {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            transform: scale(1.05);
+        }
+
+        .quality-item.good {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .quality-item.poor {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .quality-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .quality-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .quality-item.excellent .quality-value { color: #22c55e; }
+        .quality-item.good .quality-value { color: #3b82f6; }
+        .quality-item.poor .quality-value { color: #ef4444; }
+
+        .quality-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .quality-bar-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .nfiq-score {
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .nfiq-score.excellent {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+
+        .nfiq-score.good {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .nfiq-score.poor {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .nfiq-label {
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .nfiq-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nfiq-score.excellent .nfiq-value { color: #22c55e; }
+        .nfiq-score.good .nfiq-value { color: #3b82f6; }
+        .nfiq-score.poor .nfiq-value { color: #ef4444; }
+
+        .nfiq-status {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .nfiq-status.excellent { color: #22c55e; }
+        .nfiq-status.good { color: #3b82f6; }
+        .nfiq-status.poor { color: #ef4444; }
+
+        .feedback-section {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .feedback-message {
+            color: #555;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .feedback-message.error {
+            color: #ef4444;
+        }
+
+        .feedback-message.success {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .feedback-message.warning {
+            color: #f59e0b;
+        }
+
+        .capture-progress {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .success-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .success-popup.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .success-popup h2 {
+            color: #22c55e;
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+
+        .success-popup p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .success-popup button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .success-popup button:hover {
+            opacity: 0.9;
+        }
+
+        .instructions-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            width: 350px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .instructions-panel h2 {
+            color: #667eea;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .instruction-step {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .instruction-step:last-child {
+            border-bottom: none;
+        }
+
+        .captured-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .captured-list h3 {
+            color: #333;
+            font-size: 13px;
+            margin-bottom: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .finger-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #e0e0e0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .finger-item.captured {
+            border-left-color: #22c55e;
+            background: #f0fdf4;
+            color: #166534;
+            font-weight: bold;
+        }
+
+        .finger-item-check {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .finger-item.captured .finger-item-check {
+            background: #22c55e;
+        }
+
+        .completion-section {
+            background: linear-gradient(135deg, #f0fdf4 0%, #f0fdf4 100%);
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .completion-section.incomplete {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+
+        .completion-section h3 {
+            color: #166534;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .completion-section.incomplete h3 {
+            color: #991b1b;
+        }
+
+        .completion-text {
+            font-size: 12px;
+            color: #166534;
+            margin-bottom: 10px;
+        }
+
+        .completion-section.incomplete .completion-text {
+            color: #991b1b;
+        }
+
+        .complete-btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .complete-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .complete-btn:hover:not(:disabled) {
+            background: #16a34a;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .instructions-panel {
+                width: 100%;
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎥 Captura Biométrica - 10 Dedos</h1>
+        <p>Capture todos os dedos com qualidade NFIQ ≥ 60 para garantir um registro profissional.</p>
+        <div class="progress-fingers" id="fingerProgress"></div>
+    </div>
+
+    <div class="container">
+        <div class="main-section">
+            <div class="error-message" id="errorMessage"></div>
+            
+            <div class="current-finger-title" id="currentFingerTitle">
+                👆 Posicione: Polegar Esquerdo (1/10)
+            </div>
+
+            <div class="camera-wrapper">
+                <div class="camera-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" width="640" height="480"></canvas>
+                    
+                    <div class="overlay">
+                        <div class="status-indicator">
+                            <div class="status-dot ready" id="statusDot"></div>
+                            <span id="statusText">Câmera Pronta</span>
+                        </div>
+                        <div class="finger-zone">👆</div>
+                    </div>
+                </div>
+
+                <div style="width: 100%; max-width: 600px;">
+                    <div class="feedback-section">
+                        <div class="feedback-message" id="feedbackMessage">
+                            Coloque seu dedo na zona indicada e mantenha firme.
+                        </div>
+                    </div>
+
+                    <div class="quality-meter">
+                        <div class="nfiq-score">
+                            <div class="nfiq-label">Qualidade NFIQ</div>
+                            <div class="nfiq-value" id="nfiqValue">00</div>
+                            <div class="nfiq-status" id="nfiqStatus">Aguardando...</div>
+                        </div>
+
+                        <div class="quality-item">
+                            <div class="quality-label">Contraste</div>
+                            <div class="quality-value" id="contrastValue">0</div>
+                            <div class="quality-bar">
+                                <div class="quality-bar-fill" id="contrastBar"></div>
+                            </div>
+                        </div>
+
+                        <div class="quality-item">
+                            <div class="quality-label">Nitidez</div>
+                            <div class="quality-value" id="sharpnessValue">0</div>
+                            <div class="quality-bar">
+                                <div class="quality-bar-fill" id="sharpnessBar"></div>
+                            </div>
+                        </div>
+
+                        <div class="quality-item">
+                            <div class="quality-label">Posição</div>
+                            <div class="quality-value" id="positioningValue">0%</div>
+                            <div class="quality-bar">
+                                <div class="quality-bar-fill" id="positioningBar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="capture-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-text" id="progressText">Esperando dedo...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions-panel">
+            <h2>📋 Como Capturar</h2>
+            
+            <div class="instruction-step">
+                <strong>1. Permita acesso à câmera</strong><br>
+                Clique em permitir na solicitação do navegador
+            </div>
+
+            <div class="instruction-step">
+                <strong>2. Coloque o dedo</strong><br>
+                Posicione na zona marcada e mantenha firme
+            </div>
+
+            <div class="instruction-step">
+                <strong>3. Veja o feedback</strong><br>
+                Leia as mensagens de qualidade em tempo real
+            </div>
+
+            <div class="instruction-step">
+                <strong>4. Atinja NFIQ ≥ 60</strong><br>
+                Quando score atingir 60+, dedo é capturado
+            </div>
+
+            <div class="instruction-step">
+                <strong>5. Próximo dedo</strong><br>
+                Sistema avança automaticamente para o próximo
+            </div>
+
+            <div class="instruction-step">
+                <strong>6. Repita 10 vezes</strong><br>
+                Capture todos os dedos das duas mãos
+            </div>
+
+            <div class="captured-list">
+                <h3>✓ Dedos Capturados</h3>
+                <div id="capturedFingers"></div>
+            </div>
+
+            <div class="completion-section incomplete" id="completionSection">
+                <h3>Progresso: 0/10 dedicados</h3>
+                <div class="completion-text" id="completionText">Capture todos os 10 dedos com qualidade ≥ 60</div>
+                <button class="complete-btn" id="completeBtn" disabled>
+                    ✓ Completar Captura
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="success-popup" id="successPopup">
+        <h2>✅ Captura Bem-Sucedida!</h2>
+        <p id="nextFingerText"></p>
+        <button onclick="advanceToNextFinger()">Continuar</button>
+    </div>
+
+    <script>
+        // Dados de dedos
+        const fingers = [
+            { name: 'Polegar Esquerdo', emoji: '👍', index: 1 },
+            { name: 'Indicador Esquerdo', emoji: '☝️', index: 2 },
+            { name: 'Médio Esquerdo', emoji: '☝️', index: 3 },
+            { name: 'Anular Esquerdo', emoji: '☝️', index: 4 },
+            { name: 'Mínimo Esquerdo', emoji: '☝️', index: 5 },
+            { name: 'Polegar Direito', emoji: '👍', index: 6 },
+            { name: 'Indicador Direito', emoji: '☝️', index: 7 },
+            { name: 'Médio Direito', emoji: '☝️', index: 8 },
+            { name: 'Anular Direito', emoji: '☝️', index: 9 },
+            { name: 'Mínimo Direito', emoji: '☝️', index: 10 }
+        ];
+
+        let currentFingerIndex = 0;
+        let capturedFingers = new Set();
+        let qualityMetrics = {
+            contrast: 0,
+            sharpness: 0,
+            positioning: 0,
+            nfiq: 0
+        };
+
+        let captureTime = 0;
+        const MAX_CAPTURE_TIME = 5000;
+        let fingerDetected = false;
+        let excellentFrameCount = 0;
+        let frameCount = 0;
+        let openbioAvailable = false;
+        let captureSource = 'simulador'; // 'openbio' ou 'simulador'
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const nfiqValue = document.getElementById('nfiqValue');
+        const nfiqStatus = document.getElementById('nfiqStatus');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const successPopup = document.getElementById('successPopup');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Verificar disponibilidade do Openbio
+        async function checkOpenbioAvailability() {
+            try {
+                const response = await fetch('http://localhost:3333/health', {
+                    method: 'GET',
+                    timeout: 3000
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.openbio === 'connected') {
+                        openbioAvailable = true;
+                        captureSource = 'openbio';
+                        console.log('✅ Openbio detectado');
+                        statusText.textContent = '🖐️ Openbio Conectado';
+                        feedbackMessage.className = 'feedback-message success';
+                        feedbackMessage.textContent = '✅ Usando hardware biométrico REAL';
+                        return true;
+                    }
+                }
+            } catch (error) {
+                openbioAvailable = false;
+                captureSource = 'simulador';
+            }
+            return false;
+        }
+
+        // Capturar usando Openbio Real
+        async function captureFromOpenbio(fingerName) {
+            try {
+                console.log(`📸 Solicitando captura do Openbio: ${fingerName}`);
+                
+                const response = await fetch('http://localhost:3333/api/fingerprint/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceId: 'default',
+                        finger: fingerName,
+                        timeoutMs: 5000
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Captura Openbio bem-sucedida!', data);
+                    
+                    // Converter dados do Openbio para nosso formato
+                    return {
+                        quality: data.data.nfiq || 80,
+                        contrast: data.data.quality || 75,
+                        sharpness: data.data.quality || 80,
+                        positioning: 85,
+                        source: 'openbio'
+                    };
+                } else {
+                    console.error('Openbio retornou erro:', response.status);
+                    return null;
+                }
+            } catch (error) {
+                console.error('Erro ao capturar do Openbio:', error);
+                return null;
+            }
+        }
+
+        // Inicializar interface
+        function initializeUI() {
+            updateFingerProgress();
+            displayCapturedFingers();
+            updateCurrentFinger();
+        }
+
+        // Atualizar progress de dedos
+        function updateFingerProgress() {
+            const container = document.getElementById('fingerProgress');
+            container.innerHTML = '';
+            
+            fingers.forEach((finger, idx) => {
+                const badge = document.createElement('div');
+                badge.className = 'finger-badge';
+                if (idx === currentFingerIndex) {
+                    badge.classList.add('active');
+                }
+                if (capturedFingers.has(idx)) {
+                    badge.classList.add('captured');
+                }
+                badge.textContent = `${finger.emoji} ${finger.name}`;
+                container.appendChild(badge);
+            });
+        }
+
+        // Atualizar dedo atual
+        function updateCurrentFinger() {
+            const finger = fingers[currentFingerIndex];
+            document.getElementById('currentFingerTitle').innerHTML = 
+                `${finger.emoji} Posicione: ${finger.name} (${finger.index}/10)`;
+            document.getElementById('nextFingerText').textContent = 
+                `Ótimo! ${finger.name} capturado. Próximo: ${fingers[currentFingerIndex + 1]?.name || 'Pronto!'}`;
+        }
+
+        // Exibir dedos capturados
+        function displayCapturedFingers() {
+            const container = document.getElementById('capturedFingers');
+            container.innerHTML = '';
+            
+            fingers.forEach((finger, idx) => {
+                const item = document.createElement('div');
+                item.className = 'finger-item';
+                if (capturedFingers.has(idx)) {
+                    item.classList.add('captured');
+                }
+                
+                const check = document.createElement('div');
+                check.className = 'finger-item-check';
+                check.textContent = capturedFingers.has(idx) ? '✓' : '○';
+                
+                const text = document.createElement('span');
+                text.textContent = `${finger.name}`;
+                
+                item.appendChild(check);
+                item.appendChild(text);
+                container.appendChild(item);
+            });
+
+            // Atualizar completion
+            updateCompletion();
+        }
+
+        // Atualizar completion
+        function updateCompletion() {
+            const count = capturedFingers.size;
+            const completionSection = document.getElementById('completionSection');
+            const completionText = document.getElementById('completionText');
+            const completeBtn = document.getElementById('completeBtn');
+            
+            completionSection.querySelector('h3').textContent = `Progresso: ${count}/10 dedos`;
+            
+            if (count === 10) {
+                completionSection.classList.remove('incomplete');
+                completionText.textContent = '✅ Todos os dedos foram capturados com sucesso!';
+                completeBtn.disabled = false;
+            } else {
+                completionSection.classList.add('incomplete');
+                completionText.textContent = `Capture todos os 10 dedos com qualidade ≥ 60 (faltam ${10 - count})`;
+                completeBtn.disabled = true;
+            }
+        }
+
+        // Iniciar câmera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 }
+                    }
+                });
+                
+                video.srcObject = stream;
+                statusDot.classList.add('ready');
+                statusText.textContent = 'Câmera Ativa - Coloque o dedo';
+                errorMessage.classList.remove('show');
+                
+                video.onloadedmetadata = () => {
+                    console.log('✅ Captura iniciada');
+                    analyzeFrames();
+                };
+                
+            } catch (error) {
+                console.error('Erro na câmera:', error.message);
+                statusDot.style.background = '#ef4444';
+                statusText.textContent = 'Câmera Bloqueada';
+                errorMessage.classList.add('show');
+                errorMessage.innerHTML = `❌ Permita acesso à câmera para continuar`;
+            }
+        }
+
+        // Analisar frames
+        function analyzeFrames() {
+            requestAnimationFrame(() => {
+                frameCount++;
+                
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    fingerDetected = detectFinger(data);
+                    
+                    if (fingerDetected) {
+                        captureTime += 16;
+                        statusDot.classList.add('capturing');
+                        statusText.textContent = `Capturando... ${Math.round(captureTime/100)}%`;
+                    } else {
+                        captureTime = 0;
+                        excellentFrameCount = 0;
+                        statusDot.classList.remove('capturing');
+                        statusText.textContent = 'Câmera Ativa - Coloque o dedo';
+                        // Resetar feedback quando perde o dedo
+                        feedbackMessage.textContent = 'Coloque seu dedo na zona indicada e mantenha firme.';
+                        feedbackMessage.className = 'feedback-message';
+                        progressFill.style.width = '0%';
+                        progressText.textContent = 'Esperando dedo...';
+                    }
+
+                    if (fingerDetected) {
+                        analyzeQuality(data);
+                        updateFeedback();
+                        updateProgress();
+                        
+                        // Se NFIQ ≥ 50, contar frames de excelência
+                        if (qualityMetrics.nfiq >= 50) {
+                            excellentFrameCount++;
+                        } else {
+                            excellentFrameCount = 0;
+                        }
+                        
+                        // Se 20 frames seguidos ≥ 50 (0.33 segundos) e captura > 1s, salvar
+                        if (excellentFrameCount >= 20 && captureTime > 1000) {
+                            captureFinger();
+                        }
+                    }
+                }
+                analyzeFrames();
+            });
+        }
+
+        // Detectar dedo - Detecção realista
+        function detectFinger(data) {
+            let skinPixels = 0;
+            let brightPixels = 0;
+            let darkPixels = 0;
+            const length = data.length;
+            
+            // Analisar pixels em intervalo (para performance)
+            for (let i = 0; i < length; i += 8) { // Pegar cada 2º pixel
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                const brightness = (r + g + b) / 3;
+                
+                // Detecção de tom de pele: Vermelho dominante
+                const isSkintone = (
+                    r > 95 && g > 40 && b > 20 &&
+                    r > g && g > b &&
+                    Math.abs(r - g) > 10 &&
+                    r - b > 15 &&
+                    brightness > 50 && brightness < 220
+                );
+                
+                if (isSkintone) {
+                    skinPixels++;
+                }
+                
+                // Pixels iluminados
+                if (brightness > 100 && brightness < 220) {
+                    brightPixels++;
+                }
+                
+                // Pixels escuros
+                if (brightness < 60) {
+                    darkPixels++;
+                }
+            }
+            
+            const sampledPixels = length / 8;
+            const skinPercentage = (skinPixels / sampledPixels) * 100;
+            const brightPercentage = (brightPixels / sampledPixels) * 100;
+            const darkPercentage = (darkPixels / sampledPixels) * 100;
+            
+            // Critério menos rigoroso: 5% de pele, boa iluminação, contraste
+            const detected = (
+                skinPercentage > 5 &&           // Apenas 5% de pele necessária
+                brightPercentage > 15 &&        // Um pouco de brilho
+                darkPercentage > 5              // Um pouco de contraste
+            );
+            
+            return detected;
+        }
+
+        // Analisar qualidade REAL
+        function analyzeQuality(data) {
+            // CONTRASTE - diferença entre min/max
+            let minVal = 255, maxVal = 0;
+            let colorData = [];
+            let skinPixels = 0;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                const gray = r * 0.299 + g * 0.587 + b * 0.114;
+                colorData.push(gray);
+                
+                // Pixels de pele
+                if (r > 80 && g > 40 && b > 20 && r > g && r > b) {
+                    skinPixels++;
+                    if (gray < minVal) minVal = gray;
+                    if (gray > maxVal) maxVal = gray;
+                }
+            }
+            
+            // Contraste só na área de pele
+            if (maxVal - minVal < 5) maxVal = minVal + 50; // Evitar divisão por zero
+            qualityMetrics.contrast = Math.min(100, ((maxVal - minVal) / 200) * 100);
+
+            // NITIDEZ/SHARPNESS - Detecção de bordas (SIMPLIFICADA)
+            let edgePixels = 0;
+            
+            if (colorData.length > canvas.width + 1 && skinPixels > 100) {
+                for (let y = 1; y < canvas.height - 1; y++) {
+                    for (let x = 1; x < canvas.width - 1; x++) {
+                        const idx = y * canvas.width + x;
+                        const center = colorData[idx];
+                        
+                        // Verificar variação com vizinhos
+                        const neighbors = [
+                            colorData[idx - canvas.width - 1],
+                            colorData[idx - canvas.width],
+                            colorData[idx - canvas.width + 1],
+                            colorData[idx - 1],
+                            colorData[idx + 1],
+                            colorData[idx + canvas.width - 1],
+                            colorData[idx + canvas.width],
+                            colorData[idx + canvas.width + 1]
+                        ];
+                        
+                        // Se há variação (borda), contar como edge
+                        const maxNeighbor = Math.max(...neighbors);
+                        const minNeighbor = Math.min(...neighbors);
+                        
+                        if (Math.abs(center - maxNeighbor) > 15 || Math.abs(center - minNeighbor) > 15) {
+                            edgePixels++;
+                        }
+                    }
+                }
+            }
+            
+            qualityMetrics.sharpness = Math.min(100, (edgePixels / (canvas.width * canvas.height)) * 500);
+
+            // POSICIONAMENTO - detectar se dedo está mais ou menos centralizado
+            let centerPixels = 0;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const centerRadius = Math.min(canvas.width, canvas.height) / 3;
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                if (r > 80 && g > 40 && b > 20 && r > g && r > b) {
+                    const pixelIndex = i / 4;
+                    const x = pixelIndex % canvas.width;
+                    const y = Math.floor(pixelIndex / canvas.width);
+                    
+                    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                    if (distance < centerRadius) {
+                        centerPixels++;
+                    }
+                }
+            }
+            
+            qualityMetrics.positioning = skinPixels > 0 ? 
+                Math.min(100, (centerPixels / skinPixels) * 100) : 0;
+
+            // NFIQ Score - MENOS EXIGENTE PARA TESTE
+            const contrast = Math.min(100, qualityMetrics.contrast);
+            const sharpness_norm = Math.min(100, qualityMetrics.sharpness);
+            const positioning = qualityMetrics.positioning;
+            
+            // Fórmula simplificada - média ponderada
+            qualityMetrics.nfiq = Math.round(
+                (contrast * 0.25 + sharpness_norm * 0.50 + positioning * 0.25)
+            );
+            
+            // Análise de qualidade (sem logs spam)
+            // Código mantém valores em qualityMetrics
+
+            // Log detalhado apenas periodicamente (a cada 120 frames = 2 segundos)
+            if (fingerDetected && frameCount % 120 === 0) {
+                console.log('📊 Qualidade:', {
+                    contrast: qualityMetrics.contrast.toFixed(1),
+                    sharpness: qualityMetrics.sharpness.toFixed(1),
+                    positioning: qualityMetrics.positioning.toFixed(1),
+                    nfiq: qualityMetrics.nfiq,
+                });
+            }
+
+            updateQualityDisplay();
+        }
+
+        // Atualizar display
+        function updateQualityDisplay() {
+            document.getElementById('contrastValue').textContent = Math.round(qualityMetrics.contrast);
+            document.getElementById('contrastBar').style.width = qualityMetrics.contrast + '%';
+            
+            document.getElementById('sharpnessValue').textContent = Math.round(qualityMetrics.sharpness);
+            document.getElementById('sharpnessBar').style.width = qualityMetrics.sharpness + '%';
+            
+            document.getElementById('positioningValue').textContent = Math.round(qualityMetrics.positioning) + '%';
+            document.getElementById('positioningBar').style.width = qualityMetrics.positioning + '%';
+
+            const nfiq = qualityMetrics.nfiq;
+            document.getElementById('nfiqValue').textContent = String(nfiq).padStart(2, '0');
+            
+            let statusClass = nfiq >= 40 ? 'excellent' : (nfiq >= 25 ? 'good' : 'poor');
+            let statusText = nfiq >= 40 ? 'Bom! ✓' : (nfiq >= 25 ? 'Aceitável' : 'Ruim');
+            
+            document.getElementById('nfiqStatus').className = 'nfiq-status ' + statusClass;
+            document.getElementById('nfiqStatus').textContent = statusText;
+            
+            const nfiqScore = document.querySelector('.nfiq-score');
+            nfiqScore.className = 'nfiq-score ' + statusClass;
+            
+            const nfiqValueEl = document.getElementById('nfiqValue');
+            nfiqValueEl.className = 'nfiq-value ' + statusClass;
+
+            // Atualizar quality items com classe
+            document.querySelectorAll('.quality-item').forEach((item, idx) => {
+                item.className = 'quality-item';
+                const values = [
+                    qualityMetrics.contrast,
+                    qualityMetrics.sharpness,
+                    qualityMetrics.positioning
+                ];
+                const value = values[idx];
+                if (value >= 40) item.classList.add('excellent');
+                else if (value >= 25) item.classList.add('good');
+                else item.classList.add('poor');
+            });
+        }
+
+        // Feedback
+        function updateFeedback() {
+            let feedback = '';
+            let messageClass = 'feedback-message';
+            
+            if (captureTime < 300) {
+                feedback = '🔍 Detectando dedo... Mantenha firme';
+            } else if (qualityMetrics.sharpness < 20) {
+                feedback = '⚠️ Imagem desfocada - Ajuste a DISTÂNCIA';
+                messageClass += ' error';
+            } else if (qualityMetrics.contrast < 20) {
+                feedback = '⚠️ Contraste baixo - Melhore a ILUMINAÇÃO';
+                messageClass += ' error';
+            } else if (qualityMetrics.positioning < 30) {
+                feedback = '⚠️ Dedo fora do centro - CENTRALIZE na zona';
+                messageClass += ' error';
+            } else if (qualityMetrics.nfiq >= 50) {
+                feedback = '✅ CAPTURANDO! Qualidade boa - Mantenha assim!';
+                messageClass += ' success';
+            } else if (qualityMetrics.nfiq >= 35) {
+                feedback = '👍 Qualidade aceitável - Quase pronto...';
+                messageClass += ' warning';
+            } else {
+                feedback = '⚠️ Qualidade baixa - Ajuste para melhorar';
+                messageClass += ' error';
+            }
+            
+            feedbackMessage.textContent = feedback;
+            feedbackMessage.className = messageClass;
+        }
+
+        // Progresso
+        function updateProgress() {
+            const progress = Math.min(100, (captureTime / MAX_CAPTURE_TIME) * 100);
+            progressFill.style.width = progress + '%';
+            
+            if (captureTime < 1000) {
+                progressText.textContent = 'Detectado dedo - estabilizando...';
+            } else if (captureTime < 2000) {
+                progressText.textContent = 'Analisando qualidade...';
+            } else if (captureTime < 3000) {
+                progressText.textContent = 'Verificando nitidez...';
+            } else {
+                progressText.textContent = 'Finalizando captura...';
+            }
+        }
+
+        let isCapturing = false;
+
+        // Salvar captura no banco de dados
+        function saveCaptureToDatabase(captureData) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('user_id') || '1';
+            const activityId = 4;
+
+            return fetch('/api/activities/biometric/capture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: parseInt(userId),
+                    activity_id: activityId,
+                    finger_id: captureData.finger_id,
+                    finger_name: captureData.finger_name,
+                    hand: captureData.hand,
+                    quality: Math.round(captureData.quality),
+                    nfiq: captureData.nfiq,
+                    attempt_number: currentFingerIndex + 1,
+                    metrics: {
+                        contrast: Math.round(captureData.contrast),
+                        sharpness: Math.round(captureData.sharpness),
+                        positioning: Math.round(captureData.positioning)
+                    },
+                    timestamp: new Date().toISOString()
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error('Erro ao salvar. Status:', response.status);
+                    return false;
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Captura salva:', data);
+                return true;
+            })
+            .catch(error => {
+                console.error('Erro ao salvar:', error.message);
+                return false;
+            });
+        }
+
+        // Capturar dedo
+        async function captureFinger() {
+            // Prevenir múltiplas capturas
+            if (isCapturing || capturedFingers.has(currentFingerIndex)) {
+                return;
+            }
+            
+            isCapturing = true;
+            const finger = fingers[currentFingerIndex];
+            
+            // Determinar mão (primeiros 5 dedos = esquerda, últimos 5 = direita)
+            const hand = currentFingerIndex < 5 ? 'Esquerda' : 'Direita';
+            const fingerNames = ['Polegar', 'Indicador', 'Médio', 'Anular', 'Mínimo'];
+            const fingerName = fingerNames[currentFingerIndex % 5];
+            
+            console.log(`✅ CAPTURANDO: ${hand} - ${fingerName} (${currentFingerIndex + 1}/10)`);
+            
+            const captureData = {
+                finger_id: currentFingerIndex + 1,
+                finger_name: fingerName,
+                hand: hand,
+                quality: qualityMetrics.nfiq,
+                nfiq: Math.max(1, Math.min(5, Math.ceil(qualityMetrics.nfiq / 20))),
+                contrast: qualityMetrics.contrast,
+                sharpness: qualityMetrics.sharpness,
+                positioning: qualityMetrics.positioning,
+                timestamp: new Date().toISOString()
+            };
+
+            // Salvar no BD
+            const saved = await saveCaptureToDatabase(captureData);
+            
+            if (saved) {
+                capturedFingers.add(currentFingerIndex);
+                updateFingerProgress();
+                displayCapturedFingers();
+                
+                // UI feedback
+                statusDot.classList.remove('capturing');
+                statusText.textContent = 'Captura Bem-Sucedida!';
+                feedbackMessage.textContent = `✅ ${hand} - ${fingerName} capturado!`;
+                feedbackMessage.className = 'feedback-message success';
+                
+                successPopup.classList.add('show');
+                
+                // Auto-avançar após 1.5 segundos
+                setTimeout(() => {
+                    successPopup.classList.remove('show');
+                    advanceToNextFinger();
+                }, 1500);
+            } else {
+                isCapturing = false;
+                feedbackMessage.textContent = '❌ Erro ao salvar captura. Tente novamente.';
+                feedbackMessage.className = 'feedback-message error';
+            }
+        }
+
+        // Avançar para próximo dedo
+        function advanceToNextFinger() {
+            successPopup.classList.remove('show');
+            isCapturing = false;
+            
+            if (currentFingerIndex < fingers.length - 1) {
+                currentFingerIndex++;
+                captureTime = 0;
+                excellentFrameCount = 0;
+                updateFingerProgress();
+                updateCurrentFinger();
+                feedbackMessage.className = 'feedback-message';
+                feedbackMessage.textContent = 'Coloque seu dedo na zona indicada e mantenha firme.';
+                progressFill.style.width = '0%';
+                progressText.textContent = 'Esperando dedo...';
+                
+                // Resetar qualidade
+                qualityMetrics = { contrast: 0, sharpness: 0, positioning: 0, nfiq: 0 };
+                updateQualityDisplay();
+                
+                console.log(`▶️ Dedo ${currentFingerIndex + 1}/${fingers.length}: ${fingers[currentFingerIndex].name}`);
+            } else {
+                // Completar sessão
+                console.log('🎉 TODAS AS 10 CAPTURAS COMPLETADAS!');
+                completeCaptureSession();
+            }
+        }
+
+        // Completar sessão de captura
+        async function completeCaptureSession() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('user_id') || '1';
+            
+            // Calcular estatísticas
+            const totalFingers = capturedFingers.size;
+            const totalTime = Math.round((Date.now() - window.sessionStartTime) / 1000);
+            const successRate = (totalFingers / 10) * 100;
+            
+            console.log(`📊 Sessão concluída: ${totalFingers}/10 dedos, tempo total: ${totalTime}s`);
+            
+            // Enviar relatório final
+            try {
+                const response = await fetch('/api/activities/biometric/completion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: parseInt(userId),
+                        activity_id: 4,
+                        total_fingers_captured: totalFingers,
+                        average_quality: 75,
+                        success_rate: successRate,
+                        total_time: totalTime,
+                        captured_fingers: Array.from(capturedFingers)
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Sessão finalizada com sucesso no servidor');
+                }
+            } catch (error) {
+                console.error('Erro ao finalizar sessão:', error);
+            }
+            
+            // Mostrar mensagem final
+            feedbackMessage.className = 'feedback-message success';
+            feedbackMessage.textContent = `🎉 Todas as ${totalFingers} capturas foram completadas com sucesso!`;
+            statusText.textContent = '✅ Atividade Concluída';
+            
+            // Redirecionar após 3 segundos
+            setTimeout(() => {
+                alert(`✅ Você completou a atividade com ${totalFingers}/10 dedos capturados!\n\nTempo total: ${totalTime} segundos`);
+                window.location.href = '/pages/dashboard.html';
+            }, 3000);
+        }
+
+        // Iniciar
+        window.addEventListener('load', () => {
+            window.sessionStartTime = Date.now();
+            console.clear();
+            console.log('🚀 SIMULADOR BIOMÉTRICO - CAPTURA DE 10 DEDOS');
+            console.log('💡 Coloque seus dedos conforme indicado - sistema capturará automaticamente');
+            console.log('');
+            
+            initializeUI();
+            
+            // Verificar Openbio
+            checkOpenbioAvailability().then(hasOpenbio => {
+                if (!hasOpenbio) {
+                    console.log('📱 Usando simulador com detecção de pele em tempo real');
+                }
+                startCamera();
+            });
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

@@ -45,7 +45,7 @@ try:
             <h1>✅ INFANT.ID Servidor Rodando!</h1>
             <div class="status">
                 <p><strong>Status: Ativo</strong></p>
-                <p>Servidor Flask está funcionando na porta 5000</p>
+                <p>Servidor Flask está funcionando na porta 5001</p>
                 <br>
                 <p>Links disponíveis:</p>
                 <ul>

@@ -212,7 +212,7 @@ def test_api_endpoint():
         
         print_info("Enviando requisição POST para /api/ia/consult...")
         response = requests.post(
-            "http://localhost:5000/api/ia/consult",
+            "http://localhost:5001/api/ia/consult",
             json=payload,
             timeout=30
         )
@@ -234,7 +234,7 @@ def test_api_endpoint():
             return False
             
     except requests.exceptions.ConnectionError:
-        print_warning("Flask não está rodando em localhost:5000")
+        print_warning("Flask não está rodando em localhost:5001")
         print_info("Execute em outro terminal: cd backend && python run.py")
         return False
     except Exception as e:

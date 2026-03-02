@@ -266,6 +266,220 @@ def get_leaderboard():
 
 
 # ============================================
+# ENDPOINTS PARA LISTAR E ACESSAR ATIVIDADES
+# ============================================
+
+@activities_bp.route('/list', methods=['GET'])
+def list_available_activities():
+    """Listar todas as atividades disponíveis no sistema"""
+    import os
+    try:
+        activities_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'frontend', 'activities'
+        )
+        
+        if not os.path.exists(activities_path):
+            return jsonify({'error': 'Diretório de atividades não encontrado'}), 404
+        
+        # Listar todos os arquivos HTML
+        html_files = [f for f in os.listdir(activities_path) if f.endswith('.html')]
+        
+        # Criar lista com metadados
+        activities = []
+        for html_file in sorted(html_files):
+            name = html_file.replace('.html', '')
+            title = name.replace('-', ' ').title()
+            
+            # Determinar categoria e descrição baseado no nome
+            category = 'Simulador'
+            description = 'Atividade prática'
+            icon = '📋'
+            
+            if 'biometrica' in name:
+                category = 'Captura Biométrica'
+                description = 'Simulador de captura de impressões digitais ETAN'
+                icon = '👆'
+            elif 'simulator' in name or 'simulador' in name:
+                category = 'Simulador'
+                description = 'Simulador de protocolo ETAN'
+                icon = '🎮'
+            elif 'troubleshooting' in name:
+                category = 'Solução de Problemas'
+                description = 'Guia de troubleshooting ETAN'
+                icon = '🔧'
+            elif 'special_cases' in name:
+                category = 'Casos Especiais'
+                description = 'Tratamento de casos especiais'
+                icon = '⚠️'
+            
+            activities.append({
+                'id': len(activities) + 1,
+                'filename': html_file,
+                'name': name,
+                'title': title,
+                'description': description,
+                'category': category,
+                'icon': icon,
+                'type': 'interactive',
+                'url': f'/activities/{html_file}',
+                'api_url': f'/api/activities/{name}/access'
+            })
+        
+        return jsonify({
+            'success': True,
+            'total': len(activities),
+            'activities': activities
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@activities_bp.route('/<activity_name>/access', methods=['GET'])
+def access_activity(activity_name):
+    """Acessar uma atividade específica pelo nome"""
+    import os
+    try:
+        activities_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'frontend', 'activities'
+        )
+        
+        # Tentar com .html
+        html_file = f'{activity_name}.html'
+        file_path = os.path.join(activities_path, html_file)
+        
+        if not os.path.exists(file_path):
+            # Tentar alternativas
+            alternatives = [
+                f'{activity_name}.html',
+                f'{activity_name.replace("_", "-")}.html',
+                f'{activity_name.replace("-", "_")}.html'
+            ]
+            
+            found = False
+            for alt in alternatives:
+                alt_path = os.path.join(activities_path, alt)
+                if os.path.exists(alt_path):
+                    file_path = alt_path
+                    html_file = alt
+                    found = True
+                    break
+            
+            if not found:
+                return jsonify({
+                    'error': f'Atividade "{activity_name}" não encontrada',
+                    'available': [f.replace('.html', '') for f in os.listdir(activities_path) if f.endswith('.html')]
+                }), 404
+        
+        return jsonify({
+            'success': True,
+            'activity': activity_name,
+            'filename': html_file,
+            'url': f'/activities/{html_file}',
+            'message': f'Acesse a atividade em: /activities/{html_file}'
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@activities_bp.route('/categories', methods=['GET'])
+def get_activity_categories():
+    """Obter atividades agrupadas por categoria"""
+    import os
+    try:
+        activities_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'frontend', 'activities'
+        )
+        
+        categories = {
+            'Captura Biométrica': [],
+            'Simulador': [],
+            'Solução de Problemas': [],
+            'Casos Especiais': [],
+            'Outros': []
+        }
+        
+        html_files = [f for f in os.listdir(activities_path) if f.endswith('.html')]
+        
+        for html_file in sorted(html_files):
+            name = html_file.replace('.html', '')
+            title = name.replace('-', ' ').title()
+            
+            activity = {
+                'filename': html_file,
+                'name': name,
+                'title': title,
+                'url': f'/activities/{html_file}'
+            }
+            
+            if 'biometrica' in name:
+                categories['Captura Biométrica'].append(activity)
+            elif 'simulator' in name or 'simulador' in name:
+                categories['Simulador'].append(activity)
+            elif 'troubleshooting' in name:
+                categories['Solução de Problemas'].append(activity)
+            elif 'special_cases' in name:
+                categories['Casos Especiais'].append(activity)
+            else:
+                categories['Outros'].append(activity)
+        
+        # Remover categorias vazias
+        categories = {k: v for k, v in categories.items() if v}
+        
+        return jsonify({
+            'success': True,
+            'categories': categories,
+            'total_activities': sum(len(v) for v in categories.values())
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@activities_bp.route('/search', methods=['GET'])
+def search_activities():
+    """Pesquisar atividades por palavra-chave"""
+    import os
+    try:
+        query = request.args.get('q', '').lower()
+        
+        if not query:
+            return jsonify({'error': 'Parâmetro \"q\" é obrigatório'}), 400
+        
+        activities_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+            'frontend', 'activities'
+        )
+        
+        html_files = [f for f in os.listdir(activities_path) if f.endswith('.html')]
+        results = []
+        
+        for html_file in sorted(html_files):
+            name = html_file.replace('.html', '').lower()
+            if query in name:
+                results.append({
+                    'filename': html_file,
+                    'name': html_file.replace('.html', ''),
+                    'title': html_file.replace('.html', '').replace('-', ' ').title(),
+                    'url': f'/activities/{html_file}'
+                })
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'count': len(results)
+        }), 200
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================
 # FUNÇÕES AUXILIARES
 # ============================================
 
@@ -319,3 +533,175 @@ def criar_ou_obter_badge(user_id, badge_type, badge_name, description, icon):
         db.session.flush()  # Flush para obter ID
     
     return badge
+
+
+# ============================================
+# ENDPOINTS PARA CAPTURA BIOMÉTRICA ETAN
+# ============================================
+
+@activities_bp.route('/biometric/session/start', methods=['POST'])
+def start_biometric_session():
+    """Iniciar uma sessão de captura biométrica ETAN"""
+    try:
+        # Aceitar sem autenticação para testes, mas registrar user_id se disponível
+        data = request.get_json()
+        user_id = data.get('user_id', 1)
+        activity_id = data.get('activity_id', 4)
+        course_id = data.get('course_id', 1)
+        
+        # Criar nova atividade de captura biométrica
+        activity = UserActivity(
+            user_id=user_id,
+            course_id=course_id,
+            lesson_id=4,  # Aula do ETAN
+            activity_type='biometric',
+            status='ongoing',
+            metadata=json.dumps({
+                'session_type': 'etan_biometric',
+                'fingerprint_count': 0,
+                'start_time': datetime.utcnow().isoformat()
+            })
+        )
+        
+        db.session.add(activity)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'session_id': activity.id,
+            'user_id': user_id,
+            'activity_id': activity_id,
+            'message': 'Sessão de captura biométrica iniciada'
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@activities_bp.route('/biometric/capture', methods=['POST'])
+def record_biometric_capture():
+    """Registrar captura de uma digital com qualidade NFIQ"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 1)
+        activity_id = data.get('activity_id', 4)
+        finger_id = data.get('finger_id')
+        finger_name = data.get('finger_name', 'Unknown')
+        hand = data.get('hand', 'Unknown')
+        quality = data.get('quality', 0)
+        nfiq = data.get('nfiq', 0)
+        attempt_number = data.get('attempt_number', 1)
+        
+        # Registrar tentativa
+        attempt = ActivityAttempt(
+            activity_id=activity_id,
+            user_id=user_id,
+            attempt_number=attempt_number,
+            score=quality,  # Usar qualidade como score
+            time_taken=0
+        )
+        
+        # Armazenar dados biométricos no metadata
+        biometric_data = {
+            'finger_id': finger_id,
+            'finger_name': finger_name,
+            'hand': hand,
+            'quality': quality,
+            'nfiq': nfiq,
+            'captured_at': datetime.utcnow().isoformat(),
+            'attempt_number': attempt_number
+        }
+        attempt.set_result(biometric_data)
+        attempt.set_responses({'biometric': biometric_data})
+        
+        db.session.add(attempt)
+        
+        # Atualizar atividade
+        activity = UserActivity.query.get(activity_id)
+        if activity:
+            activity.attempts += 1
+            activity.score = max(activity.score, quality)
+            
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'attempt_id': attempt.id,
+            'finger_captured': f"{hand} - {finger_name}",
+            'quality': quality,
+            'nfiq': nfiq,
+            'message': 'Digital capturada com sucesso'
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e), 'type': type(e).__name__}), 500
+
+
+@activities_bp.route('/biometric/completion', methods=['POST'])
+def complete_biometric_session():
+    """Completar sessão de captura biométrica e gerar relatório"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id', 1)
+        activity_id = data.get('activity_id', 4)
+        total_fingers = data.get('total_fingers_captured', 0)
+        average_quality = data.get('average_quality', 0)
+        success_rate = data.get('success_rate', 0)
+        captured_fingers = data.get('captured_fingers', [])
+        total_time = data.get('total_time', 0)
+        
+        # Obter atividade
+        activity = UserActivity.query.get(activity_id)
+        if not activity:
+            return jsonify({'error': 'Atividade não encontrada'}), 404
+        
+        # Calcular score final (baseado na qualidade média e dedos capturados)
+        final_score = (total_fingers / 10) * 100 * (average_quality / 100)
+        
+        # Atualizar atividade
+        activity.status = 'completed'
+        activity.score = final_score
+        activity.time_spent = total_time
+        activity.completed_at = datetime.utcnow()
+        
+        # Atualizar metadata
+        metadata = json.loads(activity.metadata) if activity.metadata else {}
+        metadata.update({
+            'total_fingers_captured': total_fingers,
+            'average_quality': average_quality,
+            'success_rate': success_rate,
+            'captured_fingers': captured_fingers,
+            'final_score': final_score,
+            'completion_time': datetime.utcnow().isoformat()
+        })
+        activity.metadata = json.dumps(metadata)
+        
+        # Gerar badge se 100% de digitalização
+        if total_fingers == 10 and average_quality >= 70:
+            badge = criar_ou_obter_badge(
+                user_id,
+                'etan_master',
+                'Mestre em ETAN',
+                'Completou a captura biométrica com 100% de sucesso',
+                '🏆'
+            )
+            db.session.add(badge)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'activity_id': activity_id,
+            'final_score': final_score,
+            'status': 'completed',
+            'total_fingers_captured': total_fingers,
+            'average_quality': average_quality,
+            'success_rate': success_rate,
+            'message': 'Sessão de captura biométrica concluída com sucesso'
+        }), 200
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e), 'type': type(e).__name__}), 500

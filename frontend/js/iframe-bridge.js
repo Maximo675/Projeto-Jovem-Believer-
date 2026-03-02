@@ -335,12 +335,10 @@ if (window.self === window.top) {
  * Abrir janela de simulador
  */
 function openSimulatorWindow(simulatorType, fase = 4) {
-    const simulatorUrl = simulatorType === 'practice' 
-        ? '/activities/etan_simulador_pratica.html?fase=4'
-        : 'https://infant.akiyama.com.br/#/infant-capture';
+    const simulatorUrl = '/activities/biometric-capture-simulator.html?mode=' + simulatorType + '&fase=' + fase;
     
     // Abrir em popup
-    const popup = window.open(simulatorUrl, 'ETANSimulator', 'width=1000,height=800');
+    const popup = window.open(simulatorUrl, 'BiometricSimulator', 'width=1000,height=800');
     
     if (popup) {
         console.log('🖥️ Janela de simulador aberta');

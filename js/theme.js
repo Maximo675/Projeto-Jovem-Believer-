@@ -6,26 +6,26 @@ const ThemeManager = {
     // Temas disponíveis
     THEMES: {
         LIGHT: 'light',
-        DARK: 'dark',
-        ALTERNATIVE: 'alternative'
+        DARK: 'dark'
+       
     },
 
     // Logos mapeadas por tema
     LOGOS: {
-        light: '/assets/logo/Winged mind_versãoAzul.jpg',
-        dark: '/assets/logo/Winged mind_versãoBranco.jpg',
-        alternative: '/assets/logo/Winged mind_versãoAzul.jpg'
+        light: '/assets/logo/winged_mind_branco.png',
+        dark: '/assets/logo/winged_mind_azul.png',
+       
     },
 
     // Favicons mapeados por tema
     FAVICONS: {
         light: '/public/icon-blue.ico',
         dark: '/public/icon-white.ico',
-        alternative: '/public/icon-blue.ico'
+     
     },
 
     // Tema atual
-    currentTheme: 'dark',
+    currentTheme: 'light',
 
     /**
      * Inicializa o gerenciador de temas

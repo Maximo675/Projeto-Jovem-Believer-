@@ -374,6 +374,83 @@
             color: #999;
         }
 
+        .dpi-control-section {
+            padding: 15px;
+            background: #2d2d3d;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .dpi-label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .dpi-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #3a3a4a;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .dpi-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dpi-slider::-webkit-slider-thumb:hover {
+            background: #764ba2;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+        }
+
+        .dpi-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .dpi-slider::-moz-range-thumb:hover {
+            background: #764ba2;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+        }
+
+        .dpi-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 10px;
+            background: #1e1e2e;
+            border-radius: 3px;
+        }
+
+        .dpi-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #4ade80;
+            font-family: 'Courier New', monospace;
+        }
+
+        .dpi-status {
+            font-size: 11px;
+            color: #999;
+        }
+
         @media (max-width: 1024px) {
             .container {
                 flex-direction: column;
@@ -439,6 +516,18 @@
                     <div class="info-value" id="pressureValue">0 mmHg</div>
                 </div>
                 <div class="info-item">
+                    <div class="info-label">Contraste</div>
+                    <div class="info-value" id="contrastValue">0%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Iluminação</div>
+                    <div class="info-value" id="illuminationValue">0%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Detecção de Pele</div>
+                    <div class="info-value" id="skinDetectionValue">0%</div>
+                </div>
+                <div class="info-item">
                     <div class="info-label">Status</div>
                     <div class="info-value" id="statusValue" style="color: #fbbf24;">Pronto</div>
                 </div>
@@ -474,6 +563,20 @@
                 <div class="sequence-list" id="sequenceList">
                 </div>
             </div>
+
+            <div class="panel">
+                <h3>⚙️ Configurações ETAN</h3>
+                <div class="dpi-control-section">
+                    <label class="dpi-label">Resolução de Captura (DPI)</label>
+                    <input type="range" id="dpiSlider" class="dpi-slider" min="300" max="5080" value="1200" step="100">
+                    <div class="dpi-display">
+                        <div>
+                            <div class="dpi-value" id="dpiValue">1200</div>
+                            <div class="dpi-status" id="dpiStatus">DPI Recomendado</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -498,6 +601,8 @@
         let countdownTimeout = null;
         let countdownInterval = null;
         let video = null;
+        let currentDPI = 1200; // Configuração padrão ETAN
+        let maxQualityByDPI = 85; // Qualidade máxima afetada por DPI
         let cameraStream = null;
         let isCameraActive = false;
         let analysisInterval = null;
@@ -593,17 +698,19 @@
 
                 // Obter dados da imagem para análise
                 const imageData = ctx.getImageData(0, 0, width, height);
-                
-                // Usar processador avançado para análise detalhada
-                const advancedAnalysis = imageProcessor.analyzeFrameQuality(imageData);
-                
-                // Armazenar no histórico
-                imageProcessor.storeFrame(imageData);
-                
-                // Análise simplificada alternativa (mais rápida)
                 const data = imageData.data;
-                let darkerPixels = 0;
+                const totalPixels = width * height;
+
+                // ========================================
+                // ANÁLISE COMPLETA DE QUALIDADE
+                // ========================================
+
+                // 1. ANÁLISE DE TONS DE PELE (Detecção de Dedo)
+                let skinPixels = 0;
+                let darkPixels = 0;
+                let brightPixels = 0;
                 let redChannel = 0, greenChannel = 0, blueChannel = 0;
+                let minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
 
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
@@ -615,35 +722,85 @@
                     greenChannel += g;
                     blueChannel += b;
 
-                    if (brightness < 100) {
-                        darkerPixels++;
+                    minR = Math.min(minR, r);
+                    maxR = Math.max(maxR, r);
+                    minG = Math.min(minG, g);
+                    maxG = Math.max(maxG, g);
+                    minB = Math.min(minB, b);
+                    maxB = Math.max(maxB, b);
+
+                    // Detectar tons de pele (R > G > B, tipicamente)
+                    if (r > 95 && g > 40 && b > 20 && r > g && g > b && 
+                        Math.abs(r - g) > 15 && r - b > 15) {
+                        skinPixels++;
+                    }
+
+                    if (brightness < 80) {
+                        darkPixels++;
+                    }
+                    if (brightness > 200) {
+                        brightPixels++;
                     }
                 }
 
-                const totalPixels = width * height;
                 const avgRed = Math.round(redChannel / totalPixels);
                 const avgGreen = Math.round(greenChannel / totalPixels);
                 const avgBlue = Math.round(blueChannel / totalPixels);
 
-                // Usar score NFIQ avançado quando disponível
-                const quality = advancedAnalysis.nfiqScore || (
-                    Math.min(100, 
-                        Math.abs(avgRed - avgBlue) * 0.5 + 
-                        Math.max(0, (darkerPixels / totalPixels) * 150)
-                    )
-                );
+                // 2. CALCULAR LUMINÂNCIA (Iluminação)
+                const luminance = (0.299 * avgRed + 0.587 * avgGreen + 0.114 * avgBlue) / 255;
+                const illumination = Math.min(100, Math.round(luminance * 130)); // 0-100%
 
-                const contrast = Math.abs(avgRed - avgGreen) + Math.abs(avgGreen - avgBlue);
-                
+                // 3. CALCULAR CONTRASTE (Diferença de tons)
+                const contrastValue = (maxR - minR) + (maxG - minG) + (maxB - minB);
+                const contrast = Math.min(100, Math.round((contrastValue / 400) * 100));
+
+                // 4. CALCULAR DETECÇÃO DE PELE
+                const skinDetectionPercent = Math.round((skinPixels / totalPixels) * 100);
+
+                // 5. CALCULAR NFIQ (Qualidade geral - 0-100)
+                // Baseado em: detecção de pele, contraste, iluminação
+                let nfiqScore = 0;
+
+                // Peso 1: Detecção de pele (40%)
+                const skinWeight = Math.min(skinDetectionPercent, 100) * 0.4;
+
+                // Peso 2: Contraste adequado (30%)
+                let contrastWeight = 0;
+                if (contrast >= 30 && contrast <= 90) {
+                    contrastWeight = Math.min(contrast, 80) / 80 * 30;
+                } else if (contrast < 30) {
+                    contrastWeight = (contrast / 30) * 30 * 0.5;
+                } else {
+                    contrastWeight = (100 - contrast) / 10 * 30 * 0.5;
+                }
+
+                // Peso 3: Iluminação (30%)
+                let illuminationWeight = 0;
+                if (illumination >= 50 && illumination <= 90) {
+                    illuminationWeight = (illumination - 50) / 40 * 30;
+                } else if (illumination < 50) {
+                    illuminationWeight = (illumination / 50) * 30 * 0.6;
+                } else {
+                    illuminationWeight = ((100 - illumination) / 10) * 30 * 0.6;
+                }
+
+                nfiqScore = Math.round(skinWeight + contrastWeight + illuminationWeight);
+
+                // 6. ESTIMAR PRESSÃO
+                let estimatedPressure = 40 + (skinDetectionPercent / 100) * 60;
+                estimatedPressure += (darkPixels / totalPixels) * 20;
+                estimatedPressure = Math.min(120, Math.round(estimatedPressure));
+
                 return {
-                    quality: Math.round(quality),
-                    fingerDetection: Math.round(advancedAnalysis.roiDetection.confidence),
-                    avgColor: { r: avgRed, g: avgGreen, b: avgBlue },
-                    contrast: Math.round(contrast),
-                    isFingerDetected: advancedAnalysis.roiDetection.detected,
-                    nfiq: advancedAnalysis.nfiqScore,
-                    pressure: advancedAnalysis.estimatedPressure,
-                    roiArea: advancedAnalysis.roiDetection.roiArea
+                    quality: nfiqScore,
+                    nfiq: nfiqScore,
+                    contrast: contrast,
+                    illumination: illumination,
+                    skinDetection: skinDetectionPercent,
+                    isFingerDetected: skinDetectionPercent > 15,
+                    pressure: estimatedPressure,
+                    avgColor: { r: avgRed, g: avgGreen, b: avgBlue }
                 };
 
             } catch (error) {
@@ -703,11 +860,9 @@
             document.getElementById('statusValue').textContent = 'Capturando...';
             document.getElementById('statusValue').style.color = '#667eea';
 
-            // Simulação de captura com câmera
             const scanner = document.getElementById('scannerFrame');
             scanner.classList.add('active');
 
-            // Mostrar canvas, esconder texto e indicador
             const canvas = document.getElementById('fingerprintCanvas');
             const scannerText = document.getElementById('scannerText');
             const qualityIndicator = document.getElementById('qualityIndicator');
@@ -718,66 +873,88 @@
             qualityText.classList.add('showing');
             scannerText.style.display = 'none';
 
-            // Iniciar captura de frames da câmera
             let captureProgress = 0;
             let qualityValues = [];
-            let finalQuality = 0;
-            let bestPressure = 0;
-            let fingerDetectionCount = 0;
+            let contrastValues = [];
+            let illuminationValues = [];
+            let skinDetectionValues = [];
+            let pressureValues = [];
+            let finalMetrics = {};
+            let lastUpdateTime = 0;
 
             analysisInterval = setInterval(() => {
                 captureProgress++;
                 
-                // Capturar frame e analisar
                 const analysis = analyzeVideoFrame(canvas);
                 
-                if (analysis) {
+                if (analysis && analysis.quality) {
                     qualityValues.push(analysis.quality);
-                    if (analysis.isFingerDetected) {
-                        fingerDetectionCount++;
-                    }
+                    contrastValues.push(analysis.contrast || 0);
+                    illuminationValues.push(analysis.illumination || 0);
+                    skinDetectionValues.push(analysis.skinDetection || 0);
+                    pressureValues.push(analysis.pressure || 80);
                     
-                    // Média móvel de qualidade
+                    // Calcular valores de forma eficiente
                     const recentQuality = qualityValues.slice(-5);
                     const avgQuality = Math.round(
                         recentQuality.reduce((a, b) => a + b, 0) / recentQuality.length
                     );
                     
-                    // Usar pressão real do processador se disponível
-                    bestPressure = Math.max(
-                        bestPressure,
-                        analysis.pressure || (
-                            analysis.isFingerDetected ? 
-                                (60 + Math.random() * 50) : 
-                                (20 + Math.random() * 30)
-                        )
+                    const avgContrast = Math.round(
+                        contrastValues.slice(-5).reduce((a, b) => a + b, 0) / 
+                        Math.min(5, contrastValues.slice(-5).length)
                     );
 
-                    // Atualizar barra de qualidade
-                    document.getElementById('qualityBarFill').style.width = avgQuality + '%';
-                    
-                    // Indicador detalhado
-                    const detectionRate = Math.round((fingerDetectionCount / captureProgress) * 100);
-                    qualityText.textContent = `Qualidade: ${avgQuality}% | Detecção: ${detectionRate}%`;
-                    document.getElementById('qualityValue').textContent = avgQuality + '/100';
-                    document.getElementById('pressureValue').textContent = Math.round(bestPressure) + ' mmHg';
+                    const avgIllumination = Math.round(
+                        illuminationValues.slice(-5).reduce((a, b) => a + b, 0) / 
+                        Math.min(5, illuminationValues.slice(-5).length)
+                    );
 
-                    // Debug: mostrar análise detalhada
-                    console.log(`📊 Frame ${captureProgress}:`, {
+                    const avgSkinDetection = Math.round(
+                        skinDetectionValues.slice(-5).reduce((a, b) => a + b, 0) / 
+                        Math.min(5, skinDetectionValues.slice(-5).length)
+                    );
+
+                    const avgPressure = Math.round(
+                        pressureValues.slice(-5).reduce((a, b) => a + b, 0) / 
+                        Math.min(5, pressureValues.slice(-5).length)
+                    );
+
+                    // Atualizar UI apenas a cada 500ms para evitar spam
+                    const now = Date.now();
+                    if (now - lastUpdateTime > 500) {
+                        document.getElementById('qualityBarFill').style.width = avgQuality + '%';
+                        qualityText.textContent = `NFIQ: ${avgQuality}% | Pele: ${avgSkinDetection}%`;
+                        document.getElementById('qualityValue').textContent = avgQuality + '/100';
+                        document.getElementById('pressureValue').textContent = avgPressure + ' mmHg';
+                        document.getElementById('contrastValue').textContent = avgContrast + '%';
+                        document.getElementById('illuminationValue').textContent = avgIllumination + '%';
+                        document.getElementById('skinDetectionValue').textContent = avgSkinDetection + '%';
+                        lastUpdateTime = now;
+                    }
+
+                    finalMetrics = {
                         quality: avgQuality,
-                        nfiq: analysis.nfiq,
-                        fingerDetected: analysis.isFingerDetected,
-                        detectionRate: detectionRate,
-                        pressure: Math.round(bestPressure),
-                        roiArea: analysis.roiArea
-                    });
+                        contrast: avgContrast,
+                        illumination: avgIllumination,
+                        skinDetection: avgSkinDetection,
+                        pressure: avgPressure
+                    };
                 }
 
+                // Captura por 15 frames (1.5 segundos)
                 if (captureProgress >= 15) {
                     clearInterval(analysisInterval);
-                    finalQuality = qualityValues.length > 0 ? 
+                    analysisInterval = null;
+                    
+                    const finalQuality = qualityValues.length > 0 ? 
                         Math.round(qualityValues.reduce((a, b) => a + b, 0) / qualityValues.length) : 60;
-                    completeCapture(finger, finalQuality, bestPressure, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl);
+                    
+                    const limitedQuality = Math.min(finalQuality, maxQualityByDPI);
+                    
+                    console.log(`✅ Captura ${currentIndex + 1}/10 - NFIQ=${limitedQuality}%`);
+                    
+                    completeCapture(finger, limitedQuality, finalMetrics, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl);
                 }
             }, 100);
         }
@@ -786,7 +963,7 @@
             // Esta função agora é substituída pela captura do vídeo
             // mas mantemos a compatibilidade
             if (!video || !isCameraActive) {
-                // Fallback: desenho simulado se câmera não estiver disponível
+                // Fallback: desenho simulado com detalhes baseados em DPI
                 const ctx = canvas.getContext('2d');
                 const width = canvas.width = 250;
                 const height = canvas.height = 250;
@@ -794,11 +971,16 @@
                 ctx.fillStyle = 'rgba(20, 20, 30, 0.8)';
                 ctx.fillRect(0, 0, width, height);
 
+                // Calcular nível de detalhe baseado em DPI
+                let detailMultiplier = (currentDPI / 1200); // 1200 DPI = 1x (baseline)
+                detailMultiplier = Math.min(detailMultiplier, 5); // Máximo 5x para 5080 DPI
+
                 ctx.strokeStyle = '#4ade80';
                 ctx.lineWidth = 1.5;
                 ctx.globalAlpha = Math.min(quality, 1);
 
-                const numLines = Math.floor(30 * quality);
+                // Desenhar mais linhas (minúcias) com DPI alto
+                const numLines = Math.floor(30 * quality * detailMultiplier);
                 for (let i = 0; i < numLines; i++) {
                     const startX = Math.random() * width;
                     const startY = Math.random() * height;
@@ -814,9 +996,10 @@
                     ctx.stroke();
                 }
 
+                // Pontos de terminação (mais com DPI alto)
                 ctx.globalAlpha = Math.min(quality * 1.2, 1);
                 ctx.fillStyle = '#4ade80';
-                const numPoints = Math.floor(15 * quality);
+                const numPoints = Math.floor(15 * quality * detailMultiplier);
                 for (let i = 0; i < numPoints; i++) {
                     const x = Math.random() * width;
                     const y = Math.random() * height;
@@ -826,6 +1009,7 @@
                     ctx.fill();
                 }
 
+                // Padrão central (núcleo da digital)
                 if (quality > 0.3) {
                     ctx.globalAlpha = 0.6;
                     ctx.strokeStyle = 'rgba(74, 222, 128, 0.7)';
@@ -835,61 +1019,121 @@
                     ctx.stroke();
                 }
 
+                // Padrão adicional ("bifurcação") com DPI muito alto
+                if (currentDPI >= 2400 && quality > 0.5) {
+                    ctx.globalAlpha = 0.4;
+                    ctx.strokeStyle = 'rgba(74, 222, 128, 0.5)';
+                    ctx.lineWidth = 1;
+                    const branches = Math.floor(4 * quality);
+                    for (let i = 0; i < branches; i++) {
+                        const angle = (i / branches) * Math.PI * 2;
+                        ctx.beginPath();
+                        ctx.moveTo(width / 2, height / 2);
+                        ctx.lineTo(
+                            width / 2 + Math.cos(angle) * (width / 4),
+                            height / 2 + Math.sin(angle) * (height / 4)
+                        );
+                        ctx.stroke();
+                    }
+                }
+
                 ctx.globalAlpha = 1;
             }
         }
 
-        function completeCapture(finger, quality, pressure, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl) {
-            if (quality >= 60) {
-                // Sucesso na captura
-                captured.set(finger.id, {
-                    quality: quality,
+        function completeCapture(finger, quality, metrics, canvas, scannerText, qualityIndicator, qualityText, scanner, timerEl) {
+            const finalQuality = quality;
+            const pressure = metrics.pressure || 80;
+            
+            if (finalQuality >= 40) { // Qualidade mínima = 40 (para children, como no config real)
+                // Preparar dados para armazenar no BD
+                const captureData = {
+                    finger_id: finger.id,
+                    finger_name: finger.name,
+                    quality: finalQuality,
+                    nfiq: finalQuality,
+                    contrast: metrics.contrast || 0,
+                    illumination: metrics.illumination || 0,
+                    skinDetection: metrics.skinDetection || 0,
                     pressure: pressure,
+                    dpi: currentDPI,
+                    timestamp: new Date().toISOString()
+                };
+
+                // Sucesso na captura - Armazenar dados
+                captured.set(finger.id, {
+                    ...captureData,
                     timestamp: new Date()
                 });
 
                 document.getElementById('statusValue').textContent = '✅ Capturado!';
                 document.getElementById('statusValue').style.color = '#4ade80';
 
-                // Mostrar mensagem de sucesso
-                showMessage(`✅ ${finger.name} capturado com sucesso! (${quality}/100)`, 'success');
+                showMessage(`✅ ${finger.name} capturado! (NFIQ: ${finalQuality}% | Contraste: ${metrics.contrast}% | Pele: ${metrics.skinDetection}%)`, 'success');
 
-                // Avançar para o próximo dedo após 2 segundos
-                setTimeout(() => {
-                    currentIndex++;
-                    isCapturing = false;
-                    scanner.classList.remove('active');
-                    timerEl.classList.remove('capturing');
-                    
-                    // Limpar visual
-                    canvas.classList.remove('showing');
-                    qualityIndicator.classList.remove('showing');
-                    qualityText.classList.remove('showing');
-                    scannerText.style.display = 'flex';
-                    document.getElementById('qualityBarFill').style.width = '0%';
-                    
-                    // Se chegou ao final
-                    if (currentIndex >= fingers.length) {
-                        timerEl.textContent = '✅';
-                        completePractice();
-                    } else {
-                        document.getElementById('statusValue').textContent = 'Pronto';
-                        document.getElementById('statusValue').style.color = '#fbbf24';
-                        updateDisplay();
-                    }
-                }, 2000);
+                // Limpar intervalo se houver
+                if (analysisInterval) {
+                    clearInterval(analysisInterval);
+                    analysisInterval = null;
+                }
+
+                // **IMPORTANTE**: Salvar no banco de dados ANTES de avançar
+                saveCaptureToDatabase(captureData).then(success => {
+                    // Avançar para o próximo dedo após 2 segundos
+                    setTimeout(() => {
+                        currentIndex++;
+                        isCapturing = false;
+                        scanner.classList.remove('active');
+                        timerEl.classList.remove('capturing');
+                        
+                        // Limpar visual
+                        canvas.classList.remove('showing');
+                        qualityIndicator.classList.remove('showing');
+                        qualityText.classList.remove('showing');
+                        scannerText.style.display = 'flex';
+                        document.getElementById('qualityBarFill').style.width = '0%';
+                        
+                        console.log(`✅ Dedo ${currentIndex}/${fingers.length} capturado com sucesso!`);
+                        
+                        // Se chegou ao final
+                        if (currentIndex >= fingers.length) {
+                            timerEl.textContent = '✅';
+                            console.log('🎉 TODAS AS CAPTURAS COMPLETADAS!');
+                            completePractice();
+                        } else {
+                            document.getElementById('statusValue').textContent = 'Pronto';
+                            document.getElementById('statusValue').style.color = '#fbbf24';
+                            console.log(`📋 Avançando para dedo ${currentIndex + 1}/${fingers.length}...`);
+                            updateDisplay();
+                        }
+                    }, 2000);
+                });
             } else {
                 // Falha - tentar novamente
-                showMessage(`❌ Qualidade baixa (${quality}/100). Tentando novamente...`, 'error');
+                let errorMsg = `❌ Qualidade baixa (${finalQuality}/100).`;
+                
+                if (finalQuality === maxQualityByDPI && currentDPI < 1200) {
+                    errorMsg += ` 💡 Dica: Aumentar DPI para melhor qualidade (atual: ${currentDPI} DPI).`;
+                }
+                
+                errorMsg += ' Tentando novamente...';
+                showMessage(errorMsg, 'error');
                 document.getElementById('statusValue').textContent = 'Tentando novamente...';
                 document.getElementById('statusValue').style.color = '#ef4444';
+                
+                // Limpar intervalo se houver
+                if (analysisInterval) {
+                    clearInterval(analysisInterval);
+                    analysisInterval = null;
+                }
+                
+                console.log(`❌ Dedo ${currentIndex + 1}/${fingers.length} - Qualidade insuficiente. Tentando novamente...`);
                 
                 setTimeout(() => {
                     isCapturing = false;
                     scanner.classList.remove('active');
                     timerEl.classList.remove('capturing');
                     
-                    // Limpar visual
                     canvas.classList.remove('showing');
                     qualityIndicator.classList.remove('showing');
                     qualityText.classList.remove('showing');
@@ -898,10 +1142,60 @@
                     
                     document.getElementById('statusValue').textContent = 'Pronto';
                     document.getElementById('statusValue').style.color = '#fbbf24';
-                    // Tentar novamente o mesmo dedo
                     startCountdown();
                 }, 2000);
             }
+        }
+
+        /**
+         * Salvar captura no banco de dados
+         */
+        function saveCaptureToDatabase(captureData) {
+            // Obter dados da URL (lesson_id, course_id, user_id)
+            const urlParams = new URLSearchParams(window.location.search);
+            const lessonId = urlParams.get('lesson_id') || '2';
+            const courseId = urlParams.get('course_id') || '1';
+            const userId = urlParams.get('user_id') || '1';
+            const activityId = 4; // Atividade 4: Captura Biométrica
+
+            return fetch('/api/activity-attempts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    activity_id: activityId,
+                    attempt_number: currentIndex + 1,
+                    score: captureData.quality,
+                    metrics: {
+                        nfiq: captureData.nfiq,
+                        contrast: captureData.contrast,
+                        illumination: captureData.illumination,
+                        skinDetection: captureData.skinDetection,
+                        pressure: captureData.pressure,
+                        dpi: captureData.dpi,
+                        finger: captureData.finger_name
+                    },
+                    success: true,
+                    timestamp: captureData.timestamp
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    console.error('Erro ao salvar no BD:', response.status);
+                    return false;
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Captura salva no BD:', data);
+                return true;
+            })
+            .catch(error => {
+                console.error('❌ Erro ao salvar captura:', error);
+                return true; // Continuar mesmo sem BD
+            });
         }
 
         function updateSequenceList() {
@@ -1050,6 +1344,37 @@
 
         // Inicializar
         updateDisplay();
+
+        // Configurar controle de DPI
+        const dpiSlider = document.getElementById('dpiSlider');
+        const dpiValue = document.getElementById('dpiValue');
+        const dpiStatus = document.getElementById('dpiStatus');
+
+        function updateDPIDisplay() {
+            currentDPI = parseInt(dpiSlider.value);
+            dpiValue.textContent = currentDPI;
+            
+            // Atualizar qualidade máxima baseada em DPI
+            if (currentDPI >= 2400) {
+                maxQualityByDPI = 95; // Excelente
+                dpiStatus.textContent = '🎯 Qualidade Excelente';
+                dpiStatus.style.color = '#4ade80';
+            } else if (currentDPI >= 1200) {
+                maxQualityByDPI = 85; // Bom (recomendado)
+                dpiStatus.textContent = '✅ DPI Recomendado';
+                dpiStatus.style.color = '#667eea';
+            } else if (currentDPI >= 600) {
+                maxQualityByDPI = 75; // Aceitável
+                dpiStatus.textContent = '⚠️ Qualidade Reduzida';
+                dpiStatus.style.color = '#fbbf24';
+            } else {
+                maxQualityByDPI = 65; // Baixa
+                dpiStatus.textContent = '❌ Muito Baixo';
+                dpiStatus.style.color = '#ef4444';
+            }
+        }
+
+        dpiSlider.addEventListener('input', updateDPIDisplay);
 
         // Limpar recursos quando sair da página
         window.addEventListener('beforeunload', () => {

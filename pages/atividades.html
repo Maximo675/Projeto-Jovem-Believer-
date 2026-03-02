@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividades ETAN - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .search-box {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .search-box input {
+            padding: 12px 20px;
+            width: 300px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .search-box button {
+            padding: 12px 30px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .search-box button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .activity-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .activity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .activity-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+        }
+        
+        .activity-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .activity-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        .activity-card .category {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #666;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+        
+        .activity-card p {
+            color: #666;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+        
+        .activity-card .filename {
+            color: #999;
+            font-size: 0.85em;
+            word-break: break-all;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            background: #f9f9f9;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        
+        .activity-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-card .label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .activity-card {
+            animation: fadeIn 0.3s;
+        }
+        
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+            
+            .search-box input {
+                width: 100%;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎓 Atividades ETAN</h1>
+            <p>Acesse e pratique os simuladores de captura biométrica e protocolos</p>
+        </header>
+        
+        <div id="stats" class="stats"></div>
+        
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Pesquise por atividades..."
+            >
+            <button onclick="searchActivities()">Pesquisar</button>
+        </div>
+        
+        <div class="tabs" id="tabs"></div>
+        
+        <div id="error-container"></div>
+        <div id="content">
+            <div class="loading">Carregando atividades...</div>
+        </div>
+        
+        <footer>
+            <p>💡 Dica: Clique em "Acessar" para abrir a atividade ou "API" para mais detalhes técnicos</p>
+        </footer>
+    </div>
+    
+    <script>
+        let allActivities = [];
+        let allCategories = {};
+        
+        async function loadActivities() {
+            try {
+                const response = await fetch('/api/activities/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allActivities = data.activities;
+                    loadCategories();
+                    displayStats();
+                } else {
+                    showError('Erro ao carregar atividades: ' + data.error);
+                }
+            } catch (error) {
+                showError('Erro ao conectar com o servidor: ' + error.message);
+            }
+        }
+        
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/activities/categories');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allCategories = data.categories;
+                    buildUI();
+                } else {
+                    showError('Erro ao carregar categorias');
+                }
+            } catch (error) {
+                showError('Erro ao conectar com o servidor');
+            }
+        }
+        
+        function displayStats() {
+            const statsContainer = document.getElementById('stats');
+            const totalActivities = allActivities.length;
+            const bioActivities = allActivities.filter(a => a.category === 'Captura Biométrica').length;
+            const simActivities = allActivities.filter(a => a.category === 'Simulador').length;
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="number">${totalActivities}</div>
+                    <div class="label">Total de Atividades</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${bioActivities}</div>
+                    <div class="label">Captura Biométrica</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">${simActivities}</div>
+                    <div class="label">Simuladores</div>
+                </div>
+            `;
+        }
+        
+        function buildUI() {
+            const tabs = document.getElementById('tabs');
+            const content = document.getElementById('content');
+            
+            const categories = Object.keys(allCategories);
+            
+            let tabsHTML = '<button class="tab-btn active" onclick="showTab(\'todas\')">Todas</button>';
+            categories.forEach(category => {
+                tabsHTML += `<button class="tab-btn" onclick="showTab('${category}')">${category}</button>`;
+            });
+            tabs.innerHTML = tabsHTML;
+            
+            let contentHTML = '<div id="todas" class="tab-content active">';
+            allActivities.forEach(activity => {
+                contentHTML += createActivityCard(activity);
+            });
+            contentHTML += '</div>';
+            
+            categories.forEach(category => {
+                contentHTML += `<div id="${category}" class="tab-content">`;
+                allCategories[category].forEach(activity => {
+                    // Encontrar a atividade completa no array
+                    const fullActivity = allActivities.find(a => a.filename === activity.filename);
+                    if (fullActivity) {
+                        contentHTML += createActivityCard(fullActivity);
+                    }
+                });
+                contentHTML += '</div>';
+            });
+            
+            content.innerHTML = contentHTML;
+        }
+        
+        function createActivityCard(activity) {
+            return `
+                <div class="activity-card">
+                    <div class="activity-icon">${activity.icon}</div>
+                    <h3>${activity.title}</h3>
+                    <span class="category">${activity.category}</span>
+                    <p>${activity.description}</p>
+                    <div class="filename">📄 ${activity.filename}</div>
+                    <div class="activity-buttons">
+                        <a href="${activity.url}" target="_blank" class="btn btn-primary">Acessar</a>
+                        <button class="btn btn-secondary" onclick="copyLink('${activity.url}')">Copiar Link</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showTab(tabName) {
+            // Esconder todos os conteúdos
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(tab => tab.classList.remove('active'));
+            
+            // Desativar todos os botões
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Mostrar aba selecionada
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.classList.add('active');
+            }
+            
+            // Destacar botão
+            event.target.classList.add('active');
+        }
+        
+        async function searchActivities() {
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                buildUI();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/activities/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const content = document.getElementById('content');
+                    content.innerHTML = '<div class="tab-content active"></div>';
+                    const tabContent = content.querySelector('.tab-content');
+                    
+                    if (data.results.length === 0) {
+                        tabContent.innerHTML = `
+                            <div class="empty-state" style="grid-column: 1/-1;">
+                                <h3>Nenhuma atividade encontrada</h3>
+                                <p>Tente pesquisar com outros termos</p>
+                            </div>
+                        `;
+                    } else {
+                        data.results.forEach(activity => {
+                            const fullActivity = allActivities.find(a => a.filename === activity.filename);
+                            if (fullActivity) {
+                                tabContent.innerHTML += createActivityCard(fullActivity);
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                showError('Erro ao pesquisar: ' + error.message);
+            }
+        }
+        
+        function copyLink(url) {
+            const fullUrl = window.location.origin + url;
+            navigator.clipboard.writeText(fullUrl).then(() => {
+                alert('Link copiado para a área de transferência!');
+            });
+        }
+        
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = `<div class="error">${message}</div>`;
+        }
+        
+        // Carregar ao abrir
+        window.addEventListener('load', loadActivities);
+        
+        // Pesquisa ao pressionar Enter
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.id === 'searchInput') {
+                searchActivities();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Captura Biométrica - Treinamento</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .simulator-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1000px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 30px;
+            padding: 40px;
+            min-height: 600px;
+        }
+
+        .scanner-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .scanner-display {
+            width: 100%;
+            max-width: 350px;
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            border-radius: 12px;
+            border: 3px solid #667eea;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .camera-feed {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #404040 0%, #1a1a1a 100%);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-crosshair {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 0.9; }
+        }
+
+        .finger-preview {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.5) 0%, rgba(102, 126, 234, 0.1) 100%);
+            border-radius: 50%;
+            border: 2px dashed #667eea;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .finger-preview.active {
+            opacity: 1;
+        }
+
+        .quality-meter {
+            width: 100%;
+            max-width: 350px;
+        }
+
+        .quality-bar {
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .quality-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 25%, #eab308 50%, #84cc16 75%, #22c55e 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .quality-label {
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .quality-score {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .instructions {
+            flex: 1;
+            background: #f9fafb;
+            padding: 30px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .instructions h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .capture-mode-select {
+            margin-bottom: 25px;
+        }
+
+        .capture-mode-select label {
+            display: block;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #d1d5db;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #666;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .mode-btn:hover {
+            border-color: #667eea;
+        }
+
+        .feedback-area {
+            margin-bottom: 25px;
+        }
+
+        .feedback-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .feedback-success {
+            background: #dcfce7;
+            color: #166534;
+            border-left: 4px solid #22c55e;
+        }
+
+        .feedback-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #eab308;
+        }
+
+        .feedback-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .feedback-icon {
+            font-size: 18px;
+            min-width: 20px;
+        }
+
+        .timing-info {
+            background: #ede9fe;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .timing-info p {
+            font-size: 13px;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .timing-info strong {
+            color: #667eea;
+        }
+
+        .countdown {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #333;
+            border: 2px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .results-panel {
+            display: none;
+            margin-top: 30px;
+            padding: 25px;
+            background: #f0fdf4;
+            border-radius: 12px;
+            border-left: 4px solid #22c55e;
+        }
+
+        .results-panel.show {
+            display: block;
+        }
+
+        .results-panel h3 {
+            color: #166534;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dcfce7;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-value {
+            font-weight: bold;
+            color: #22c55e;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .instructions {
+                padding: 20px;
+            }
+
+            .mode-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <iframe src="https://infant.akiyama.com.br/#/infant-capture" />
+ 
+    <div class="simulator-container">
+        <div class="header">
+            <h1>🖐️ Simulador de Captura Biométrica</h1>
+            <p>Treinamento para técnicos de coleta - Feedback ao vivo do processo</p>
+        </div>
+
+        <div class="main-content">
+            <div class="scanner-area">
+                <div class="scanner-display">
+                    <div class="camera-feed">
+                        <div class="scanner-crosshair"></div>
+                        <div class="finger-preview"></div>
+                    </div>
+                </div>
+
+                <div class="quality-meter">
+                    <div class="quality-bar">
+                        <div class="quality-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="quality-label">
+                        <span>Qualidade da Digital:</span>
+                        <span class="quality-score">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h2>Instruções de Captura</h2>
+
+                <div class="capture-mode-select">
+                    <label>Modo de Captura:</label>
+                    <div class="mode-buttons">
+                        <button class="mode-btn active" data-mode="child">👶 Infantil</button>
+                        <button class="mode-btn" data-mode="adult">👨 Adulto</button>
+                    </div>
+                </div>
+
+                <div class="timing-info">
+                    <p>
+                        <strong>⏱️ Tempo Disponível:</strong>
+                        <span id="timer">Aguardando início</span>
+                    </p>
+                    <p>
+                        <strong>📍 Status:</strong>
+                        <span id="status">Pronto para captura</span>
+                    </p>
+                </div>
+
+                <div class="feedback-area" id="feedback-container"></div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="start-capture-btn">▶️ Iniciar Captura</button>
+                    <button class="btn btn-secondary" style="display: none;" id="stop-capture-btn">⏹️ Parar Captura</button>
+                </div>
+
+                <div class="results-panel" id="results-panel">
+                    <h3>✅ Captura Realizada com Sucesso!</h3>
+                    <div class="result-item">
+                        <span>Qualidade Final (NFIQ):</span>
+                        <span class="result-value" id="final-nfiq">5 (Excelente)</span>
+                    </div>
+                    <div class="result-item">
+                        <span>Score de Qualidade:</span>
+                        <span class="result-value" id="final-score">85%</span>
+                    </div>
+                    <div class="result-item">
+                        <span>Tempo Total:</span>
+                        <span class="result-value" id="final-time">3.5s</span>
+                    </div>
+                    <div class="result-item">
+                        <span>Minúcias Detectadas:</span>
+                        <span class="result-value" id="final-minutiae">147</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Simulador de Captura Biométrica - Sistema de Treinamento
+         * Baseado no fluxo do SDK de captura biométrica infantil
+         * Proporciona feedback ao vivo para o usuário aprender
+         */
+
+        class BiometricCaptureSimulator {
+            constructor() {
+                this.captureMode = 'child'; // 'child' ou 'adult'
+                this.isCapturing = false;
+                this.captureStartTime = 0;
+                this.quality = 0;
+                this.fingerDetected = false;
+                this.frameCount = 0;
+                this.captureFrames = [];
+                this.feedbackHistory = [];
+                
+                // Estados simulados
+                this.states = {
+                    idle: 'idle',
+                    waiting: 'waiting',
+                    detecting: 'detecting',
+                    positioning: 'positioning',
+                    capturing: 'capturing',
+                    completed: 'completed'
+                };
+                
+                this.currentState = this.states.idle;
+                
+                // Parâmetros de qualidade
+                this.qualityParams = {
+                    wetness: Math.random() * 100,
+                    cleanliness: Math.random() * 100,
+                    positioning: Math.random() * 70,
+                    pressure: Math.random() * 100
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.cacheDom();
+                this.bindEvents();
+                this.logMessage('Simulador inicializado');
+            }
+
+            cacheDom() {
+                this.startBtn = document.getElementById('start-capture-btn');
+                this.stopBtn = document.getElementById('stop-capture-btn');
+                this.timerEl = document.getElementById('timer');
+                this.statusEl = document.getElementById('status');
+                this.feedbackContainer = document.getElementById('feedback-container');
+                this.qualityFill = document.querySelector('.quality-fill');
+                this.qualityScore = document.querySelector('.quality-score');
+                this.fingerPreview = document.querySelector('.finger-preview');
+                this.resultsPanel = document.getElementById('results-panel');
+                this.modeBtns = document.querySelectorAll('.mode-btn');
+            }
+
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.startCapture());
+                this.stopBtn.addEventListener('click', () => this.stopCapture());
+                
+                this.modeBtns.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.modeBtns.forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.captureMode = e.target.dataset.mode;
+                        this.logMessage(`Modo alterado para: ${this.captureMode}`);
+                    });
+                });
+            }
+
+            startCapture() {
+                this.isCapturing = true;
+                this.captureStartTime = Date.now();
+                this.frameCount = 0;
+                this.quality = 0;
+                this.feedbackHistory = [];
+                this.currentState = this.states.waiting;
+                this.resultsPanel.classList.remove('show');
+                
+                this.startBtn.style.display = 'none';
+                this.stopBtn.style.display = 'block';
+                this.startBtn.disabled = true;
+                
+                this.clearFeedback();
+                this.addFeedback('🚀 Captura iniciada. Posicione o dedo sobre o scanner...', 'warning');
+                
+                setTimeout(() => this.simulateCapture(), 100);
+            }
+
+            stopCapture() {
+                this.isCapturing = false;
+                this.stopBtn.style.display = 'none';
+                this.startBtn.style.display = 'block';
+                this.startBtn.disabled = false;
+                this.currentState = this.states.idle;
+                this.fingerPreview.classList.remove('active');
+                
+                this.updateStatus('Captura cancelada');
+                this.addFeedback('⏹️ Captura parada pelo usuário', 'warning');
+            }
+
+            simulateCapture() {
+                if (!this.isCapturing) return;
+
+                this.frameCount++;
+                const elapsedTime = (Date.now() - this.captureStartTime) / 1000;
+
+                // Fase 1: Esperar detecção do dedo (0-2 segundos)
+                if (this.frameCount < 30 && this.currentState === this.states.waiting) {
+                    this.updateStatus(`Aguardando dedo... (${elapsedTime.toFixed(1)}s)`);
+                    
+                    // Simular detecção após ~0.5s
+                    if (this.frameCount === 15) {
+                        this.currentState = this.states.detecting;
+                        this.fingerDetected = true;
+                        this.fingerPreview.classList.add('active');
+                        this.addFeedback('✅ Dedo detectado!', 'success');
+                    }
+                }
+
+                // Fase 2: Posicionamento (2-3.5 segundos) 
+                if (this.frameCount >= 30 && this.frameCount < 70 && this.currentState === this.states.detecting) {
+                    this.currentState = this.states.positioning;
+                    this.simulateQualityAnalysis();
+                    
+                    // Feedback de posicionamento
+                    if (this.frameCount === 35 && this.qualityParams.positioning < 50) {
+                        this.addFeedback('⚠️ Dedo mal posicionado. Centralize melhor.', 'warning');
+                    }
+                    
+                    if (this.frameCount === 45 && this.qualityParams.wetness > 70) {
+                        this.addFeedback('💧 Digital está muito molhada. Seque com papel limpo.', 'warning');
+                    }
+                    
+                    if (this.frameCount === 55 && this.qualityParams.cleanliness < 40) {
+                        this.addFeedback('🧼 Digital está suja ou marcada. Limpe a mão.', 'warning');
+                    }
+                }
+
+                // Fase 3: Captura em andamento (3.5-5 segundos)
+                if (this.frameCount >= 70 && this.frameCount < 120) {
+                    if (this.currentState !== this.states.capturing) {
+                        this.currentState = this.states.capturing;
+                        this.addFeedback('🔵 Capturando... Mantenha o dedo fixo.', 'success');
+                    }
+                    
+                    this.simulateQualityImprovement();
+                    
+                    // Feedback de pressão
+                    if (this.frameCount === 90 && this.qualityParams.pressure < 40) {
+                        this.addFeedback('👉 Aumentar pressão ligeiramente. Dedo muito leve.', 'warning');
+                    }
+                }
+
+                // Condição de conclusão
+                if (this.frameCount >= 120 || this.quality >= 80) {
+                    this.finishCapture();
+                    return;
+                }
+
+                // Atualizar timer
+                this.timerEl.textContent = `${(5 - elapsedTime).toFixed(1)}s`;
+
+                // Próximo frame
+                requestAnimationFrame(() => this.simulateCapture());
+            }
+
+            simulateQualityAnalysis() {
+                // Simular análise de qualidade baseada nos parâmetros
+                this.qualityParams.wetness = Math.max(0, this.qualityParams.wetness - 5 + Math.random() * 10);
+                this.qualityParams.cleanliness = Math.min(100, this.qualityParams.cleanliness + 3 + Math.random() * 5);
+                this.qualityParams.positioning = Math.min(100, this.qualityParams.positioning + 4 + Math.random() * 6);
+                this.qualityParams.pressure = Math.min(100, this.qualityParams.pressure + 2 + Math.random() * 4);
+
+                // Calcular qualidade global
+                const avgQuality = (
+                    (100 - this.qualityParams.wetness) * 0.25 +
+                    this.qualityParams.cleanliness * 0.25 +
+                    this.qualityParams.positioning * 0.25 +
+                    this.qualityParams.pressure * 0.25
+                );
+
+                this.quality = Math.min(100, avgQuality);
+                this.updateQualityDisplay();
+            }
+
+            simulateQualityImprovement() {
+                // Durante captura, qualidade melhora se condições forem boas
+                if (this.qualityParams.positioning > 70 && 
+                    this.qualityParams.cleanliness > 60 &&
+                    this.qualityParams.wetness < 40) {
+                    this.quality = Math.min(100, this.quality + 5 + Math.random() * 5);
+                } else {
+                    this.quality = Math.max(0, this.quality - 2 + Math.random() * 3);
+                }
+                
+                this.updateQualityDisplay();
+            }
+
+            updateQualityDisplay() {
+                const fillPercent = Math.round(this.quality);
+                this.qualityFill.style.width = fillPercent + '%';
+                this.qualityScore.textContent = fillPercent + '%';
+            }
+
+            finishCapture() {
+                this.isCapturing = false;
+                this.currentState = this.states.completed;
+                
+                const totalTime = (Date.now() - this.captureStartTime) / 1000;
+                const nfiqScore = this.calculateNFIQ();
+                const minutiae = Math.floor(100 + this.quality * 2 + Math.random() * 50);
+
+                this.cleanupUI();
+                this.showResults(nfiqScore, totalTime, minutiae);
+                this.addFeedback('✅ Captura concluída com sucesso!', 'success');
+            }
+
+            calculateNFIQ() {
+                // NFIQ: National Fingerprint Image Quality (1-5, com 5 sendo excelente)
+                if (this.quality >= 90) return 5;
+                if (this.quality >= 80) return 4;
+                if (this.quality >= 70) return 3;
+                if (this.quality >= 50) return 2;
+                return 1;
+            }
+
+            showResults(nfiqScore, totalTime, minutiae) {
+                const nfiqText = ['Ruim', 'Pobre', 'Regular', 'Bom', 'Excelente'][nfiqScore - 1];
+                
+                document.getElementById('final-nfiq').textContent = `${nfiqScore} (${nfiqText})`;
+                document.getElementById('final-score').textContent = `${Math.round(this.quality)}%`;
+                document.getElementById('final-time').textContent = `${totalTime.toFixed(1)}s`;
+                document.getElementById('final-minutiae').textContent = minutiae;
+                
+                this.resultsPanel.classList.add('show');
+            }
+
+            cleanupUI() {
+                this.stopBtn.style.display = 'none';
+                this.startBtn.style.display = 'block';
+                this.startBtn.disabled = false;
+                this.fingerPreview.classList.remove('active');
+                this.timerEl.textContent = 'Captura completa';
+            }
+
+            addFeedback(message, type = 'info') {
+                const div = document.createElement('div');
+                div.className = `feedback-item feedback-${type}`;
+                
+                const icons = {
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'error': '❌',
+                    'info': 'ℹ️'
+                };
+                
+                div.innerHTML = `<span class="feedback-icon">${icons[type]}</span><span>${message}</span>`;
+                this.feedbackContainer.prepend(div);
+                
+                // Manter apenas os últimos 5 feedbacks
+                if (this.feedbackContainer.children.length > 5) {
+                    this.feedbackContainer.removeChild(this.feedbackContainer.lastChild);
+                }
+                
+                this.feedbackHistory.push({ message, type, time: new Date() });
+            }
+
+            clearFeedback() {
+                this.feedbackContainer.innerHTML = '';
+            }
+
+            updateStatus(text) {
+                this.statusEl.textContent = text;
+            }
+
+            logMessage(msg) {
+                console.log(`[BiometricSimulator] ${msg}`);
+            }
+        }
+
+        // Inicializar simulador quando página carregar
+        document.addEventListener('DOMContentLoaded', () => {
+            window.simulator = new BiometricCaptureSimulator();
+        });
+    </script>
+</body>
+</html>
