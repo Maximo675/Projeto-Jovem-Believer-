@@ -122,12 +122,46 @@ INTERCEPTOR_SCRIPT = f"""<script>
 (function() {{
     var BASE = '{FLASK_BASE}';
     var CUSTOMER_ID = '{CUSTOMER_UUID}';
+    var ETAN_SDK = '0.0.3.0';
 
-    // 1. Injetar customer UUID no localStorage ANTES de qualquer JS do infant
+    // 0. Remover banner "SISTEMA DESATUALIZADO" que bloqueia a captura
+    function removeBannerDesatualizado() {{
+        var banners = document.querySelectorAll(
+            '[class*="alert"], [class*="Alert"], [class*="warning"], [class*="Warning"], ' +
+            '[class*="update"], [class*="Update"], [class*="outdated"], [class*="banner"]'
+        );
+        banners.forEach(function(el) {{
+            var txt = el.textContent || '';
+            if (txt.indexOf('DESATUALIZADO') > -1 || txt.indexOf('desatualizado') > -1 ||
+                txt.indexOf('Atualiz') > -1 || txt.indexOf('atualiz') > -1 ||
+                txt.indexOf('nova vers') > -1 || txt.indexOf('Nova vers') > -1) {{
+                el.style.display = 'none';
+                el.remove();
+                console.log('[Proxy] Banner desatualizado removido');
+            }}
+        }});
+    }}
+    // Verificar a cada 300ms por 30 segundos (cobre render SPA + demora de update check)
+    var _bannerInterval = setInterval(removeBannerDesatualizado, 300);
+    setTimeout(function() {{ clearInterval(_bannerInterval); }}, 30000);
+    // Também observar mutações no DOM
+    if (window.MutationObserver) {{
+        var _obs = new MutationObserver(removeBannerDesatualizado);
+        document.addEventListener('DOMContentLoaded', function() {{
+            _obs.observe(document.body || document.documentElement,
+                         {{ childList: true, subtree: true }});
+        }});
+    }}
+
+    // 1. Injetar customer UUID + SDK version no localStorage ANTES de qualquer JS do infant
     try {{
         localStorage.setItem('customerId', CUSTOMER_ID);
         localStorage.setItem('customer_uuid', CUSTOMER_ID);
         localStorage.setItem('__customer_id__', CUSTOMER_ID);
+        // Forçar SDK version para 0.0.3.0 no localStorage
+        localStorage.setItem('infantSdkVersion', ETAN_SDK);
+        localStorage.setItem('sdk_version', ETAN_SDK);
+        localStorage.setItem('device_sdk', ETAN_SDK);
     }} catch(e) {{}}
 
     // 2. Função para redirecionar URLs
@@ -225,34 +259,66 @@ INTERCEPTOR_SCRIPT = f"""<script>
                 if (msg.server.remoteApi !== false)   {{ msg.server.remoteApi   = false; modified = true; }}
             }}
 
-            // ── 4b. Interceptar ações que sinalizam desconexão ───────────────────────────
+            // ── 4b. Interceptar ações de desconexão e de update ──────────────────────
             if (msg.action) {{
                 var a = msg.action.toLowerCase();
                 if (a.indexOf('disconnect') > -1 || a.indexOf('session-expired') > -1 ||
                     a.indexOf('session-invalid') > -1 || a.indexOf('force-reload') > -1) {{
                     console.log('[Proxy] WS: interceptado action de desconexão →', msg.action, '— BLOQUEADO');
-                    return null; // null → mensagem não entregue ao SPA
+                    return null;
+                }}
+                // Bloquear mensagens de update/sistema desatualizado
+                if (a.indexOf('update-available') > -1 || a.indexOf('new-version') > -1 ||
+                    a.indexOf('system-update') > -1 || a.indexOf('device-outdated') > -1 ||
+                    a.indexOf('installer-') > -1) {{
+                    console.log('[Proxy] WS: mensagem de update BLOQUEADA →', msg.action);
+                    return null;
                 }}
             }}
 
-            // ── 4c. Patch deviceStatuses: garantir infant como conectado/pronto ──────────
-            if (msg.deviceStatuses && msg.deviceStatuses.infant) {{
-                var inf = msg.deviceStatuses.infant;
-                // Adicionar todos os campos que o SPA pode verificar
-                if (!inf.initialized)      {{ inf.initialized   = true;  modified = true; }}
-                if (!inf.connected)       {{ inf.connected     = true;  modified = true; }}
-                if (!inf.loaded)           {{ inf.loaded        = true;  modified = true; }}
-                if (!inf.ready)            {{ inf.ready         = true;  modified = true; }}
-                if (inf.loading !== false) {{ inf.loading       = false; modified = true; }}
-                if (!inf.captureEnabled)   {{ inf.captureEnabled = true;  modified = true; }}
-                if (!inf.canUseInfant)     {{ inf.canUseInfant   = true;  modified = true; }}
-                if (!inf.status || inf.status === 'loading' || inf.status === 'disconnected') {{
-                    inf.status = 'connected'; modified = true;
-                }}
-                if (!inf.device && inf.info) {{
-                    inf.device = {{ id: inf.info, name: inf.info, status: 'connected',
-                                    initialized: true, loaded: true, ready: true }};
+            // ── 4c. Patch deviceStatuses: garantir infant em TODAS as mensagens ─────────
+            if (msg.deviceStatuses) {{
+                // SDK 0.0.3.0: OpenBio pode não incluir infant no status da interface
+                // → sempre injetar infant como conectado se ausente
+                if (!msg.deviceStatuses.infant) {{
+                    msg.deviceStatuses.infant = {{
+                        initialized: true, enabled: true, sdkVersion: '0.0.3.0',
+                        info: 'EtanV2', connected: true, loaded: true, ready: true,
+                        loading: false, status: 'connected', captureEnabled: true,
+                        canUseInfant: true, licenseValid: true, hasUpdate: false,
+                        device: {{ id: 'EtanV2', name: 'ETAN V2', type: 'infant',
+                                   status: 'connected', initialized: true, loaded: true,
+                                   ready: true, captureEnabled: true, sdkVersion: '0.0.3.0' }}
+                    }};
                     modified = true;
+                    console.log('[Proxy] WS: infant ADICIONADO ao deviceStatuses (SDK 0.0.3.0 fix)');
+                }} else {{
+                    var inf = msg.deviceStatuses.infant;
+                    if (!inf.initialized)      {{ inf.initialized    = true;  modified = true; }}
+                    if (!inf.connected)        {{ inf.connected      = true;  modified = true; }}
+                    if (!inf.loaded)           {{ inf.loaded         = true;  modified = true; }}
+                    if (!inf.ready)            {{ inf.ready          = true;  modified = true; }}
+                    if (inf.loading !== false)  {{ inf.loading        = false; modified = true; }}
+                    if (!inf.captureEnabled)   {{ inf.captureEnabled  = true;  modified = true; }}
+                    if (!inf.canUseInfant)     {{ inf.canUseInfant    = true;  modified = true; }}
+                    if (inf.sdkVersion === '0.0.2.4') {{ inf.sdkVersion = '0.0.3.0'; modified = true; }}
+                    if (!inf.status || inf.status === 'loading' || inf.status === 'disconnected') {{
+                        inf.status = 'connected'; modified = true;
+                    }}
+                    if (!inf.device && inf.info) {{
+                        inf.device = {{ id: inf.info, name: inf.info, status: 'connected',
+                                        initialized: true, loaded: true, ready: true,
+                                        sdkVersion: '0.0.3.0' }};
+                        modified = true;
+                    }}
+                }}
+                // Bloquear flags de update no device modal (evita banner SISTEMA DESATUALIZADO)
+                if (msg.deviceStatuses.modal) {{
+                    var m = msg.deviceStatuses.modal;
+                    if (m.hasUpdate)       {{ m.hasUpdate        = false; modified = true; }}
+                    if (m.updateAvailable) {{ m.updateAvailable  = false; modified = true; }}
+                    if (m.updateRequired)  {{ m.updateRequired   = false; modified = true; }}
+                    if (m.newVersion)      {{ m.newVersion       = null;  modified = true; }}
                 }}
             }}
 
@@ -301,14 +367,14 @@ INTERCEPTOR_SCRIPT = f"""<script>
             signature: {{ initialized: true,  info: 'ESP_560', enabled: true, sdkVersion: '1.8.0.3' }},
             modal:     {{ initialized: false, enabled: true, sdkVersion: '0.3.3.15' }},
             infant: {{
-                initialized: true, enabled: true, sdkVersion: '0.0.2.4',
+                initialized: true, enabled: true, sdkVersion: '0.0.3.0',
                 info: 'EtanV2', connected: true, loaded: true, ready: true,
                 loading: false, status: 'connected', captureEnabled: true,
-                canUseInfant: true, licenseValid: true,
+                canUseInfant: true, licenseValid: true, hasUpdate: false,
                 device: {{
                     id: 'EtanV2', name: 'ETAN V2', type: 'infant',
                     status: 'connected', initialized: true, loaded: true,
-                    ready: true, captureEnabled: true
+                    ready: true, captureEnabled: true, sdkVersion: '0.0.3.0'
                 }}
             }}
         }}
@@ -463,7 +529,15 @@ INTERCEPTOR_SCRIPT = f"""<script>
                 }}, opts);
             }}
             if (type === 'open') {{
-                return origAdd(type, function(evt) {{ handler(evt); injectDeviceReady(); }}, opts);
+                return origAdd(type, function(evt) {{
+                    handler(evt);
+                    // Injetar INFANT_READY em AMBOS os canais (device e interface)
+                    // SDK 0.0.3.0: interface WS não reporta infant → precisamos injetar
+                    var delay1 = isDevice ? 400 : 600;
+                    var delay2 = isDevice ? 900 : 1500;
+                    inject(INFANT_READY, delay1);
+                    inject(INFANT_READY, delay2);
+                }}, opts);
             }}
             if (isDevice && (type === 'close' || type === 'error')) {{
                 console.log('[Proxy] DEV WS ' + type + ' SUPRIMIDO');
@@ -477,7 +551,13 @@ INTERCEPTOR_SCRIPT = f"""<script>
             get: function() {{ return _onopen; }},
             set: function(fn) {{
                 _onopen = fn;
-                origAdd('open', function(evt) {{ if (_onopen) _onopen(evt); injectDeviceReady(); }});
+                origAdd('open', function(evt) {{
+                    if (_onopen) _onopen(evt);
+                    var delay1 = isDevice ? 400 : 600;
+                    var delay2 = isDevice ? 900 : 1500;
+                    inject(INFANT_READY, delay1);
+                    inject(INFANT_READY, delay2);
+                }});
             }},
             configurable: true
         }});
