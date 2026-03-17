@@ -1276,43 +1276,56 @@
                 let videoHTML = '';
                 if (lesson.video_url && lesson.video_url.trim()) {
                     let embedUrl = lesson.video_url;
-                    
-                    // Se for URL de Google Drive, converter para embed
-                    if (lesson.video_url.includes('drive.google.com')) {
-                        const fileId = lesson.video_url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-                        if (fileId && fileId[1]) {
-                            embedUrl = `https://drive.google.com/file/d/${fileId[1]}/preview`;
-                        }
-                    } 
-                    // Se for URL de watch do YouTube, converter para embed
-                    else if (lesson.video_url.includes('youtube.com/watch')) {
-                        const videoId = new URLSearchParams(new URL(lesson.video_url).search).get('v');
-                        if (videoId) {
-                            embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
-                        }
-                    } 
-                    // Se for youtu.be
-                    else if (lesson.video_url.includes('youtu.be/')) {
-                        const videoId = lesson.video_url.split('youtu.be/')[1]?.split('?')[0];
-                        if (videoId) {
-                            embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
-                        }
-                    }
-                    
-                    // Adicionar duração se disponível
                     const duracao = lesson.duracao ? `<span class="video-duration">⏱️ Duração: ${lesson.duracao} minutos</span>` : '';
                     
-                    videoHTML = `
-                        <div class="video-container">
-                            <div class="video-wrapper">
-                                <iframe src="${embedUrl}" 
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                                        allowfullscreen>
-                                </iframe>
+                    // Se for arquivo de vídeo local (.mp4, .webm, .ogg)
+                    if (/\.(mp4|webm|ogg)$/i.test(lesson.video_url)) {
+                        videoHTML = `
+                            <div class="video-container">
+                                <div class="video-wrapper">
+                                    <video controls style="width:100%;height:100%;background:#000;border-radius:8px;">
+                                        <source src="${lesson.video_url}" type="video/mp4">
+                                        Seu navegador não suporta reprodução de vídeo.
+                                    </video>
+                                </div>
+                                ${duracao}
                             </div>
-                            ${duracao}
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        // Se for URL de Google Drive, converter para embed
+                        if (lesson.video_url.includes('drive.google.com')) {
+                            const fileId = lesson.video_url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+                            if (fileId && fileId[1]) {
+                                embedUrl = `https://drive.google.com/file/d/${fileId[1]}/preview`;
+                            }
+                        }
+                        // Se for URL de watch do YouTube, converter para embed
+                        else if (lesson.video_url.includes('youtube.com/watch')) {
+                            const videoId = new URLSearchParams(new URL(lesson.video_url).search).get('v');
+                            if (videoId) {
+                                embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+                            }
+                        }
+                        // Se for youtu.be
+                        else if (lesson.video_url.includes('youtu.be/')) {
+                            const videoId = lesson.video_url.split('youtu.be/')[1]?.split('?')[0];
+                            if (videoId) {
+                                embedUrl = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`;
+                            }
+                        }
+                        
+                        videoHTML = `
+                            <div class="video-container">
+                                <div class="video-wrapper">
+                                    <iframe src="${embedUrl}" 
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                            allowfullscreen>
+                                    </iframe>
+                                </div>
+                                ${duracao}
+                            </div>
+                        `;
+                    }
                 }
                 
                 // Atualizar conteúdo com layout em coluna

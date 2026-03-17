@@ -482,7 +482,7 @@ const ChatbotFlutuante = {
         try {
             // Enviar para API
             const token = localStorage.getItem('authToken');
-            const response = await fetch('/api/ia/chat', {
+            const response = await fetch('http://127.0.0.1:5001/api/ia/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -538,10 +538,41 @@ const ChatbotFlutuante = {
         
         const messageEl = document.createElement('div');
         messageEl.className = `message ${role}`;
-        messageEl.textContent = content;
+        
+        if (role === 'ai') {
+            messageEl.innerHTML = this.renderMarkdown(content);
+        } else {
+            messageEl.textContent = content;
+        }
         
         messagesContainer.appendChild(messageEl);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    },
+
+    renderMarkdown(texto) {
+        let html = texto
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        // Negrito
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        // Itálico
+        html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+        // Links [texto](url)
+        html = html.replace(/\[([^\]]+?)\]\(([^)]+?)\)/g,
+            '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        // URLs bare https://...
+        html = html.replace(/(?<!href=")(https?:\/\/[^\s<>"]+)/g,
+            '<a href="$1" target="_blank" rel="noopener">🎬 Ver vídeo</a>');
+        // Listas
+        html = html.replace(/^[\-•] (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>[\s\S]*?<\/li>(?:\s*<li>[\s\S]*?<\/li>)*)/g, '<ul>$1</ul>');
+        // Setas → viram texto limpo (sem renderizar como raw)
+        html = html.replace(/→ /g, '');
+        // Parágrafos e quebras
+        html = html.replace(/\n\n+/g, '</p><p>');
+        html = html.replace(/\n/g, '<br>');
+        return `<p>${html}</p>`;
     },
     
     saveConversationHistory() {

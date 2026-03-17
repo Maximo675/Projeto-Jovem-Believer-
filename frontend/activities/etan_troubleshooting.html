@@ -124,7 +124,7 @@
             font-size: 18px;
         }
 
-        .sintomes-section {
+        .sintomas-section {
             background: white;
             border-radius: 8px;
             padding: 20px;
@@ -132,7 +132,7 @@
             border: 2px solid #ffe6eb;
         }
 
-        .sintomes-titulo {
+        .sintomas-titulo {
             font-size: 16px;
             font-weight: 600;
             color: #2c3e50;
@@ -517,7 +517,7 @@
                 numero: 2,
                 titulo: 'Erro: "Padrão Muito Úmido"',
                 sintomas: [
-                    'Sistema rejeita imagens rejeitadas',
+                    'Sistema rejeita imagens por excesso de umidade',
                     'Dedo está visivelmente molhado ou suado',
                     'Feedback: "Moisture Level Too High"',
                     'Imagens aparecem embaçadas em branco'
@@ -536,7 +536,7 @@
                     },
                     {
                         texto: 'Calibração do Sensor',
-                        descricao: 'Sensor está miscalibrizado para umidade',
+                        descricao: 'Sensor com calibração inadequada para umidade',
                         correto: false,
                         solucoes: []
                     },
@@ -572,7 +572,7 @@
                             'Desligue o dispositivo completamente',
                             'Limpe com pano macio seco (microfibra ideal)',
                             'Use ar comprimido para remover poeira interna',
-                            'Se persisti, substitua membrante do sensor',
+                            'Se o problema persistir, substitua a membrana do sensor',
                             'Realize testes de continuidade no sensor'
                         ]
                     },
@@ -588,12 +588,12 @@
                     },
                     {
                         texto: 'Contato do Dedo Fraco',
-                        descricao: 'Apenas problema de técnica ',
+                        descricao: 'Apenas um problema de técnica',
                         correto: false,
                         solucoes: []
                     },
                     {
-                        texto: 'Problema de Drives',
+                        texto: 'Problema de Drivers',
                         descricao: 'Sistema operacional detectaria erro crítico',
                         correto: false,
                         solucoes: []
@@ -607,7 +607,7 @@
                     'Captura funciona mas processamento demora',
                     'CPU está sempre em 100%',
                     'RAM parece estar cheia',
-                    'Sem gpu disponível detectada'
+                    'Nenhuma GPU disponível detectada'
                 ],
                 diagnosticos: [
                     {
@@ -629,7 +629,7 @@
                         solucoes: [
                             'Feche navegadores, antivírus, atualizações',
                             'Monitore task manager durante operação',
-                            'Disable antivírus real-time se possível',
+                            'Desative o antivírus em tempo real, se possível',
                             'Reinicie antes de captura crítica'
                         ]
                     },
@@ -682,8 +682,8 @@
                         <span>${problema.titulo}</span>
                     </div>
 
-                    <div class="sintomes-section">
-                        <div class="sintomes-titulo">⚠️ Sintomas Observados</div>
+                    <div class="sintomas-section">
+                        <div class="sintomas-titulo">⚠️ Sintomas Observados</div>
                         <ul class="sintomas-lista">
                             ${problema.sintomas.map(s => `<li class="sintoma">${s}</li>`).join('')}
                         </ul>

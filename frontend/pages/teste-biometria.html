@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Sistema de Captura Biométrica</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .test-card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .test-result.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+
+        .test-result.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+        }
+
+        .test-result.warning {
+            background: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ff9800;
+        }
+
+        .test-result.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #2196f3;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        .health-check {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .status-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .status-table thead {
+            background: #f5f5f5;
+        }
+
+        .status-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .status-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .status-badge.online {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-badge.offline {
+            background: #f44336;
+            color: white;
+        }
+
+        .console-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .console-output .log {
+            margin-bottom: 5px;
+        }
+
+        .console-output .error {
+            color: #ff6b6b;
+        }
+
+        .console-output .success {
+            color: #51cf66;
+        }
+
+        .console-output .warning {
+            color: #ffd43b;
+        }
+
+        .console-output .info {
+            color: #74c0fc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Teste do Sistema de Captura Biométrica ETAN</h1>
+
+        <!-- Health Check -->
+        <div class="health-check">
+            <h2>📊 Status dos Serviços</h2>
+            <table class="status-table">
+                <thead>
+                    <tr>
+                        <th>Serviço</th>
+                        <th>URL</th>
+                        <th>Status</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="status-tbody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 40px;">
+                            Carregando status dos serviços...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <button onclick="checkAllServices()">🔄 Verificar Novamente</button>
+        </div>
+
+        <!-- Tests -->
+        <div class="test-grid">
+            <!-- Test 1: Scripts Loaded -->
+            <div class="test-card">
+                <h2>✓ Scripts Carregados</h2>
+                <div id="scripts-test"></div>
+            </div>
+
+            <!-- Test 2: Config URLs -->
+            <div class="test-card">
+                <h2>⚙️ Configuração URLs</h2>
+                <div id="config-test"></div>
+            </div>
+
+            <!-- Test 3: WebSocket -->
+            <div class="test-card">
+                <h2>📡 WebSocket</h2>
+                <div id="websocket-test"></div>
+            </div>
+
+            <!-- Test 4: Backend Endpoints -->
+            <div class="test-card">
+                <h2>🌐 Endpoints Backend</h2>
+                <div id="endpoints-test"></div>
+            </div>
+
+            <!-- Test 5: localStorage -->
+            <div class="test-card">
+                <h2>💾 localStorage</h2>
+                <div id="storage-test"></div>
+            </div>
+
+            <!-- Test 6: ETAN Manager -->
+            <div class="test-card">
+                <h2>🎯 ETAN Manager</h2>
+                <div id="manager-test"></div>
+            </div>
+        </div>
+
+        <!-- Console Output -->
+        <div class="health-check">
+            <h2>📝 Console de Diagnóstico</h2>
+            <div class="console-output" id="console-output"></div>
+        </div>
+    </div>
+
+    <!-- Load all required scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/frontend/js/config-urls.js"></script>
+    <script src="/frontend/js/etan-websocket.js"></script>
+    <script src="/frontend/js/etan-simulator-manager.js"></script>
+    <script src="/frontend/js/iframe-bridge.js"></script>
+
+    <script>
+        // Custom console logger
+        const logs = [];
+        const consoleOutput = document.getElementById('console-output');
+
+        function log(message, type = 'info') {
+            const log = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.push({ message: log, type });
+            
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = log;
+            consoleOutput.appendChild(div);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+            if (type === 'error') console.error(message);
+            else if (type === 'warning') console.warn(message);
+            else console.log(message);
+        }
+
+        // Override console methods
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = function(...args) {
+            log(args.join(' '), 'success');
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            log(args.join(' '), 'error');
+            originalError.apply(console, args);
+        };
+
+        console.warn = function(...args) {
+            log(args.join(' '), 'warning');
+            originalWarn.apply(console, args);
+        };
+
+        log('🚀 Sistema de teste iniciado', 'success');
+
+        // Test 1: Scripts
+        function testScripts() {
+            const element = document.getElementById('scripts-test');
+            const scripts = {
+                'Socket.IO': typeof io !== 'undefined',
+                'ConfigURLs': typeof ConfigURLs !== 'undefined' && window.CONFIG_URLS,
+                'ETANWebSocket': typeof ETANWebSocket !== 'undefined',
+                'ETANSimulatorManager': typeof ETANSimulatorManager !== 'undefined',
+                'IFrameBridge': typeof IFrameBridge !== 'undefined' && window.iframeBridge
+            };
+
+            element.innerHTML = '';
+            Object.entries(scripts).forEach(([name, loaded]) => {
+                const div = document.createElement('div');
+                div.className = `test-result ${loaded ? 'success' : 'error'}`;
+                div.innerHTML = `${loaded ? '✅' : '❌'} ${name}`;
+                element.appendChild(div);
+            });
+
+            log(JSON.stringify(scripts), 'info');
+        }
+
+        // Test 2: Config
+        function testConfig() {
+            const element = document.getElementById('config-test');
+            element.innerHTML = '';
+
+            if (!window.CONFIG_URLS) {
+                element.innerHTML = '<div class="test-result error">❌ CONFIG_URLS não inicializado</div>';
+                return;
+            }
+
+            const urls = {
+                'API_BASE': window.CONFIG_URLS.API_BASE,
+                'DEVICE_URL': window.CONFIG_URLS.DEVICE_URL,
+                'WEBSOCKET': window.CONFIG_URLS.WEBSOCKET_NAMESPACE
+            };
+
+            Object.entries(urls).forEach(([name, url]) => {
+                const div = document.createElement('div');
+                div.className = 'test-result info';
+                div.innerHTML = `<strong>${name}:</strong> ${url}`;
+                element.appendChild(div);
+            });
+
+            log(JSON.stringify(urls), 'info');
+        }
+
+        // Test 3: WebSocket
+        function testWebSocket() {
+            const element = document.getElementById('websocket-test');
+            element.innerHTML = '';
+
+            const isConnected = window.etanWebSocket && window.etanWebSocket.isConnected?.();
+            const div = document.createElement('div');
+            div.className = `test-result ${isConnected ? 'success' : 'warning'}`;
+            div.innerHTML = isConnected ? '✅ Conectado' : '⏳ Aguardando...';
+            element.appendChild(div);
+
+            if (window.etanWebSocket?.getConnectionInfo) {
+                const info = window.etanWebSocket.getConnectionInfo();
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'test-result info';
+                infoDiv.innerHTML = `<strong>Info:</strong> ${JSON.stringify(info)}`;
+                element.appendChild(infoDiv);
+            }
+
+            log(`WebSocket status: ${isConnected ? 'conectado' : 'desconectado'}`, isConnected ? 'success' : 'warning');
+        }
+
+        // Test 4: Backend Endpoints
+        async function testEndpoints() {
+            const element = document.getElementById('endpoints-test');
+            element.innerHTML = '';
+
+            const endpoints = [
+                { name: 'Health Check', url: '/health', method: 'GET' },
+                { name: 'Activity Info', url: '/api/activities/1', method: 'GET' }
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint.url);
+                    const isOk = response.ok;
+                    const div = document.createElement('div');
+                    div.className = `test-result ${isOk ? 'success' : 'error'}`;
+                    div.innerHTML = `${isOk ? '✅' : '❌'} ${endpoint.name} (${response.status})`;
+                    element.appendChild(div);
+                    log(`${endpoint.name}: ${response.status}`, isOk ? 'success' : 'error');
+                } catch (error) {
+                    const div = document.createElement('div');
+                    div.className = 'test-result error';
+                    div.innerHTML = `❌ ${endpoint.name} - ${error.message}`;
+                    element.appendChild(div);
+                    log(`${endpoint.name}: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Test 5: Storage
+        function testStorage() {
+            const element = document.getElementById('storage-test');
+            element.innerHTML = '';
+
+            const token = localStorage.getItem('authToken');
+            const tokenDiv = document.createElement('div');
+            tokenDiv.className = `test-result ${token ? 'success' : 'warning'}`;
+            tokenDiv.innerHTML = token ? '✅ Token encontrado' : '⚠️ Token ausente (sem autenticação)';
+            element.appendChild(tokenDiv);
+
+            const storageDiv = document.createElement('div');
+            storageDiv.className = 'test-result info';
+            storageDiv.innerHTML = `<strong>Itens:</strong> ${Object.keys(localStorage).length}`;
+            element.appendChild(storageDiv);
+
+            log(`localStorage: ${Object.keys(localStorage).length} itens`, 'info');
+        }
+
+        // Test 6: Manager
+        function testManager() {
+            const element = document.getElementById('manager-test');
+            element.innerHTML = '';
+
+            if (!window.ETANSimulatorManager) {
+                element.innerHTML = '<div class="test-result error">❌ Manager não carregado</div>';
+                return;
+            }
+
+            try {
+                const manager = new ETANSimulatorManager({
+                    userId: 1,
+                    activityId: 4,
+                    courseId: 1
+                });
+
+                const summary = manager.getProgressSummary();
+                const div = document.createElement('div');
+                div.className = 'test-result success';
+                div.innerHTML = `✅ Manager inicializado<br><strong>Progresso:</strong> ${summary.progress}<br><strong>Dedos:</strong> ${summary.remaining_fingers} restantes`;
+                element.appendChild(div);
+
+                log(`Manager: ${summary.progress} capturados`, 'success');
+            } catch (error) {
+                const div = document.createElement('div');
+                div.className = 'test-result error';
+                div.innerHTML = `❌ ${error.message}`;
+                element.appendChild(div);
+                log(`Manager error: ${error.message}`, 'error');
+            }
+        }
+
+        // Check all services
+        async function checkAllServices() {
+            const tbody = document.getElementById('status-tbody');
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Verificando...</td></tr>';
+
+            const services = [
+                { name: 'Backend Flask', url: 'http://localhost:5001/health' },
+                { name: 'Device Service', url: 'http://localhost:5000/status' },
+                { name: 'Atividade ETAN', url: '/frontend/activities/etan-captura-biometrica.html' }
+            ];
+
+            tbody.innerHTML = '';
+            for (const service of services) {
+                const row = document.createElement('tr');
+                try {
+                    const response = await fetch(service.url);
+                    const status = response.ok ? 'online' : 'offline';
+                    row.innerHTML = `
+                        <td>${service.name}</td>
+                        <td><code>${service.url}</code></td>
+                        <td><span class="status-badge ${status}">${status.toUpperCase()}</span></td>
+                        <td><button onclick="goToService('${service.url}')">Acessar</button></td>
+                    `;
+                    log(`${service.name}: ${status}`, status === 'online' ? 'success' : 'error');
+                } catch (error) {
+                    row.innerHTML = `
+                        <td>${service.name}</td>
+                        <td><code>${service.url}</code></td>
+                        <td><span class="status-badge offline">OFFLINE</span></td>
+                        <td>-</td>
+                    `;
+                    log(`${service.name}: offline`, 'error');
+                }
+                tbody.appendChild(row);
+            }
+        }
+
+        function goToService(url) {
+            if (url.startsWith('http')) {
+                window.open(url, '_blank');
+            } else {
+                window.location.href = url;
+            }
+        }
+
+        // Run all tests on load
+        window.addEventListener('load', () => {
+            testScripts();
+            testConfig();
+            testWebSocket();
+            testEndpoints();
+            testStorage();
+            testManager();
+            checkAllServices();
+
+            log('✅ Todos os testes completados', 'success');
+        });
+    </script>
+</body>
+</html>

@@ -179,26 +179,38 @@ function addMessage(texto, tipo = 'assistant', tokens = 0) {
  * Renderizar markdown básico
  */
 function renderMarkdown(texto) {
-    let html = texto;
+    // Escapar HTML para segurança (exceto nos elementos que vamos criar)
+    let html = texto
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     
-    // Negrito
+    // Negrito antes do itálico
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
-    // Itálico
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Itálico (apenas entre palavras, não dentro de bold já processado)
+    html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
     
-    // Listas
-    html = html.replace(/\n- (.*?)(?=\n|$)/g, '<li>$1</li>');
-    html = html.replace(/(<li>.*?<\/li>)/s, '<ul>$1</ul>');
+    // Links com texto [texto](url)
+    html = html.replace(/\[([^\]]+?)\]\(([^)]+?)\)/g,
+        '<a href="$2" target="_blank" rel="noopener">$1</a>');
     
-    // Links
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    // URLs bare (https://...) que não estão dentro de um atributo href
+    html = html.replace(/(?<!href=")(https?:\/\/[^\s<>"]+)/g,
+        '<a href="$1" target="_blank" rel="noopener">🎬 Ver vídeo</a>');
     
-    // Quebras de linha
-    html = html.replace(/\n\n/g, '</p><p>');
-    html = `<p>${html}</p>`;
+    // Listas: processar linhas que começam com - ou •
+    html = html.replace(/^[\-•] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>[\s\S]*?<\/li>(?:\s*<li>[\s\S]*?<\/li>)*)/g,
+        '<ul>$1</ul>');
     
-    return html;
+    // Blocos de parágrafo: quebra dupla vira separador
+    html = html.replace(/\n\n+/g, '</p><p>');
+    
+    // Quebra simples vira <br>
+    html = html.replace(/\n/g, '<br>');
+    
+    return `<p>${html}</p>`;
 }
 
 /**

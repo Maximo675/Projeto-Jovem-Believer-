@@ -4,6 +4,7 @@ Suporta: Mock (demo com respostas humanizadas).
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from openai import OpenAI
 from flask import current_app
 
@@ -68,13 +69,7 @@ class AiService:
         if KB_DISPONIVEL:
             resultado_kb = buscar_resposta(pergunta, contexto_curso)
             if resultado_kb['sucesso'] and resultado_kb['confianca'] > 0.8:
-                resposta = resultado_kb['resposta']
-                if resultado_kb.get('links_aulas'):
-                    resposta += "\n\nAulas Recomendadas:\n"
-                    for link in resultado_kb['links_aulas']:
-                        resposta += f"-> [{link['texto']}](/aula/{link['aula_id']})\n"
-                
-                return resposta, 0
+                return resultado_kb['resposta'], 0
         
         # CAMADA 2: Modo MOCK para fins de demonstracao (sempre funciona)
         if self.mode == 'mock':
@@ -85,15 +80,28 @@ class AiService:
         try:
             system_prompt = self._construir_system_prompt(contexto_curso)
             
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": pergunta}
-                ],
-                temperature=0.7,
-                max_tokens=500
-            )
+            # Llama2 ignora idioma no system prompt — forçar PT-BR na mensagem do usuário
+            pergunta_pt = f"[RESPONDA APENAS EM PORTUGUÊS BRASILEIRO]\n{pergunta}"
+            
+            def _chamar_ollama():
+                return self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": pergunta_pt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=800
+                )
+            
+            # Timeout real via thread — OpenAI socket não respeita timeout interno
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_chamar_ollama)
+                try:
+                    response = future.result(timeout=30)
+                except FuturesTimeout:
+                    future.cancel()
+                    raise Exception("Ollama timeout após 30s")
             
             resposta = response.choices[0].message.content
             tokens_usados = response.usage.total_tokens if response.usage else 0
@@ -109,392 +117,576 @@ class AiService:
     
     def _responder_mock(self, pergunta, contexto_curso=None):
         """
-        Resposta simulada humanizada para fins de demonstracao.
-        Conversacional, pratica e facil de entender!
+        Resposta simulada para fins de demonstração.
+        Cobre os principais temas com respostas específicas e inclui links de vídeo.
         """
         pergunta_lower = pergunta.lower()
-        
-        # Dicionario de respostas por tema - MUITO HUMANIZADAS!
-        respostas = {
-            'biometric': """Perfeito! Vou explicar como funciona a coleta.
 
-Basicamente sao 5 passos bem simples:
+        # ── EMERGÊNCIA — verificação prioritária ──────────────────────────────
+        emergencia_kw = ['urgente', 'instável', 'instavel', 'risco', 'emergência',
+                         'emergencia', 'crítico', 'critico', 'cianose', 'roxo',
+                         'dificuldade respiratória', 'dificuldade respiratoria',
+                         'parou de respirar', 'inconsciente']
+        if any(k in pergunta_lower for k in emergencia_kw):
+            return """⚠️ **ATENÇÃO — PRIORIDADE CLÍNICA**
 
-[1] PREPARACAO
-Deixe o RN confortavel, limpe bem os dedinhos. Dica: limpeza e 80% do trabalho!
+A segurança do RN ou da progenitora vem SEMPRE em primeiro lugar.
 
-[2] ORDER CORRETA
-Comeca pelo polegar direito, depois os outros 4 dedos da mao direita. Ai passa para a mao esquerda (polegar + outros 4).
+**Ações imediatas:**
+1. **INTERROMPA** a coleta biométrica agora
+2. **ACIONE a equipe médica** assistencial imediatamente
+3. A coleta biométrica pode ser realizada **posteriormente**, quando mãe e bebê estiverem estáveis e fora de risco
 
-[3] DETALHES IMPORTANTES
-- Limpe o escaneer COM GAZE SECA antes de cada dedo (serio, nao pula isso!)
-- Dedos precisam estar com umidade certinha (nem babados demais, nem ressecados)
-- Sem forca! Os dedinhos sao frageis, deixe o escaneer fazer o trabalho
-- Se o RN chorar, respira fundo e tenta de novo em 30 segundos
+O protocolo INFANT.ID determina que a seleção para coleta só ocorre quando ambos estão em **condições seguras**.
 
-[4] QUALIDADE
-- Vem borrada? 99% das vezes e falta de limpeza no escaneer
-- Nao reconhece todos os dedos? Sem problema, pode tentar novamente!
+Quando a situação estiver estabilizada, pode voltar aqui e retomar a orientação. Há mais alguma coisa que possa ajudar agora?"""
 
-[5] PRONTO!
-Tudo registrado e seguro no sistema.
+        # ── TREINAMENTO / PRIMEIRA VEZ ────────────────────────────────────────
+        treinamento_kw = ['primeira vez', 'como funciona', 'nunca fiz', 'novo',
+                          'nova', 'aprender', 'treinar', 'visão geral', 'visao geral',
+                          'me explica tudo', 'por onde começo', 'por onde começo',
+                          'onboarding', 'introdução', 'introducao']
+        if any(k in pergunta_lower for k in treinamento_kw):
+            return """Bem-vinda ao sistema INFANT.ID! Vou te dar uma visão completa do processo.
 
-Quer saber mais sobre algum passo especifico?""",
+**🎯 O processo tem 5 etapas:**
 
-            'seguranca': """Excelente pergunta! A seguranca dos dados e coisa seria mesmo.
+**1. Seleção** — Verificar se mãe e RN estão estáveis e liberar para coleta
+📹 [Ver vídeo](https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing)
 
-Estas sao as principais protecoes:
+**2. Preparação** — Conforto, dados biográficos e higienização dos dedos
+📹 [Ver vídeo](https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link)
 
-[CRIPTOGRAFIA]
-- Dados criptografados de ponta a ponta (ninguem consegue ver no caminho)
-- Servidores protegidos com multiplos backups
-- Acesso apenas para profissionais autorizados (existe log de quem acessa)
+**3. Captura Progenitora** — Digitais de 4 dedos (polegares + indicadores)
+📹 [Ver vídeo](https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link)
 
-[CONFORMIDADE]
-- LGPD (lei brasileira de protecao de dados)
-- GDPR (padrao europeu)
-- Certificacoes internacionais de seguranca
-- Auditoria constante
+**4. Captura RN** — Digitais dos 10 dedos (decadactilar)
+📹 [Ver vídeo](https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link)
 
-[NA PRATICA]
-- Voce nao se preocupa com seguranca tecnica, deixa por nossa conta
-- Voce foca em fazer uma coleta bem feita
+**5. Verificação** — Checar qualidade das imagens no sistema
+📹 [Ver vídeo](https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link)
 
-Alguma duvida especifica sobre privacidade dos dados?""",
+**🔑 4 pontos para gravar:**
+✅ Limpe o scanner com gaze seca **antes de cada dedo**
+✅ Controle a umidade — nem encharcado, nem ressecado
+✅ Pressão **leve** — o scanner faz o trabalho
+✅ Verifique a qualidade após cada captura
 
-            'training|treinamento|curso': """Otimo! O treinamento e bem estruturado e rapido.
+Sobre qual etapa quer saber mais detalhes?"""
 
-[PARTE 1: TEORIA] (2 horas)
-- Entender por que coleta biometrica e importante
-- Conhecer o RN: anatomia, fisiologia, reflexos
-- Aprender o protocolo ETAN de verdade
+        # ── ABERTURA DE CHAMADO ───────────────────────────────────────────────
+        chamado_kw = ['chamado', 'suporte', 'ticket', 'akiyama', 'abrir chamado',
+                      'acionar suporte', 'contato técnico', 'contato tecnico']
+        if any(k in pergunta_lower for k in chamado_kw):
+            return """Vou te orientar para abrir um chamado técnico:
 
-[PARTE 2: EQUIPAMENTO] (1 hora)
-- Como o ETAN funciona (muito simples mesmo!)
-- Conectar, calibrar, limpar
-- Entender o software passo a passo
+**📋 Passo a passo:**
 
-[PARTE 3: PRATICA SIMULADA] (1 hora)
-- Praticar em modelo (nao e RN real, prometo!)
-- Entender todos os passos
-- Ganhar confianca
+1. Acesse: **akiyama.com.br/suporte**
+2. Faça login com suas credenciais
+3. Clique em **"Enviar um ticket"**
+4. Preencha todos os campos:
+   - Descreva o problema detalhadamente
+   - Informe o que já foi tentado
+   - Inclua o número de série do kit (se aplicável)
+5. Clique em **"Enviar"**
 
-[PARTE 4: AVALIACAO] (30 minutos)
-- Coleta em RN real com supervisor
-- Demonstrar que entendeu tudo
+**⏱️ Tempo de resposta:** conforme o SLA estabelecido com seu hospital.
 
-RESULTADO: Voce sai da formacao 100% pronto pra coletar!
+**💡 Dica:** enquanto aguarda, use outro equipamento disponível ou anote os dados para coleta posterior.
 
-Taxa de aprovacao? Mais de 95% - porque o treinamento e bom mesmo.
+Conseguiu abrir o chamado ou tem alguma dúvida sobre o processo?"""
 
-Quer saber mais sobre alguma parte?""",
+        # ── PROBLEMA TÉCNICO — EQUIPAMENTO ───────────────────────────────────
+        tecnico_kw = ['não funciona', 'nao funciona', 'erro', 'não reconhece',
+                      'nao reconhece', 'desconectou', 'desconectado', 'descalibrado',
+                      'problema', 'não liga', 'nao liga', 'usb', 'cabo',
+                      'equipamento', 'scanner não', 'scanner nao', 'driver',
+                      'antivírus', 'antivirus', 'porta usb', 'instalação', 'instalacao']
+        if any(k in pergunta_lower for k in tecnico_kw):
+            # Sub-caso: não reconhecido / desconectado
+            if any(k in pergunta_lower for k in ['não reconhece', 'nao reconhece',
+                                                  'desconectado', 'não reconhecido',
+                                                  'nao reconhecido']):
+                return """Entendo — o scanner aparece como **"Não Reconhecido"** ou **"Desconectado"**. Vamos resolver:
 
-            'protocolo|etan': """Otimo! O protocolo ETAN e bem simples, deixa eu descomplicar.
+**Soluções em ordem:**
 
-RESUMAO EM 3 MINUTOS:
+1️⃣ Troque a **porta USB** onde o scanner está conectado
+   → Funcionou?
 
-O ETAN segue 5 fases basicas:
+2️⃣ Desconecte o **USB-C do dispositivo** e reconecte firmemente
+   → Funcionou?
 
-[1] SELECAO
-RN esta estavel? Pediatra autorizou? Sim? Vamos!
+3️⃣ Verifique se o **antivírus** não está bloqueando o dispositivo
+   → Se sim, acione o TI para liberar o ETAN no antivírus
 
-[2] PREPARACAO
-- Deixe tudo e todos confortaveis
-- Limpe bem os dedinhos
-- Hidrate os dedos se estiverem muito secos
+4️⃣ Reinicie o computador
+   → Funcionou?
 
-[3] COLETA DO RN
-- Ordem: polegar direito -> dedos 2-5 direitos -> polegar esquerdo -> dedos 2-5 esquerdos
-- Sem forca, deixe natural
-- Limpe escaneer entre cada dedo
+Se após esses passos o problema persistir:
+→ Acesse **akiyama.com.br/suporte** → faça login → clique em **"Enviar um ticket"**
+   Informe: porta USB testada, sistema operacional, número de série do kit
 
-[4] VERIFICACAO
-- Todas as imagens saaram boas? Otimo!
-- Alguma borrada? Sem problema, tenta de novo
+O problema foi resolvido?"""
+            return """Vamos diagnosticar o problema juntas.
 
-[5] REGISTRO
-- Tudo documentado e salvo automaticamente
+**Qual sintoma você está vendo?**
+- 🔴 "Equipamento desconectado"
+- 🔴 "Não reconhecido"
+- 🔴 Imagem não aparece
+- 🔴 Outro erro (me descreva)
 
-DICA DE OURO: Limpeza do escaneer e TUDO. Isso resolve uns 90% dos problemas!
+Enquanto me responde, tente esses primeiros passos:
+1️⃣ Verifique se o cabo USB-C está **firmemente conectado** nos dois lados
+2️⃣ Troque para outra **porta USB** do computador
+3️⃣ Desconecte e reconecte o dispositivo
 
-Duvida em alguma fase?""",
+Se nada funcionar: **akiyama.com.br/suporte** → "Enviar um ticket"
 
-            'limpeza|umido|seco|borrada': """Boa pergunta! Essa e uma das coisas mais importantes mesmo.
+Me conta o que aconteceu!"""
 
-O SEGREDO: A umidade dos dedos precisa estar CERTINHA. Nem muito molhado, nem muito seco.
+        # ── QUALIDADE / IMAGEM BORRADA ────────────────────────────────────────
+        qualidade_kw = ['borrada', 'ilegível', 'ilegivel', 'não captura',
+                        'nao captura', 'ruim', 'falha na captura', 'não pega',
+                        'nao pega', 'digital não', 'digital nao', 'imagem escura',
+                        'imagem clara', 'muito clara', 'muito escura', 'qualidade']
+        if any(k in pergunta_lower for k in qualidade_kw):
+            return """Vamos resolver o problema de qualidade! Digitais com falha geralmente têm causas específicas:
 
-SE TIVER MUITO UMIDO (tipo recem lavado):
-1. Pega em gaze SECA
-2. Espera uns 10 segundos
-3. Tenta de novo
-4. Pronto!
+**🔍 Checklist de diagnóstico — verifique nesta ordem:**
 
-SE TIVER MUITO SECO:
-1. Passa um pouquinho de solucao ou ate um toquinho de mao umida
-2. Deixa 5 segundos secar (nao totalmente)
-3. Tenta de novo
+🔹 **O scanner está limpo?**
+   → Limpe o visor com gaze **seca** antes de cada dedo
+   → Essa é a causa mais comum!
 
-SE A IMAGEM SAI BORRADA (o classico):
-1. Limpa o escaneer bem com gaze seca (esse geralmente e o culpado!)
-2. Verifica se o dedo ta na umidade certa
-3. Tenta de novo
-4. Sai perfeita dessa vez!
+🔹 **Há Vernix (substância branca) no dedo?**
+   → Limpe com a solução NATO soro (soro fisiológico + clorexidina + shampoo neutro)
+   → Aguarde 1-2 minutos antes de tentar novamente
 
-MACETE: Tenha gaze limpa sempre a mao. Faz diferenca MUITO grande!
+🔹 **Os dedos estão muito úmidos?** (imagem escura/borrada)
+   → Seque bem com gaze antes de capturar
+   → Deixe arejar 10 segundos e tente novamente
 
-Fez a limpeza e ainda continua borrada? Me chama!""",
+🔹 **Os dedos estão muito secos?** (imagem muito clara/apagada)
+   → Umedeça levemente com a solução, seque antes de capturar
 
-            'equipamento|etan|usb|desconectado': """Haha, as vezes o equipamento da uma dificil, mas geralmente e simples.
+🔹 **Posicionamento correto?**
+   → Centralize a **falange distal** no visor
+   → Pressão leve — sem pressionar demais
 
-SE TA DIZENDO "equipamento desconectado":
-1. Verifica se o cabo USB-C ta bem conectado (as vezes solta devagar)
-2. Troca de porta USB (pode ser porta defeituosa)
-3. Desconecta e reconecta o dispositivo
-4. Se tiver antivirus, deixa ele saber que confia no ETAN
-5. Se nada funcionar, reinicia o computador
+📹 **Vídeo — Captura do RN:** https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
 
-SE TA DIZENDO "nao reconhecido":
-- Geralmente e conexao mesmo
-- Limpa o conector USB-C com cuidado
-- Troca de porta USB
-- Reinicia se precisar
+Após ajustar, refaça a captura. A qualidade melhorou?"""
 
-SE NADA DISSO FUNCIONA:
--> Abre um chamado em akiyama.com.br/suporte
--> Eles resolvem bem rapido!
+        # ── ORDEM DOS DEDOS / PROTOCOLO DE COLETA RN ─────────────────────────
+        ordem_kw = ['qual ordem', 'ordem dos dedos', 'ordem correta',
+                    'ordem de coleta', 'sequência', 'sequencia', 'qual dedo primeiro',
+                    'começa por qual', 'começa pelo', 'decadactilar']
+        if any(k in pergunta_lower for k in ordem_kw):
+            return """A ordem de coleta **decadactilar** do RN é:
 
-Conseguiu resolver? Otimo! Tamo junto!""",
+**Mão Direita (inicia por):**
+1. Polegar direito
+2. Indicador direito
+3. Médio direito
+4. Anelar direito
+5. Mínimo direito
 
-            'recem nascido|crianca|rn|chorando': """Hehe, RN chorando e normalmente normal mesmo!
+**Mão Esquerda (continua com):**
+6. Polegar esquerdo
+7. Indicador esquerdo
+8. Médio esquerdo
+9. Anelar esquerdo
+10. Mínimo esquerdo
 
-AQUI TA TUDO BEM:
-- RN quando chora, as vezes ate ajuda (pressao sanguinea fica melhor)
-- Mas se preferir esperar 30 segundos pra acalmar, tambem funciona bem
-- Alguns fazem com RN dormindo, outros acordados - ambos vao bem!
+**💡 Pontos-chave:**
+→ Foque sempre na **falange distal**
+→ Centralize o dedo no visor do scanner
+⚠️ Limpe o scanner com gaze seca **entre cada dedo**
 
-DICA:
-- Faca tudo bem calminha (voce calma = RN calmo)
-- Dedos limpos e secos ajudam a acelerar (menos tempo = RN menos incomodado)
-- Se for choro de verdade, relaxa um pouco e tenta de novo
+📹 **Vídeo — Captura do RN:** https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
 
-IMPORTANTE: Se o RN tiver problema de oxigenacao ou coisa seria, avisa o medico primeiro. A coleta pode esperar!
+Tem dúvida sobre o posicionamento ou a técnica?"""
 
-Ta aqui pra ajudar! Quer mais dicas?""",
+        # ── LIMPEZA DO SCANNER / ETAN ─────────────────────────────────────────
+        if ('limpar' in pergunta_lower or 'limpeza' in pergunta_lower) and \
+           any(k in pergunta_lower for k in ['etan', 'scanner', 'equipamento', 'leitor']):
+            return """**Como limpar o scanner ETAN:**
 
-            'como funciona|como fazer|o que e': """Otima pergunta! A plataforma Winged Mind foi criada para simplificar a coleta biometrica de recem-nascidos.
+A limpeza correta do scanner é essencial para garantir imagens de qualidade.
 
-[RESUMO]
-- Coleta rapida e indolor para o RN
-- Dados criptografados e seguros
-- Integracoes faceis com hospitais
-- Suporte disponivel sempre
+**🧹 Limpeza entre cada dedo (obrigatório):**
+→ Use uma **gaze seca** (sem qualquer solução líquida no scanner)
+→ Passe suavemente sobre a superfície do leitor
+→ Aguarde 2 segundos antes de posicionar o próximo dedo
 
-[PROXIMA DUVIDA]
-Se tiver uma pergunta mais especifica (sobre coleta, equipamento, seguranca), e so falar que resolve pra voce!
+⚠️ **Nunca use:**
+→ Álcool diretamente no scanner
+→ Gaze molhada ou úmida no leitor
+→ Pano, papel toalha ou tecido abrasivo
 
-Qual e sua duvida?"""
+**✅ Quando limpar:**
+→ Antes da primeira coleta do dia
+→ Entre cada dedo durante a captura
+→ Quando a imagem aparecer borrada ou escurecida
+→ Sempre que houver resíduo visível no leitor
+
+**💡 Dica:** A limpeza com gaze seca resolve cerca de **90% dos problemas de qualidade** de imagem!
+
+Ficou claro? Tem mais alguma dúvida sobre o scanner?"""
+
+        # ── PROTOCOLO GERAL / ETAPAS ──────────────────────────────────────────
+        protocolo_kw = ['protocolo', 'protocolo etan', 'etapa', 'passo a passo', 'como coletar',
+                        'como fazer a coleta', 'procedimento', 'coleta biométrica',
+                        'coleta biometrica', 'como funciona a coleta', 'processo']
+        if any(k in pergunta_lower for k in protocolo_kw):
+            return """O protocolo ETAN tem **5 fases** bem definidas:
+
+**[1] Seleção**
+→ Verificar estabilidade clínica de mãe e RN com a equipe médica
+📹 https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing
+
+**[2] Preparação**
+→ Conforto, coleta de dados biográficos, higienização com solução NATO soro
+→ ⚠️ Controle a umidade: nem encharcado, nem ressecado
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+
+**[3] Captura Progenitora**
+→ 4 dedos: polegares + indicadores (direito e esquerdo)
+→ Mesma técnica de limpeza e posicionamento
+📹 https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link
+
+**[4] Captura RN**
+→ 10 dedos (decadactilar): polegar direito → demais direitos → polegar esquerdo → demais esquerdos
+→ Pressão LEVE — o scanner faz o trabalho
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+
+**[5] Verificação**
+→ Checar qualidade de todas as imagens no sistema; repetir as que ficaram borradas
+📹 https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link
+
+**🔑 Regra de ouro:** Limpe o scanner com gaze seca **antes de cada dedo** — resolve 90% dos problemas de qualidade!
+
+Quer mais detalhes sobre alguma fase específica?"""
+
+        # ── PREPARAÇÃO / HIGIENIZAÇÃO ─────────────────────────────────────────
+        prep_kw = ['preparação', 'preparacao', 'higienização', 'higienizacao',
+                   'limpar os dedos', 'limpar dedos', 'nato soro', 'soro fisiológico',
+                   'soro fisiologico', 'clorexidina', 'shampoo', 'vernix', 'limpeza dos dedos']
+        if any(k in pergunta_lower for k in prep_kw):
+            return """**Etapa 2 — Preparação e Higienização:**
+
+**Solução NATO soro (para limpeza dos dedos):**
+→ Misture: soro fisiológico + clorexidina líquida + shampoo neutro infantil
+→ Umedeça uma gaze com essa solução
+→ Limpe de maneira **circular** a **primeira falange** da ponta dos dedos a serem coletados
+
+⚠️ **IMPORTANTE — controle de umidade:**
+→ Os dedos não podem ficar excessivamente molhados (imagem escurece)
+→ Seque levemente com gaze seca antes de capturar
+
+**Se houver Vernix (substância branca):**
+→ Limpe DELICADAMENTE com a mesma solução
+→ Aguarde 1-2 minutos antes de capturar
+→ Não remova a descamação natural (normal em RN)
+
+📹 **Vídeo — Preparação:** https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+
+Ficou claro ou quer mais algum detalhe sobre essa etapa?"""
+
+        # ── RN CHORANDO / REFLEXO / CASOS ESPECIAIS ──────────────────────────
+        rn_kw = ['chorando', 'chorar', 'choro', 'bebê chorando', 'bebe chorando',
+                 'grasping', 'mão fechada', 'mao fechada', 'reflexo', 'prematuro',
+                 'recém-nascido', 'recem-nascido', 'rn instável', 'rn instavel',
+                 'golden hour', 'primeira hora', 'vernix', 'dedos frágeis',
+                 'dedos frageis', 'não abre a mão', 'nao abre a mao']
+        if any(k in pergunta_lower for k in rn_kw):
+            if any(k in pergunta_lower for k in ['chorando', 'chorar', 'choro']):
+                return """RN chorando durante a coleta é comum — aqui está o que fazer:
+
+**Procedimento:**
+1. **Pause** a coleta imediatamente — nunca force
+2. Deixe a progenitora confortar o bebê (pele a pele funciona muito bem)
+3. Aguarde **30 a 60 segundos** para ele se acalmar
+4. Retome com calma
+
+**Limite:** máximo 2-3 tentativas. Se o choro persistir em desespero, avalie com o médico antes de continuar.
+
+⚠️ Se o choro for de **agonia** ou o RN apresentar sinais de desconforto extremo → acione a equipe médica imediatamente.
+
+**💡 Dica:** quanto mais calma for a profissional, mais calmo tende a ficar o bebê.
+
+O RN se acalmou? Posso te ajudar com o próximo passo."""
+            if any(k in pergunta_lower for k in ['grasping', 'mão fechada', 'mao fechada',
+                                                   'não abre', 'nao abre']):
+                return """O reflexo de grasping (mão fechada) é **completamente normal** em RNs!
+
+**Técnica para abrir a mão:**
+→ Acaricie suavemente o **dorso ou lateral** da mão do bebê
+→ Isso estimula o reflexo **oposto** de abertura — é fisiológico
+→ Depois, segure os 4 dedos com cuidado e posicione o polegar no scanner
+
+**❌ Não faça:**
+→ Não force a abertura dos dedos manualmente
+→ Não pressione excessivamente o dedo no scanner
+
+O design ergonômico do scanner ETAN facilita muito o posicionamento mesmo com dedos pequenos.
+
+Conseguiu posicionar o dedo? Tem mais alguma dúvida?"""
+            if 'prematuro' in pergunta_lower:
+                return """Para bebês **prematuros**, o protocolo é basicamente o mesmo, com alguns cuidados extras:
+
+**✅ Pode coletar normalmente se:**
+→ A equipe médica liberou e atestou estabilidade clínica
+→ A biometria se forma a partir da 13ª semana de gestação — prematuros já têm digitais formadas
+
+**⚠️ Atenção especial:**
+→ Prematuros são **mais instáveis** — monitorar sinais vitais durante toda a coleta
+→ Dedos são **ainda mais delicados** — use pressão mínima
+→ Vernix pode ser mais abundante — higienize com NATO soro com muito cuidado
+
+**🛑 Pare imediatamente se:**
+→ Qualquer sinal de instabilidade (oximetria caindo, palidez, cianose)
+
+📹 **Vídeo — Captura RN:** https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+
+Tem mais alguma dúvida sobre a coleta em prematuro?"""
+
+        # ── PROGENITORA / COLETA DA MÃE ──────────────────────────────────────
+        progenitora_kw = ['progenitora', 'mãe', 'mae', 'coleta da mãe', 'coleta da mae',
+                          'dedos da mãe', 'dedos da mae', 'captura progenitora',
+                          'polegar da mãe', 'polegar da mae']
+        if any(k in pergunta_lower for k in progenitora_kw):
+            return """**Etapa 3 — Captura Progenitora:**
+
+São coletados **4 dedos** no total:
+1. Polegar direito
+2. Indicador direito
+3. Polegar esquerdo
+4. Indicador esquerdo
+
+**Técnica:**
+→ Mesma solução NATO soro para higienização
+→ Limpe o scanner entre cada dedo com gaze seca
+→ Falange distal centralizada no visor
+→ Pressão leve e natural
+
+⚠️ Se a mãe tiver calosidades ou pele muito seca: umedeça levemente antes de capturar.
+
+📹 **Vídeo — Captura Progenitora:** https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link
+
+Ficou claro? Tem mais alguma dúvida?"""
+
+        # ── SELEÇÃO (critérios de elegibilidade) ─────────────────────────────
+        selecao_kw = ['seleção', 'selecao', 'critério', 'criterio', 'elegível',
+                      'elegivel', 'pode coletar', 'quando coletar', 'liberação médica',
+                      'liberacao medica', 'quem decide', 'autorização', 'autorizacao']
+        if any(k in pergunta_lower for k in selecao_kw):
+            return """**Etapa 1 — Seleção:**
+
+A coleta só pode ocorrer quando **mãe e RN estão estáveis e fora de risco**, conforme atestado pela equipe médica.
+
+**Critérios de estabilidade do RN:**
+✅ Respiração regular
+✅ Frequência cardíaca dentro da normalidade
+✅ Boa oxigenação (SpO₂ adequada)
+✅ Temperatura corporal estável
+✅ Sem sinais de sofrimento
+
+**Critérios para a progenitora:**
+✅ Estabilidade clínica pós-parto
+✅ Consentimento informado obtido
+
+⚠️ Em caso de **dúvida sobre a estabilidade**, consulte SEMPRE o médico responsável antes de iniciar.
+
+📹 **Vídeo — Seleção:** https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing
+
+Há alguma situação específica que está gerando dúvida?"""
+
+        # ── VERIFICAÇÃO DE QUALIDADE ──────────────────────────────────────────
+        verif_kw = ['verificação', 'verificacao', 'checar qualidade', 'verificar qualidade',
+                    'imagem aprovada', 'revisar coleta', 'depois da coleta',
+                    'finalizar coleta', 'etapa final']
+        if any(k in pergunta_lower for k in verif_kw):
+            return """**Etapa 5 — Verificação:**
+
+Após capturar os 10 dedos do RN e os 4 da progenitora, verifique no sistema:
+
+**✅ Imagem aprovada quando:**
+→ Digital com cristas e sulcos visíveis e nítidos
+→ Sem manchas escuras (excesso de umidade)
+→ Sem imagem muito apagada (excesso de secura)
+→ Centralizada no visor
+
+**❌ Repetir a captura se:**
+→ Imagem borrada, ilegível ou cortada
+→ Sobreposição de dedos
+→ Sistema indicar baixa qualidade
+
+**Procedimento para repetir:**
+1. Volte ao dedo específico que ficou com qualidade ruim
+2. Limpe o scanner com gaze seca
+3. Reposicione e recapture
+
+📹 **Vídeo — Verificação:** https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link
+
+Todas as imagens ficaram aprovadas ou tem alguma específica com problema?"""
+
+        # ── SEGURANÇA DOS DADOS ───────────────────────────────────────────────
+        seguranca_kw = ['segurança', 'seguranca', 'dados seguros', 'privacidade',
+                        'lgpd', 'criptografia', 'quem acessa', 'gdpr', 'proteção de dados',
+                        'protecao de dados']
+        if any(k in pergunta_lower for k in seguranca_kw):
+            return """Os dados coletados pelo INFANT.ID são protegidos em múltiplas camadas:
+
+**🔐 Proteção técnica:**
+→ Criptografia de ponta a ponta — ninguém acessa no caminho
+→ Servidores com múltiplos backups e alta disponibilidade
+→ Acesso restrito a profissionais autorizados com log completo de acesso
+
+**📋 Conformidade legal:**
+→ LGPD (Lei Geral de Proteção de Dados — Brasil)
+→ GDPR (padrão europeu)
+→ Certificações internacionais de segurança biométrica
+→ Auditorias constantes
+
+**Na prática:** sua responsabilidade é fazer a **coleta de qualidade**. A segurança técnica dos dados fica por conta da plataforma.
+
+Tem alguma dúvida específica sobre privacidade ou sobre quem tem acesso?"""
+
+        # ── RESPOSTA GENÉRICA — tenta ser útil com qualquer pergunta ─────────────
+        if any(k in pergunta_lower for k in ['oi', 'olá', 'ola', 'tudo bem', 'bom dia', 'boa tarde', 'boa noite', 'hey']):
+            return "Oi! Tudo bem sim, obrigada! Sou a Jade, posso te ajudar com dúvidas sobre coleta biométrica ETAN, equipamento, protocolo, qualidade de imagem — é só perguntar! 😊"
+
+        if any(k in pergunta_lower for k in ['obrigad', 'valeu', 'muito obrigad', 'grat']):
+            return "De nada! Fico feliz em ajudar. Qualquer outra dúvida, pode perguntar! 😊"
+
+        if any(k in pergunta_lower for k in ['vida', 'clima', 'comida', 'futebol', 'receita', 'viagem', 'novela']):
+            return "Haha, esse eu não sei responder! 😄 Sobre coleta biométrica de recém-nascidos sou especialista. Pode perguntar sobre protocolo ETAN, equipamento, qualidade de imagem — o que precisar!"
+
+        # Análise de tema por palavras-chave da pergunta
+        temas_biometria = {
+            'dedo':       "No ETAN capturamos todos os 10 dedos do RN (decadactilar) — polegar ao mínimo, mão direita primeiro, depois esquerda. Usamos a técnica tipo pinça para estabilizar o dedo sem pressão. Gaze seca no scanner antes de cada dedo.",
+            'digital':    "Para a digital ficar boa: falange distal centralizada no visor, pressão levinha (o scanner faz o trabalho), gaze seca no leitor antes de cada dedo. Se ficar borrada: verifique umidade e limpe o scanner.",
+            'scanner':    "O scanner ETAN precisa de gaze seca no leitor antes de cada captura. Nunca use álcool ou gaze molhada diretamente no sensor. Se der problema técnico recorrente, abra chamado em akiyama.com.br/suporte.",
+            'rn':         "Para captura do RN: higienize com NATO soro (soro fisiológico + clorexidina + shampoo neutro), seque bem, use pressão levinha. O reflexo de grasping (mão fechada) se resolve acariciando o dorso da mão.",
+            'mae':        "Para a progenitora coletamos 4 dedos: polegar direito, indicador direito, polegar esquerdo, indicador esquerdo. Mesma técnica: NATO soro, gaze seca no scanner, pressão leve.",
+            'pele':       "Pele a pele é o melhor calmante! Se o bebê estiver agitado, pause a coleta e entregue para a mãe por 1-2 minutos. Funciona muito bem antes de retomar.",
+            'etica':      "No contexto da coleta biométrica: obtenha sempre o consentimento informado da progenitora antes de iniciar. Dados são protegidos por LGPD. A equipe médica decide sobre elegibilidade clínica — não inicie sem liberação.",
+            'higieniz':   "Higienização dos dedos: solução NATO soro (soro fisiológico + clorexidina líquida + shampoo neutro infantil). Aplique com gaze, movimento circular na primeira falange, seque antes de capturar. Controle a umidade!",
+            'sala':       "Para a coleta, o ambiente ideal é tranquilo, com boa iluminação, temperatura confortável. O scanner precisa estar em superfície firme. Verifique conexão USB antes de começar.",
+            'connect':    "Problema de conexão: verifique o cabo USB, troque de porta, feche e reabra o software. Se não resolver, reinicie o equipamento. Persiste? Abra chamado em akiyama.com.br/suporte.",
+            'driver':     "Problema de driver: verifique se o antivírus está bloqueando. Reinstale o driver pelo portal akiyama.com.br. Se persistir, abra chamado técnico.",
+            'consenti':   "O consentimento informado da progenitora é obrigatório antes de qualquer coleta. Explique o propósito (identificação do RN), como os dados serão usados e que ela pode recusar.",
+            'identific':  "O sistema INFANT.ID vincula a biometria do recém-nascido à da progenitora, criando um par biométrico único. Isso garante identificação segura do bebê ao longo de toda a internação.",
+            'dado':       "Os dados biométricos são criptografados de ponta a ponta, ficam em servidores com backup e acesso restrito a profissionais autorizados. Conformidade com LGPD e padrões internacionais.",
         }
-        
-        # Buscar resposta mais relevante
-        for palavra_chave, resposta in respostas.items():
-            palavras = [p.strip() for p in palavra_chave.split('|')]
-            if any(p in pergunta_lower for p in palavras):
+
+        for palavra, resposta in temas_biometria.items():
+            if palavra in pergunta_lower:
                 return resposta
-        
-        # Resposta generica se nenhuma palavra-chave encontrada
-        return f"""Otima pergunta sobre "{pergunta[:40]}{'...' if len(pergunta) > 40 else ''}"!
 
-A verdade e que o sistema ETAN foi criado para simplificar a coleta biometrica.
+        # Fallback final — não sabe o tema, mas tenta ser útil
+        return f"""Boa pergunta! Não tenho uma resposta específica para "{pergunta[:60]}{'...' if len(pergunta) > 60 else ''}" aqui na base de conhecimento.
 
-Beneficios principais:
-- Coleta rapida e indolor para o RN
-- Dados super seguros e criptografados
-- Integracao facil com hospitais
-- Suporte da equipe sempre disponivel
+Posso responder sobre:
+- Protocolo ETAN (etapas, ordem, técnica)
+- Equipamento (scanner, limpeza, problemas)
+- Qualidade de imagem (borrada, escurecida, não captura)
+- Casos especiais (prematuro, vernix, bebê agitado, reflexo de grasping)
+- Suporte técnico (abrir chamado)
 
-Fiz diferenca? Se tiver uma duvida mais especifica, pode vir que eu resolvo!"""
-    
+Tenta reformular ou me conta com mais detalhes o que está acontecendo! 😊"""
+
     def _construir_system_prompt(self, curso_id=None):
         """
-        Constroi o prompt do sistema com contexto apropriado.
-        Tom humanizado, pratico, acessivel e MUITO empático!
-        Baseado em documentação oficial INFANT.ID + Treinamento de Replicadores.
-        
+        Constroi o prompt do sistema com contexto dinâmico por tipo de pergunta.
+        Baseado na documentação oficial INFANT.ID + Treinamento de Replicadores.
+
         Args:
             curso_id (int): ID do curso (opcional)
-        
+
         Returns:
             str: System prompt
         """
-        prompt = """Você é a ASSISTENTE COMPANHEIRA de confiança para enfermeiras e profissionais de saúde que trabalham com coleta biométrica infantil INFANT.ID.
+        prompt = """ATENÇÃO: Você DEVE responder SOMENTE em português brasileiro (pt-BR). NUNCA em inglês. Se você responder em inglês, está errado.
 
-═══ SUA MISSÃO ═══
-Tornar a coleta biométrica segura, fluida, humanizada e bem-sucedida.
-Ser o colega experiente que sempre está ao lado da enfermeira, entendendo suas dúvidas e inseguranças.
+Você é a Jade, assistente virtual do sistema INFANT.ID, especializada em coleta biométrica infantil. Você apoia enfermeiras e profissionais de saúde no dia a dia hospitalar.
 
-═══ TOM DE VOZ ═══
-✓ Conversacional: Como um colega falando no corredor do hospital
-✓ Empático: Entendo que lidar com bebês recém-nascidos é desafiador
-✓ Prático: Vou direto ao ponto com soluções que funcionam
-✓ Humanizado: Use "nós", crie rapport, reconheça o valor do trabalho dela
-✓ Seguro: Nunca minimize preocupações médicas - sempre priorize a saúde da criança
-✓ Competente: Falo com autoridade sobre o protocolo INFANT.ID
+SEU JEITO DE SER:
+- Fale como uma colega experiente e acolhedora, não como um manual técnico
+- Seja direta e objetiva — o ambiente hospitalar não tem tempo a perder
+- Varie o tom: seja leve quando puder, séria quando precisar (emergências)
+- Não repita bullet points longos quando uma frase resolve
+- Não use formatação excessiva. Use negrito só quando realmente importa
+- Responda no tamanho certo para a pergunta — perguntas simples, respostas curtas
 
-═══ ESTRUTURA DE RESPOSTA IDEAL ═══
+COMO RESPONDER CADA TIPO DE PERGUNTA:
 
-1️⃣ ABERTURA EMPÁTICA
-   → "Excelente pergunta!" ou "Entendo sua preocupação!"
-   → Reconheça o contexto se mencionar bebê específico
+Protocolo / como fazer algo:
+- Vá direto ao ponto da etapa perguntada
+- Passos numerados, curtos
+- Inclua o link do vídeo da etapa se relevante
+- Pergunte se ficou claro ou se quer mais detalhes
 
-2️⃣ RESUMO RÁPIDO (1-2 linhas)
-   → Resuma a resposta em uma frase
+Problema técnico (scanner, conexão, erro):
+- Diagnostique rápido e dê os passos na ordem "faça isso, depois isso"
+- Confirme se resolveu antes de ir para o próximo passo
+- Se não resolver: orientar abertura de chamado em akiyama.com.br/suporte
 
-3️⃣ EXPLICAÇÃO ESTRUTURADA
-   → Passos numerados ou tópicos claros
-   → Linguagem acessível (evite jargão técnico)
-   → Use exemplos: "Por exemplo..." ou "Imagine que..."
+Qualidade de imagem (borrada, não captura):
+- Pergunte primeiro: scanner limpo? Umidade ok? Posicionamento?
+- Responda só a causa provável, não liste tudo de uma vez
 
-4️⃣ DICAS PRÁTICAS
-   → 2-3 dicas que fazem diferença no dia a dia
-   → Baseadas em experiência real de campo
+Emergência (instabilidade, cianose, risco de vida):
+- Responda de forma curta e urgente: pare a coleta, acione o médico agora
+- Não dê longas instruções — não é hora
 
-5️⃣ SEGURANÇA PRIMEIRO
-   → Se houver risco à criança, destaque em negrito
-   → Sempre mencione quando chamar o médico
+Primeira vez / visão geral:
+- Apresente as 5 etapas com brevidade e convide para aprofundar
 
-6️⃣ FECHAMENTO SOLIDÁRIO
-   → "Você consegue! Isso é mais fácil do que parece"
-   → "Alguma outra dúvida? Estou aqui!"
+VÍDEOS DAS ETAPAS (inclua quando pertinente):
+- Seleção: https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing
+- Preparação e Captura RN: https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+- Captura Progenitora: https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link
+- Verificação: https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link
 
-═══ PROTOCOLO ETAN - FUNDAMENTO ═══
+CONHECIMENTO TÉCNICO:
 
-ANTES DA COLETA:
-→ Verificar estabilidade do bebê (respiração, frequência cardíaca, oxigenação, temperatura)
-→ Limpar bem as mãos do bebê (solução ETAN: soro fisiológico + shampoo neutro infantil)
-→ Secar COMPLETAMENTE com gaze estéril
-→ Explicar à mãe o procedimento (obter consentimento informado)
-→ Preparar o scanner (limpar com gaze seca)
+Protocolo ETAN — 5 etapas: Seleção → Preparação → Captura Progenitora → Captura RN → Verificação
 
-DURANTE A COLETA:
-→ Ordem correta: Polegar direito → Dedos 2-5 direitos → Polegar esquerdo → Dedos 2-5 esquerdos
-→ Posicionamento: Dedo RETO no meio da área de captura
-→ Pressão: LEVE (dedinhos são frágeis, deixe o scanner fazer o trabalho)
-→ Limpeza: Limpe o scanner entre CADA DEDO com gaze seca
-→ Umidade: Ponto de ouro entre úmido (imagem escura) e seco (imagem clara)
-→ Aguarde o sistema indicar conclusão de cada dedo
+Ordem de coleta do RN (decadactilar):
+Mão direita: polegar, indicador, médio, anelar, mínimo
+Mão esquerda: polegar, indicador, médio, anelar, mínimo
 
-APÓS A COLETA:
-→ Verificar qualidade de todas as impressões
-→ Se alguma ficou borrada, repetir apenas aquela
-→ Registrar toda informação no sistema
-→ Desconectar o scanner do notebook corretamente
-→ Higienizar as mãos da criança novamente
+Técnica:
+- Falange distal centralizada no visor
+- Pressão leve — o scanner faz o trabalho
+- Gaze SECA no scanner antes de cada dedo
+- Umidade equilibrada: nem encharcado, nem ressecado
 
-═══ CASOS ESPECIAIS ═══
+Solução NATO soro (limpeza dos dedos): soro fisiológico + shampoo neutro infantil + clorexidina líquida
 
-BEBÊ PREMATURO:
-→ Protocolo é o MESMO! A biometria forma-se a partir da 13ª semana de gestação
-→ Atenção: Verificar estabilidade clínica EXTRA (prematuros são instáveis)
-→ Dedos são AINDA mais delicados (pressão super leve)
+Limpeza do scanner: use apenas gaze SECA — nunca álcool ou gaze molhada no leitor
 
-BEBÊ COM VERNIX (substância branca):
-→ NORMAL em RN, especialmente em prematuros
-→ Limpe DELICADAMENTE com solução ETAN
-→ Seque com gaze estéril
-→ Aguarde 1-2 minutos antes de coletar
+Casos especiais:
+- Vernix: limpe com NATO soro delicadamente, aguarde 1-2 min antes de capturar
+- Prematuro: mesmo protocolo, pressão ainda mais leve, atenção extra à estabilidade
+- Reflexo de grasping: acaricie o dorso da mão para estimular abertura natural
+- RN chorando: pause 30-60s, máximo 2-3 tentativas, se persistir avalie com médico
 
-BEBÊ CHORANDO:
-→ PARE IMEDIATAMENTE (nunca force)
-→ Deixe progenitora confortar (pele a pele)
-→ Aguarde 30-60 segundos para acalmar
-→ Máximo 2-3 tentativas - se continuar, avalie com médico
+Progenitora: 4 dedos — polegares e indicadores (direito e esquerdo)
 
-REFLEXO DE GRASPING FORTE:
-→ Normal! É um reflexo de agarrar
-→ Coloque seu dedo suavemente no reflexo
-→ Deixe agarrar (cria conforto)
-→ Coloque dedo do bebê no scanner com suavidade
+Pare imediatamente se: cianose, dificuldade respiratória, palidez, choro de agonia → acione o médico
 
-DEDOS MUITO SECOS (imagem muito clara):
-→ Mergulhe as pontas em água destilada
-→ Deixe umidade absorver (1-2 segundos)
-→ Seque COMPLETAMENTE com gaze
-→ Coleta com umidade "justa" = imagem perfeita
+LIMITES:
+- Não dê orientações médicas fora do escopo da coleta
+- Dúvidas clínicas → médico de plantão
+- Problemas técnicos não resolvidos → chamado em akiyama.com.br/suporte
 
-DEDOS MUITO ÚMIDOS (imagem muito escura):
-→ Seque BEM com pano/gaze antes de coletar
-→ Deixe arejar um pouco
-→ Tente novamente com dedos completamente secos
+Encerre sempre perguntando se pode ajudar com mais alguma coisa, de forma natural e breve.
 
-═══ SINAIS DE ALERTA - QUANDO PARAR ═══
+LEMBRETE FINAL: Toda a sua resposta deve estar em português brasileiro. Não use inglês em hipótese alguma."""
 
-⚠️ NUNCA COLETA SE:
-→ Bebê muito pálido (possível hipotensão)
-→ Dificuldade respiratória (sofrimento fetal)
-→ Choro de desespero/agonia (desconforto extremo)
-→ Cianose/roxo (hipoxia)
-→ Hipotermia severa
-→ Qualquer comportamento incomum
-
-→ CHAME O MÉDICO IMEDIATAMENTE em qualquer dúvida!
-
-═══ DÚVIDAS MAIS FREQUENTES ═══
-
-P: "E se a impressão sair borrada?"
-→ 99% das vezes: falta de limpeza no scanner!
-→ Procédimento: Limpe BEM com gaze seca e tente novamente
-→ Se persistir: Dedos muito secos ou muito úmidos
-
-P: "O bebê está chorando, continuo coletando?"
-→ Melhor esperar 30-60 segundos para acalmar
-→ RN calmo = captura mais rápida + qualidade melhor
-→ Nunca force se o bebê estiver muito incomodado
-
-P: "Posso coletar no golden hour (primeira hora)?"
-→ SIM! É não-invasivo e estimula bonding mãe-bebê
-→ Protocolo é o mesmo
-→ Verifique estabilidade clínica ANTES
-
-P: "A coleta falha sempre no mesmo dedo?"
-→ Dedo pode ter características especiais (plasticidade de pele)
-→ Tente múltiplas vezes com técnicas diferentes
-→ Se persistir: anote e contate suporte
-
-═══ QUANDO VOCÊ NÃO SABE ═══
-
-DÚVIDA TÉCNICA (equipamento, sistema):
-→ Abra chamado: akiyama.com.br/suporte
-→ Informe: número do kit, erro específico, screenshots
-
-DÚVIDA MÉDICA ou CLÍNICA:
-→ Converse com o médico de plantão
-→ Você é a especialista de saúde - eu ajudo só com INFANT.ID
-
-INSEGURANÇA ou MEDO:
-→ NORMAL! Todos os profissionais sentem no começo
-→ Converse com seu supervisor/treinador
-→ Melhor perguntar 100x que arriscar uma vez!
-
-═══ NUNCA FAÇA ═══
-❌ Coloque a mão molhada no scanner
-❌ Use as duas mãos no scanner ao mesmo tempo
-❌ Force a captura (pressão excessiva dói)
-❌ Coleta se estabilidade questionável
-❌ Ignore avisos de qualidade do sistema
-
-═══ SUA IMPORTÂNCIA ═══
-
-Você está contribuindo para PROTEGER CRIANÇAS desde o nascimento.
-
-Cada coleta bem-feita:
-✓ Cria identificação segura
-✓ Previne tráfico infantil
-✓ Garante direitos da criança
-✓ Constrói identidade civil
-
-Seu trabalho IMPORTA. Cada detalhe importa.
-
-VOCÊ CONSEGUE! Isso é mais fácil do que parece.
-Eu estou aqui para ajudar quando tiver dúvida!"""
-        
         return prompt

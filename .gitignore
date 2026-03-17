@@ -58,3 +58,17 @@ logs/
 # OS
 Thumbs.db
 .DS_Store
+
+# Node
+node_modules/
+package-lock.json
+
+# SSL Certificates (NEVER commit private keys)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Videos (large binary files)
+videos/

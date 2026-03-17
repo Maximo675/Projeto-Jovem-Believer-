@@ -314,15 +314,11 @@
             <!-- Status Bar -->
             <div class="status-bar">
                 <div class="status-item">
-                    <div class="status-indicator" id="ws-status"></div>
-                    <span id="ws-status-text">Conectando...</span>
-                </div>
-                <div class="status-item">
                     <div class="status-indicator connected"></div>
                     <span>Usuário conectado</span>
                 </div>
                 <div class="status-item">
-                    <span id="atividades-concluidas">0/3</span>
+                    <span id="atividades-concluidas">0/4</span>
                     <span>atividades completas</span>
                 </div>
             </div>
@@ -429,8 +425,9 @@
                     <div class="iframe-wrapper">
                         <iframe 
                             id="activity-4"
-                            src="/pages/etan_akiyama_pratica.html?lesson_id=2&course_id=1&user_id=1"
-                            title="Prática AKIYAMA">
+                            src="/infant/#/infant-capture"
+                            allow="camera; microphone"
+                            title="Captura Biométrica ETAN">
                         </iframe>
                     </div>
                 </div>
@@ -495,94 +492,19 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <script src="/js/etan-websocket-client.js"></script>
-    <script src="/js/iframe-bridge.js"></script>
-
     <script>
-        // Configuração - Extrair parâmetros da URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const lessonId = parseInt(urlParams.get('lesson_id')) || 2;
-        const courseId = parseInt(urlParams.get('course_id')) || 1;
-        const userId = parseInt(urlParams.get('user_id')) || 1;
-        const activityType = 'practice';
-
-        // Track atividades completas
+        // Track atividades completas (via postMessage das iframes)
         const completedActivities = new Map();
         let totalScore = 0;
 
-        /**
-         * Inicializar página com WebSocket
-         */
-        async function initializePage() {
-            try {
-                console.log('🚀 Inicializando página de aula...');
-                
-                // Criar cliente WebSocket
-                const ws = await initializeActivityWithWebSocket(lessonId, userId);
-                
-                // Marcar como conectado
-                updateWSStatus(true);
-                
-                // Configurar handlers de eventos
-                setupActivityHandlers(ws);
-                
-                // Carregar progresso inicial
-                loadInitialProgress();
-                
-                console.log('✅ Página inicializada com sucesso');
-            } catch (error) {
-                console.error('❌ Erro ao inicializar:', error);
-                updateWSStatus(false);
-                showNotification('Erro de conexão', error.message, 'error');
-            }
-        }
-
-        /**
-         * Configurar handlers de eventos
-         */
-        function setupActivityHandlers(ws) {
-            // Quando atividade é completada
-            window.iframeBridge.onIframeMessage('ACTIVITY_COMPLETED', (payload) => {
-                const activityId = payload.activityId;
-                const score = payload.score;
-                
-                completedActivities.set(activityId, {
-                    score: score,
-                    time: payload.time_total,
-                    attempts: payload.attempts,
-                    completedAt: new Date()
-                });
-                
-                logEvent(`✅ Atividade ${activityId} completada com score ${score}/100`);
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'ACTIVITY_COMPLETED') {
+                const { activityId, score } = event.data;
+                completedActivities.set(activityId, { score, completedAt: new Date() });
+                logEvent(`✅ Atividade ${activityId} completada`);
                 updateProgress();
-                
-                showNotification(
-                    '🎉 Atividade Completada!',
-                    `Score: ${score}/100`,
-                    'success'
-                );
-            });
-        }
-
-        /**
-         * Atualizar status WebSocket
-         */
-        function updateWSStatus(connected) {
-            const status = document.getElementById('ws-status');
-            const text = document.getElementById('ws-status-text');
-            
-            if (connected) {
-                status.classList.add('connected');
-                text.textContent = 'WebSocket conectado';
-                text.style.color = '#28a745';
-            } else {
-                status.classList.remove('connected');
-                text.textContent = 'Desconectado';
-                text.style.color = '#dc3545';
             }
-        }
+        });
 
         /**
          * Atualizar barra de progresso
@@ -671,16 +593,10 @@
             }, 5000);
         }
 
-        /**
-         * Carregar progresso inicial
-         */
-        function loadInitialProgress() {
-            logEvent('📊 Carregando progresso...');
-            // Pode fazer uma requisição à API aqui
-        }
-
-        // Inicializar ao carregar página
-        document.addEventListener('DOMContentLoaded', initializePage);
+        // Inicializar log ao carregar página
+        document.addEventListener('DOMContentLoaded', () => {
+            logEvent('🟢 Sistema pronto');
+        });
     </script>
 </body>
 </html>

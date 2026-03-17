@@ -133,6 +133,8 @@ if __name__ == '__main__':
         
         # Iniciar servidor com SocketIO
         from app import socketio
+        # Use app.run with socketio as middleware instead of socketio.run
+        # This allows Flask to serve normal HTTP requests and SocketIO to handle WebSocket
         socketio.run(app, debug=debug, host='127.0.0.1', port=port, allow_unsafe_werkzeug=True)
         
     except OSError as e:

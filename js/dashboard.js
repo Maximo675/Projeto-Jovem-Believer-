@@ -278,7 +278,7 @@ const Dashboard = {
                             <div style="height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden;">
                                 <div style="height: 100%; background: ${p.percentual === 100 ? 'linear-gradient(90deg, #388e3c, #2e7d32)' : 'linear-gradient(90deg, var(--primary-blue), var(--success-green))'}; width: ${p.percentual || 0}%;"></div>
                             </div>
-                            <p style="margin: 8px 0 0 0; font-weight: 600; color: ${p.percentual === 100 ? '#388e3c' : 'var(--primary-blue)'};>${p.percentual || 0}%  ${p.percentual === 100 ? '✓ Concluído' : 'Completo'}</p>
+                            <p style="margin: 8px 0 0 0; font-weight: 600; color: ${p.percentual === 100 ? '#388e3c' : 'var(--primary-blue)'}">${p.percentual || 0}%  ${p.percentual === 100 ? '✓ Concluído' : 'Completo'}</p>
                         </div>
                     </div>
                 `).join('')}
@@ -547,7 +547,7 @@ const ChatAI = {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
             
-            const response = await fetch('/api/ia/chat', {
+            const response = await fetch('http://127.0.0.1:5001/api/ia/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

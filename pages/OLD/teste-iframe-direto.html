@@ -1,0 +1,124 @@
+   <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste iframe direto - Infant Proxy</title>
+    <style>
+        body { margin: 0; font-family: monospace; }
+        .container { display: flex; height: 100vh; }
+        .left { flex: 1; padding: 20px; background: #f0f0f0; overflow-y: auto; }
+        .right { flex: 1; }
+        iframe { width: 100%; height: 100%; border: 2px solid red; }
+        h2 { color: #333; }
+        .info { background: #fff; padding: 10px; margin: 10px 0; border-left: 4px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left">
+            <h2>Teste iframe do /infant-proxy</h2>
+            
+            <div class="info">
+                <strong>O que está acontecendo:</strong>
+                <p>Testando se o /infant-proxy renderiza dentro de um iframe</p>
+            </div>
+            
+            <div class="info">
+                <strong>Status de Carregamento:</strong>
+                <p id="status">Aguardando...</p>
+            </div>
+            
+            <div class="info">
+                <strong>Logs do Console:</strong>
+                <pre id="logs" style="background: #000; color: #0f0; padding: 10px; max-height: 300px; overflow-y: auto;"></pre>
+            </div>
+        </div>
+        
+        <div class="right">
+            <iframe id="test-iframe" src="/infant-proxy"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const iframe = document.getElementById('test-iframe');
+        const statusEl = document.getElementById('status');
+        const logsEl = document.getElementById('logs');
+        
+        function log(msg) {
+            console.log(msg);
+            logsEl.textContent += msg + '\n';
+            logsEl.scrollTop = logsEl.scrollHeight;
+        }
+        
+        // Initial log
+        log(`[${new Date().toLocaleTimeString()}] Página iniciada`);
+        log(`[${new Date().toLocaleTimeString()}] iframe.src = ${iframe.src}`);
+        
+        // Test proxy endpoint directly
+        fetch('/infant-proxy')
+            .then(r => {
+                log(`[FETCH] Status: ${r.status}`);
+                log(`[FETCH] Content-Type: ${r.headers.get('Content-Type')}`);
+                return r.text();
+            })
+            .then(html => {
+                log(`[FETCH] HTML length: ${html.length} chars`);
+                log(`[FETCH] HTML starts with: ${html.substring(0, 100)}`);
+                if (html.includes('DOCTYPE')) log('[FETCH] ✓ DOCTYPE encontrado');
+                if (html.includes('html')) log('[FETCH] ✓ html tag encontrada');
+                if (html.includes('body')) log('[FETCH] ✓ body tag encontrada');
+                if (html.includes('infant')) log('[FETCH] ✓ "infant" keyword encontrada');
+            })
+            .catch(e => log(`[FETCH] ERRO: ${e.message}`));
+        
+        // Monitor iframe load
+        iframe.addEventListener('load', () => {
+            log(`[IFRAME] ✓ LOAD EVENT DISPARADO`);
+            statusEl.innerHTML = '<span style="color: green;">✓ CARREGADO</span>';
+            
+            // Try to access iframe document
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                if (iframeDoc) {
+                    log(`[IFRAME] ✓ Acesso ao documento conseguido`);
+                    log(`[IFRAME] Document.readyState: ${iframeDoc.readyState}`);
+                    log(`[IFRAME] Document.body innerHTML length: ${iframeDoc.body?.innerHTML?.length || 0}`);
+                    
+                    // NEW: Show actual body content
+                    const bodyHTML = iframeDoc.body?.innerHTML || 'VAZIO';
+                    log(`[IFRAME] === BODY CONTENT (primeiros 500 chars) ===`);
+                    log(bodyHTML.substring(0, 500));
+                    log(`[IFRAME] === FIM BODY ===`);
+                    
+                    // Check for React root or common frameworks
+                    const hasReactRoot = iframeDoc.getElementById('root') !== null;
+                    const hasAppDiv = iframeDoc.getElementById('app') !== null;
+                    const hasMain = iframeDoc.querySelector('main') !== null;
+                    
+                    log(`[IFRAME] React root (#root): ${hasReactRoot}`);
+                    log(`[IFRAME] App div (#app): ${hasAppDiv}`);
+                    log(`[IFRAME] Main element: ${hasMain}`);
+                    
+                } else {
+                    log(`[IFRAME] ✗ Não conseguiu acessar document (CORS?)`);
+                }
+            } catch (e) {
+                log(`[IFRAME] ✗ Erro ao acessar: ${e.message}`);
+            }
+        });
+        
+        iframe.addEventListener('error', (e) => {
+            log(`[IFRAME] ✗ ERRO: ${e.message || 'desconhecido'}`);
+            statusEl.innerHTML = '<span style="color: red;">✗ ERRO</span>';
+        });
+        
+        // Timeout check
+        setTimeout(() => {
+            log(`[TIMEOUT] 3 segundos passaram`);
+            if (iframe.style.display !== 'none') {
+                log(`[CHECK] iframe ainda está visível`);
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

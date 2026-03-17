@@ -1,513 +1,349 @@
 """
-Knowledge Base para IA do INFANT.ID
-Integra conhecimento de cursos + documentos para respostas contextualizadas
-
-A IA pode agora:
-- Responder sobre conteúdo específico de cada curso
-- Fornecer links diretos para aulas relevantes
-- Dar dicas práticas baseadas no treinamento
-- Gerar sugestões personalizadas
+Knowledge Base INFANT.ID — Protocolo ETAN de Coleta Biométrica
+Conteúdo específico para enfermeiras e profissionais de saúde.
 """
 
 from typing import Optional
 
-# Base de Conhecimento Estruturada
+# Base de Conhecimento — Protocolo ETAN (Enfermagem)
 KNOWLEDGE_BASE = {
-    # ===== ONBOARDING INFANT.ID =====
-    "biometria": {
-        "categoria": "Fundamentos",
-        "modulos": ["iri disponível", "impressão digital", "facial", "voz"],
-        "aula": 2,
-        "resposta": """
-A biometria é a medição de características físicas únicas. INFANT.ID usa:
 
-🔹 **Impressão Digital** (99.9% acurácia)
-   - Padrões das cristas papilares
-   - Coleta a partir de 6 meses
+    "tipo_captura": {
+        "categoria": "Tecnica",
+        "sinonimos": ["tipo de captura", "tipo pinça", "tipo pinca", "10 dedos",
+                      "dez dedos", "decadactilar", "melhor tipo", "qual tipo",
+                      "pinça ou", "pinca ou", "qual é melhor", "qual e melhor",
+                      "tipo de coleta", "modalidade de captura", "forma de capturar",
+                      "modo de captura", "tecnica de captura"],
+        "resposta": """O protocolo ETAN usa exclusivamente a **captura decadactilar** (10 dedos) para o recém-nascido — não existe opção de escolha.
 
-🔹 **Íris** (99.99% acurácia) ← Mais confiável
-   - Padrão único de cada olho
-   - Funciona desde nascimento
+Para o RN, coletamos todos os 10 dedos porque isso garante o máximo de chances de match futuro — se um ou dois dedos ficarem com qualidade ruim, os outros 8 cobrem. É uma decisão de segurança do sistema.
 
-🔹 **Facial** (98% acurácia)
-   - Geometria do rosto
-   - Rápido e não-invasivo
+Já a captura **"tipo pinça"** se refere à técnica de segurar o dedo do bebê: você usa o polegar e o indicador para estabilizar o dedo sem pressão, deixando a falange distal livre para o scanner. É a técnica correta justamente para garantir pressão leve e posicionamento certo.
 
-🔹 **Voz** (97% acurácia)
-   - Padrões acústicos
-   - Coleta a partir de 3 meses
-
-👉 Próxima aula: "Equipamentos e Sensores" para aprender como usa-se!
-        """,
-        "links": [
-            {"texto": "Fundamentos da Biometria", "aula_id": 2},
-            {"texto": "Equipamentos e Sensores", "aula_id": 3}
-        ]
+Enton, não é uma coisa ou outra — são complementares: você usa a técnica tipo pinça para posicionar cada um dos 10 dedos no scanner.""",
+        "links": []
     },
-    
-    "coleta": {
-        "categoria": "Procedimentos",
-        "sinonimos": ["coletar", "coleta", "captura", "procedimento", "como coletar"],
-        "aula": 4,
-        "resposta": """
-📋 **Protocolo de Coleta Biométrica - 5 FASES**
 
-**Preparação (5 min)**
-✓ Calibrar equipamentos
-✓ Confirmar identidade
-✓ Obter consentimento
-✓ Explicar ao criança
+    "calmar_bebe": {
+        "categoria": "Tecnica",
+        "sinonimos": ["acalmar", "calmar", "calmo", "tranquilizar", "tranquila",
+                      "bebê agitado", "bebe agitado", "facilitar coleta",
+                      "facilitar a coleta", "facilitar a coleta do bebe",
+                      "bebe chorando", "bebê chorando", "bebê não colabora",
+                      "bebe nao colabora", "como acalmar", "bebe inquieto",
+                      "bebê inquieto", "agitado", "agitada",
+                      "como facilitar", "nao para quieto", "não para quieto",
+                      "bebe nao coopera", "bebe resistindo", "bebe resistente",
+                      "tornar mais facil", "deixar mais facil", "ajudar na coleta",
+                      "bebe nao deixa", "bebê não deixa", "bebe muito agitado",
+                      "acalmar o bebe", "calmar o bebe", "sossegar"],
+        "resposta": """Isso é bem comum! Aqui está o que funciona na prática:
 
-**Fase 1: Impressões Digitais (5 min)**
-→ Posicionar dedo no scanner
-→ Pressionar 2-3 segundos
-→ Sistema valida qualidade
+**Pele a pele** é o melhor calmante que existe. Pause a coleta e entregue o bebê para a mãe por 1-2 minutinhos. Funciona muito bem.
 
-**Fase 2: Foto Facial (3 min)**
-→ Posicionar a 45cm
-→ Captura automática frontal
+**Reflexo de grasping** (mão fechada): acaricie o *dorso* da mão do bebê — isso ativa o reflexo oposto e ele abre a mão naturalmente. Nunca force.
 
-**Fase 3: Íris (2 min)**
-→ "Olhe para o ponto vermelho"
-→ Capturar ambos os olhos
+**Depois que acalmar:** segure os 4 dedos com cuidado, deixe o polegar livre, pressão bem levinha.
 
-**Fase 4: Voz (1 min)**
-→ Criança diz frase fornecida
+**Limite:** 2-3 tentativas por sessão. Se o choro não passar, avalie com o médico antes de continuar.
 
-**Próximas Etapas:**
-✓ Sistema processa e gera ID
-✓ Imprimir recibo
-✓ Assinar consentimento
-✓ Arquivar documentação
+💡 Uma dica que ajuda muito: quanto mais calma você estiver, mais calmo tende a ficar o bebê.
 
-⚠️ Qualidade > Velocidade! Uma boa coleta vale mais que 10 ruins.
-        """,
-        "links": [
-            {"texto": "Ver tutorial completo", "aula_id": 4},
-            {"texto": "Troubleshooting comum", "aula_id": 6}
-        ]
+⚠️ Se o choro for de agonia ou o RN mostrar sinais de sofrimento → acione a equipe médica imediatamente.""",
+        "links": []
     },
-    
-    "segurança": {
-        "categoria": "Conformidade",
-        "sinonimos": ["segura", "segurança", "criptografia", "lgpd", "privacidade"],
-        "aula": 5,
-        "resposta": """
-🔒 **Segurança INFANT.ID - Múltiplas Camadas**
 
-**Encriptação:**
-🔐 Em Trânsito: TLS 1.3 (256-bit)
-🔐 Em Repouso: AES-256 (militar grade)
-🔐 Hash Biométrico: SHA-3 com salting aleatório
+    "grasping": {
+        "categoria": "Tecnica",
+        "sinonimos": ["mão fechada", "mao fechada", "grasping", "nao abre a mao",
+                      "não abre a mão", "nao abre o dedo", "não abre o dedo",
+                      "dedo fechado", "punho fechado", "nao abre a mao",
+                      "bebe nao abre", "bebê não abre"],
+        "resposta": """Isso é o reflexo de grasping — completamente normal em recém-nascidos, não é resistência, é fisiológico mesmo.
 
-**Conformidade LGPD:**
-✅ Consentimento informado
-✅ Direito de acesso (responsável pode solicitar dados)
-✅ Direito ao esquecimento (deletar dados)
-✅ Portabilidade (transferir para outro sistema)
-✅ Direito de oposição (recusar processamento)
+O truque é simples: acaricie suavemente o **dorso ou a lateral** da mão do bebê. Isso ativa o reflexo oposto e ele abre a mão. Depois segure os 4 dedos com cuidado e posicione o polegar no scanner.
 
-**Retenção de Dados:**
-📅 0-7 anos: Mantido ativo
-📅 7-10 anos: Arquivado, sem acesso regular  
-📅 >10 anos: Apagado automaticamente
-⚖️ Exceção: Investigação legal pode estender
+O que não fazer: nunca force a abertura dos dedos. Não pressione com força no scanner. O scanner ETAN tem bom design justamente para facilitar mesmo com dedinhos pequenos.
 
-**Incidente de Segurança?**
-1. Notificar responsável em 48h
-2. Informar autoridade de proteção
-3. Fornecer medidas de mitigação
-4. Auditoria completa
-
-👉 Aprenda mais em "Segurança e LGPD"!
-        """,
-        "links": [
-            {"texto": "Segurança e Conformidade LGPD", "aula_id": 5}
-        ]
+Conseguiu? Se ainda estiver com dificuldade é só me falar.""",
+        "links": []
     },
-    
-    "problemas": {
-        "categoria": "Troubleshooting",
-        "sinonimos": ["problema", "erro", "não funciona", "dificuldade", "ajuda"],
-        "aula": 6,
-        "resposta": """
-🔧 **Problemas Comuns - Soluções Rápidas**
 
-**❌ Dígito não reconhecido**
-→ Dedo seco? Hidratar com loção neutra
-→ Sujo? Limpar em pano branco úmido
-→ Ferimento? Tentar outro dedo
-→ Pressão errada? Ajustar leve mente
+    "protocolo": {
+        "categoria": "Protocolo",
+        "sinonimos": ["etapas", "passo a passo", "como funciona", "protocolo etan",
+                      "como coletar", "como fazer a coleta", "procedimento",
+                      "coleta biométrica", "coleta biometrica", "processo",
+                      "fases da coleta", "visão geral", "visao geral",
+                      "me explica tudo", "por onde começo", "como começa",
+                      "resumo do protocolo"],
+        "resposta": """O protocolo ETAN tem 5 etapas:
 
-**❌ Foto facial borrada**
-→ Movimento? Pedir para ficar imóvel
-→ Pouca luz? Reduzir brilho, iluminar lateralmente
-→ Muito perto/longe? Ajustar distância (45cm ideal)
-→ Lente suja? Limpar com pano estéril
+**Seleção** — confirmar com a equipe médica que mãe e RN estão estáveis antes de começar.
+📹 https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing
 
-**❌ Íris não detectada**
-→ Olhos fechados? Deixar piscar e tentar depois
-→ Reflexos altos? Ajustar ângulo da câmera
-→ Óculos? Remover para captura
-→ Pouca iluminação? Aumentar luzes do ambiente
+**Preparação** — conforto da mãe, dados biográficos, higienizar os dedos com NATO soro. Atenção à umidade: nem encharcado nem ressecado.
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
 
-**Melhores Práticas:**
-✓ Qualidade > Velocidade
-✓ Se falhar 3x, pausar e tentar outro dia
-✓ Ambiente acolhedor = melhor coleta
-✓ Paciência com criança nervosa
+**Captura da Progenitora** — 4 dedos: polegares + indicadores de cada mão.
+📹 https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link
 
-👉 Veja guia detalhado em "Troubleshooting e Melhores Práticas"!
-        """,
-        "links": [
-            {"texto": "Guia completo de troubleshooting", "aula_id": 6}
-        ]
+**Captura do RN** — 10 dedos (decadactilar), pressão levinha, gaze seca entre cada dedo.
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link
+
+**Verificação** — checar a qualidade de todas as imagens e repetir as borradas.
+📹 https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link
+
+🔑 Regra de ouro: gaze seca no scanner antes de cada dedo — resolve 90% dos problemas. Quer detalhe de alguma etapa específica?""",
+        "links": []
     },
-    
-    # ===== INTEGRAÇÃO HOSPITALAR =====
-    "integração": {
-        "categoria": "Técnico",
-        "sinonimos": ["integração", "sistema", "his", "hospital", "conectar"],
-        "aula": 1,
-        "curso": "Integração Hospitalar",
-        "resposta": """
-🏥 **Integração INFANT.ID com Seu HIS**
 
-**Arquitetura:**
-📌 INFANT.ID Core (processamento biométrico)
-📌 Hospital Information System (seu sistema)
-📌 Middleware (traduz dados entre sistemas)
-📌 API RESTful (comunicação segura)
+    "limpeza_scanner": {
+        "categoria": "Equipamento",
+        "sinonimos": ["limpar scanner", "limpar o scanner", "limpar etan", "limpar o etan",
+                      "limpeza do scanner", "limpeza do equipamento", "limpar leitor",
+                      "limpar equipamento", "como limpar", "higienizar scanner",
+                      "limpar o equipamento", "limpar o leitor", "limpar meu etan"],
+        "resposta": """Use sempre **gaze seca** no leitor — nunca álcool e nem gaze molhada diretamente no scanner.
 
-**Fluxo Integrado:**
-1. Paciente chega → HIS cria registro
-2. Sistema notifica INFANT.ID
-3. Técnico coleta biometria
-4. Dados sincronizados automaticamente
-5. ID único vinculado ao HIS
+Limpe antes da primeira coleta do dia, entre cada dedo, e sempre que a imagem aparecer borrada ou escurecida. O processo é simples: passe a gaze seca suavemente na superfície do leitor e aguarde 2 segundos antes de posicionar o próximo dedo.
 
-**Protocolo HTTP/REST:**
-POST /api/v1/pacientes
-{
-  "nome": "João Silva",
-  "data_nascimento": "2020-05-15",
-  "responsavel": "Maria Silva"
-}
+⚠️ Nunca use álcool direto, gaze molhada, pano de prato ou papel toalha — isso danifica o sensor.
 
-**Segurança na Integração:**
-🔐 API Keys com JWT (24h)
-🔐 TLS 1.3 para todas requisições
-🔐 Assinatura digital (HMAC-SHA256)
-🔐 Log completo para auditoria
-
-👉 Quer implementar? Veja "Implementação Técnica"!
-        """,
-        "links": [
-            {"texto": "Arquitetura de Integração", "aula_id": 1},
-            {"texto": "Implementação Técnica", "aula_id": 2},
-            {"texto": "Troubleshooting", "aula_id": 4}
-        ]
+💡 Essa limpeza com gaze seca resolve cerca de 90% dos problemas de qualidade. Vale a pena fazer antes de cada dedo mesmo que não perceba sujeira.""",
+        "links": []
     },
-    
-    "api": {
-        "categoria": "Desenvolvimento",
-        "sinonimos": ["api", "desenvolvedor", "código", "técnico", "integração"],
-        "aula": 2,
-        "curso": "Integração Hospitalar",
-        "resposta": """
-👨‍💻 **SDK INFANT.ID - Rápido Início**
 
-**Instalação:**
-pip install infantid-sdk==2.1.0
-npm install @infantid/sdk
+    "nato_soro": {
+        "categoria": "Preparacao",
+        "sinonimos": ["nato soro", "soro fisiológico", "soro fisiologico", "solucao de limpeza",
+                      "solução de limpeza", "limpar dedos", "limpar os dedos",
+                      "higienizar dedos", "higienização dos dedos", "vernix",
+                      "preparacao", "preparação", "higienizacao", "higienização",
+                      "clorexidina", "shampoo neutro", "como higienizar"],
+        "resposta": """A solução NATO soro é para limpar os **dedos** (não o scanner). Misture: soro fisiológico + clorexidina líquida + shampoo neutro infantil. Umedeça uma gaze e limpe em movimento circular na primeira falange (pontinho dos dedos).
 
-**Exemplo Python:**
-```python
-from infantid import InfantIDClient
+⚠️ Atenção à umidade: dedo encharcado faz a imagem escurecer. Depois de higienizar, seque levemente com gaze seca antes de capturar.
 
-client = InfantIDClient(
-    api_key="sua_chave",
-    api_secret="seu_secret"
-)
+Se tiver vernix (aquela substância branca): limpe com cuidado, aguarde 1-2 minutos e aí captura. Não tente remover a descamação natural, é normal em RN.
 
-paciente = client.pacientes.create({
-    'nome': 'João Silva',
-    'data_nascimento': '2020-05-15'
-})
-
-print(f"ID gerado: {paciente['infant_id']}")
-```
-
-**Exemplo Node.js:**
-```javascript
-const { InfantID } = require('@infantid/sdk');
-
-const client = new InfantID({
-  apiKey: process.env.API_KEY
-});
-
-const patient = await client.patients.create({
-  name: 'Maria Santos',
-  birthDate: '2019-03-20'
-});
-```
-
-**Testes:**
-GET /api/v1/health ← Verificar conexão
-GET /api/v1/pacientes ← Listar pacientes
-GET /api/v1/mapping/validate/{id} ← Validar dado
-
-👉 Veja documentação completa em "Implementação Técnica"!
-        """,
-        "links": [
-            {"texto": "Guia Técnico Completo", "aula_id": 2}
-        ]
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link""",
+        "links": []
     },
-    
-    "workflow": {
-        "categoria": "Clínico",
-        "sinonimos": ["workflow", "fluxo", "processo", "rotina", "clínico"],
-        "aula": 3,
-        "curso": "Integração Hospitalar",
-        "resposta": """
-🔄 **Fluxo Clínico Completo com INFANT.ID**
 
-**Entrada:**
-1️⃣ Responsável chega na recepção
-2️⃣ Cria registro no HIS
-3️⃣ Notificação automática ao INFANT.ID
+    "qualidade_imagem": {
+        "categoria": "Qualidade",
+        "sinonimos": ["imagem borrada", "imagem ruim", "digital borrada", "não captura",
+                      "nao captura", "qualidade baixa", "imagem escura", "imagem apagada",
+                      "não reconhece", "nao reconhece", "erro de captura", "falha na captura",
+                      "repetir captura", "refazer", "qualidade da imagem",
+                      "saiu ruim", "ficou ruim", "nao ficou boa", "ficou borrada",
+                      "imagem preta", "imagem branca", "nao capturou"],
+        "resposta": """Vamos diagnosticar:
 
-**Coleta:**
-4️⃣ QR code gerado com dados do paciente
-5️⃣ Técnico escaneia e coleta biometria
-6️⃣ ID único vinculado automaticamente
+**Imagem escurecida ou manchas escuras** → dedo muito úmido. Seque bem com gaze seca antes de capturar.
 
-**Atendimento:**
-7️⃣ Médico acessa registro com identidade verificada
-8️⃣ Histórico completo disponível
-9️⃣ Alertas automáticos de duplicatas
+**Imagem apagada ou muito clara** → dedo muito seco. Umedeça levemente com NATO soro e seque antes.
 
-**Alta:**
-🔟 Registro completo salvo
-1️⃣1️⃣ Dados arquivados com LGPD
-1️⃣2️⃣ Certificado disponível
+**Imagem borrada** → provavelmente o scanner está sujo. Passe gaze seca no leitor. Também verifique o posicionamento: a falange distal precisa estar centralizada no visor.
 
-**Casos Especiais:**
+**Sistema não reconhece** → vernix? Higienize com NATO soro e aguarde 1-2 minutos. Pressão demais também atrapalha — o toque precisa ser bem levinho.
 
-🌟 **Bebê Prematuro (2kg)**
-→ Coleta suave de íris + voz
-→ Digital completa quando peso adequado
-→ 99.99% acurácia mesmo em casos difíceis
-
-🌟 **Criança com Deficiência**
-→ Sistema oferece múltiplas modalidades
-→ Se digital inadequada, usa íris + facial + voz
-→ Igualdade de direitos garantida
-
-👉 Veja detalhes em "Workflow Clínico com INFANT.ID"!
-        """,
-        "links": [
-            {"texto": "Fluxo Clínico Integrado", "aula_id": 3}
-        ]
+Para repetir: volte ao dedo com problema, limpe o scanner com gaze seca, reposicione e recaptura. Limpeza + umidade certa resolvem 95% dos casos.""",
+        "links": []
     },
-    
-    # ===== GERENCIAMENTO DE USUÁRIOS =====
-    "usuarios": {
-        "categoria": "Admin",
-        "sinonimos": ["usuário", "usuários", "conta", "perfil", "acesso"],
-        "aula": 1,
-        "curso": "Gerenciamento de Usuários",
+
+    "seguranca_dados": {
+        "categoria": "Seguranca",
+        "sinonimos": ["segurança", "seguranca", "lgpd", "privacidade", "dados seguros",
+                      "quem acessa", "proteção de dados", "protecao de dados", "gdpr"],
         "resposta": """
-👥 **Gerenciamento de Usuários e Permissões**
+Os dados coletados são protegidos em múltiplas camadas:
 
-**Papéis Disponíveis:**
+→ Criptografia de ponta a ponta
+→ Servidores com múltiplos backups
+→ Acesso restrito com log completo de auditoria
+→ Conformidade com LGPD e padrões internacionais
 
-🔴 **Administrador**
-   → Criar, modificar, deletar usuários
-   → Acessar configurações
-   → Gerar relatórios
-   → Todas os pacientes
-
-🟣 **Médico**  
-   → Ver prontuários
-   → Solicitar coleta
-   → Prescrever
-   → Seus pacientes atribuidos
-
-🟡 **Técnico Biometria**
-   → Coletar dados
-   → Validar qualidade
-   → Pacientes agendados
-
-🟢 **Recepcionista**
-   → Agendar coleta
-   → Registrar chegada
-   → Calendário de agendamentos
-
-🔵 **Auditor**
-   → Visualizar logs
-   → Gerar relatórios
-   → Todos logs (sem dados sensíveis)
-
-**Princípios de Segurança:**
-🔒 Least Privilege: Mínimo acesso necessário
-🔒 Separação de Deveres: Técnico não vê dados médicos
-🔒 Auditoria Completa: Toda ação registrada
-🔒 Revogação Rápida: Desativar remove acesso imediatamente
-
-👉 Saber criar usuários? Veja tutorial em "Controle de Acesso"!
+Sua responsabilidade é fazer a **coleta com qualidade**. A segurança técnica dos dados fica por conta da plataforma.
         """,
-        "links": [
-            {"texto": "Controle de Acesso e Permissões", "aula_id": 1}
-        ]
+        "links": []
     },
-    
-    "auditoria": {
-        "categoria": "Conformidade",
-        "sinonimos": ["auditoria", "compliance", "relatório", "relatórios", "logs"],
-        "aula": 3,
-        "curso": "Gerenciamento de Usuários",
-        "resposta": """
-📊 **Auditoria e Compliance**
 
-**Sistema Completo de Logs:**
-- Cada ação registrada imutavelmente
-- Quem fez, quando, resultado
-- Histórico de 3 anos online
+    "prematuro": {
+        "categoria": "Casos Especiais",
+        "sinonimos": ["prematuro", "bebe prematuro", "bebê prematuro", "criança prematura",
+                      "nasceu antes", "nascimento prematuro", "bebe pequeno", "bebê pequeno",
+                      "nasceu cedo", "prematuro coleta", "coleta prematuro"],
+        "resposta": """Para prematuros o protocolo é o mesmo, só com cuidados extras.
 
-**Alertas de Segurança:**
-⚠️ Múltiplas tentativas login falhadas → Bloqueia 30min
-⚠️ IP incomum → Email de notificação
-⚠️ Acesso fora do horário → Alerta
-⚠️ Deleção em massa → Requer autorização
+Pode coletar normalmente se a equipe médica liberou — a biometria já se forma a partir da 13ª semana, então prematuros têm digitais formadas sim.
 
-**Relatórios Prontos para Auditores:**
+Os cuidados adicionais: prematuros são mais instáveis, então monitore sinais vitais durante toda a coleta. Dedos são ainda mais delicadinhos — pressão mínima, quase zero. Vernix tende a ser mais abundante — higienize com NATO soro com muito cuidado. Se possível, espere o bebê estar em sono leve, fica bem mais fácil.
 
-📄 **Relatório LGPD**
-   → Todos acessos a dados pessoais
-   → Quem acessou quando e porquê
-   → Conformidade com artigos 30-35
+🛑 Pare imediatamente se: oximetria caindo, palidez, cianose. Acione a equipe médica sem demora.
 
-📄 **Relatório de Segurança**
-   → Falhas de login
-   → Mudanças de permissão
-   → Alertas disparados
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link""",
+        "links": []
+    },
 
-📄 **Relatório Operacional**
-   → Coletas realizadas
-   → Processamentos
-   → Taxa de erro
+    "selecao": {
+        "categoria": "Protocolo",
+        "sinonimos": ["seleção", "selecao", "critério", "criterio", "elegível", "elegivel",
+                      "pode coletar", "quando coletar", "liberação médica", "liberacao medica",
+                      "quem decide", "autorização", "autorizacao", "estabilidade",
+                      "quando posso coletar", "quando iniciar", "criterios", "critérios"],
+        "resposta": """A coleta só começa quando **mãe e RN estão estáveis e fora de risco**, confirmado pela equipe médica.
 
-📄 **Certificado de Conformidade**
-   → ISO/IEC 27001
-   → SOC2 Type II
-   → NIST Privacy Framework
+Para o RN: respiração regular, frequência cardíaca normal, boa oxigenação, temperatura estável, sem sinais de sofrimento.
 
-**Download de Relatório:**
-GET /api/v1/reports/compliance?format=pdf&month=2026-02
+Para a progenitora: estabilidade clínica pós-parto e consentimento informado obtido.
 
-👉 Saiba mais em "Auditoria e Compliance"!
-        """,
-        "links": [
-            {"texto": "Auditoria e Conformidade", "aula_id": 3}
-        ]
+⚠️ Qualquer dúvida sobre a estabilidade: consulte o médico responsável antes de iniciar. Não vá em frente se não tiver certeza.
+
+📹 https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing""",
+        "links": []
+    },
+
+    "chamado": {
+        "categoria": "Suporte",
+        "sinonimos": ["chamado", "suporte", "ticket", "akiyama", "abrir chamado",
+                      "acionar suporte", "contato técnico", "contato tecnico",
+                      "problema técnico", "problema tecnico", "scanner não funciona",
+                      "scanner nao funciona", "equipamento com problema",
+                      "nao consegui resolver", "não consegui resolver", "ligar suporte"],
+        "resposta": """Para abrir um chamado técnico:
+
+1. Acesse **akiyama.com.br/suporte**
+2. Faça login
+3. Clique em "Enviar um ticket"
+4. Descreva: o problema, o que já tentou e o número de série do kit ETAN
+5. Envie — o suporte retorna conforme o SLA
+
+💡 Enquanto aguarda, use outro equipamento disponível na unidade se tiver.""",
+        "links": []
+    },
+
+    "captura_rn": {
+        "categoria": "Protocolo",
+        "sinonimos": ["captura rn", "captura do rn", "coletar do bebe", "coletar do bebê",
+                      "digitais do bebe", "digitais do bebê", "10 dedos", "decadactilar",
+                      "ordem dos dedos", "qual dedo primeiro", "sequência", "sequencia",
+                      "começa por qual dedo", "dedo comecar", "por qual dedo"],
+        "resposta": """São 10 dedos no total — aqui vai a ordem:
+
+**Mão direita:** Polegar → Indicador → Médio → Anelar → Mínimo
+**Mão esquerda:** Polegar → Indicador → Médio → Anelar → Mínimo
+
+Técnica: foque na **falange distal** (ponta do dedo), centralize no visor, pressão bem levinha — o scanner faz o trabalho. Limpe o scanner com gaze seca entre cada dedo e aguarde a confirmação do sistema antes de passar para o próximo.
+
+📹 https://drive.google.com/file/d/1ZFtokHAzHLuXql2h45Ll3pEemFZqhkos/view?usp=drive_link""",
+        "links": []
+    },
+
+    "captura_progenitora": {
+        "categoria": "Protocolo",
+        "sinonimos": ["progenitora", "captura da mãe", "captura da mae", "coleta da mãe",
+                      "coleta da mae", "dedos da mãe", "dedos da mae", "4 dedos",
+                      "polegares", "indicadores", "mae", "mãe",
+                      "coleta da progenitora", "digitais da mae", "digitais da mãe"],
+        "resposta": """São 4 dedos da progenitora: polegar direito, indicador direito, polegar esquerdo, indicador esquerdo.
+
+Mesma técnica do RN: NATO soro nos dedos, gaze seca no scanner entre cada dedo, falange distal centralizada, pressão leve.
+
+⚠️ Se a mãe tiver calosidades ou pele muito seca, umedeça levemente antes de capturar.
+
+📹 https://drive.google.com/file/d/1g55icK4TUhLpQxwsTgPbV0e09td8K8ln/view?usp=drive_link""",
+        "links": []
+    },
+
+    "verificacao": {
+        "categoria": "Protocolo",
+        "sinonimos": ["verificação", "verificacao", "checar qualidade", "verificar qualidade",
+                      "imagem aprovada", "finalizar coleta", "etapa final", "depois da coleta",
+                      "como verificar", "checar imagem", "imagem ok"],
+        "resposta": """Na verificação você checa a qualidade de cada imagem.
+
+**Imagem aprovada** quando as cristas e sulcos estão visíveis e nítidos, sem manchas escuras nem apagada, centralizada no visor.
+
+**Repita** se a imagem estiver borrada, ilegível, cortada, com sobreposição de dedos ou se o sistema indicar baixa qualidade.
+
+Para repetir: volte ao dedo com problema, passe gaze seca no scanner, reposicione e recaptura.
+
+📹 https://drive.google.com/file/d/1vKSLvP5WolPnjJa4y6ylrP9-rkvPwUqs/view?usp=drive_link""",
+        "links": []
+    },
+
+    "seguranca_dados": {
+        "categoria": "Seguranca",
+        "sinonimos": ["segurança", "seguranca", "lgpd", "privacidade", "dados seguros",
+                      "quem acessa", "proteção de dados", "protecao de dados", "gdpr",
+                      "dados protetor", "dado salvo", "onde ficam os dados"],
+        "resposta": """Os dados coletados são protegidos com criptografia de ponta a ponta, servidores com múltiplos backups e acesso restrito com log completo de auditoria. A plataforma é compatível com LGPD e padrões internacionais.
+
+Sua responsabilidade é fazer a coleta com qualidade — a segurança técnica dos dados fica por conta da plataforma.""",
+        "links": []
     }
 }
 
-# Função para buscar resposta contextualizada
+
 def buscar_resposta(pergunta: str, atual_curso_id: Optional[int] = None) -> dict:
     """
-    Busca a melhor resposta na knowledge base
-    
-    Args:
-        pergunta (str): Pergunta do usuário
-        atual_curso_id (int|None): ID do curso atual (opcional, para contexto)
-        
-    Returns:
-        dict: Resposta com texto, links para aulas, confiança (0-1)
+    Busca a melhor resposta na knowledge base.
+    Retorna sem resposta (sucesso=False) para deixar o Ollama responder.
     """
     pergunta_lower = pergunta.lower()
-    
+
     melhor_resultado = None
     melhor_score = 0
-    
-    # Buscar por palavra-chave
+
     for chave, info in KNOWLEDGE_BASE.items():
-        # Verificar match direto
+        score = 0
         if chave in pergunta_lower:
             score = 1.0
-        # Verificar sinônimos
-        elif 'sinonimos' in info:
-            for sinonimo in info['sinonimos']:
+        elif "sinonimos" in info:
+            for sinonimo in info["sinonimos"]:
                 if sinonimo in pergunta_lower:
                     score = 0.9
                     break
-            else:
-                continue
-        else:
-            continue
-        
+
         if score > melhor_score:
             melhor_score = score
             melhor_resultado = (chave, info)
-    
+
     if melhor_resultado:
         chave, info = melhor_resultado
         return {
-            'resposta': info['resposta'],
-            'links_aulas': info.get('links', []),
-            'confianca': melhor_score,
-            'categoria': info.get('categoria'),
-            'aula_id': info.get('aula'),
-            'curso': info.get('curso', 'Onboarding INFANT.ID'),
-            'sucesso': True
+            "resposta": info["resposta"],
+            "links_aulas": info.get("links", []),
+            "confianca": melhor_score,
+            "categoria": info.get("categoria"),
+            "aula_id": info.get("aula"),
+            "curso": info.get("curso", "INFANT.ID"),
+            "sucesso": True
         }
-    
-    # Se não achou, retornar resposta genérica
+
+    # Não achou — deixa o Ollama responder
     return {
-        'resposta': f"""
-Entendi sua pergunta sobre "{pergunta}", mas não tenho uma resposta específica no momento.
-
-Posso ajudar com:
-• 🧬 **Biometria**: Tipos, como funciona, modalidades
-• 📋 **Coleta**: Protocolo passo a passo
-• 🔒 **Segurança**: Criptografia, LGPD, conformidade
-• 🔧 **Problemas**: Troubleshooting comum
-• 🏥 **Integração**: HIS, API, implementação técnica
-• 👥 **Usuários**: Papéis, permissões, gerenciamento
-• 📊 **Auditoria**: Logs, relatórios, compliance
-
-👉 Experimente perguntar sobre um dos tópicos acima!
-        """,
-        'sucesso': False,
-        'confianca': 0,
-        'sugestoes': [
-            'biometria',
-            'coleta',
-            'segurança',
-            'integração',
-            'problemas'
-        ]
+        "resposta": "",
+        "sucesso": False,
+        "confianca": 0,
+        "sugestoes": []
     }
 
 
-if __name__ == '__main__':
-    # Teste simples
-    print("🤖 Knowledge Base IA INFANT.ID")
+if __name__ == "__main__":
+    print("Knowledge Base INFANT.ID — Teste")
     print("=" * 50)
-    
     test_perguntas = [
-        "Como coletar biometria?",
-        "Qual módulo fala sobre LGPD?",
-        "Tenho problema com dígito não reconhecido",
-        "Como integrar com meu HIS?",
-        "Quais são os papéis de usuário?"
+        "Como calmar o bebê durante a coleta?",
+        "Como limpar o scanner ETAN?",
+        "Bebê com mão fechada, o que faço?",
+        "Como coletar da progenitora?",
+        "A imagem está borrada, o que fazer?",
     ]
-    
     for pergunta in test_perguntas:
-        print(f"\n❓ {pergunta}")
         resultado = buscar_resposta(pergunta)
-        print(f"✅ Confiança: {resultado['confianca']*100:.0f}%")
-        print(f"   Categoria: {resultado.get('categoria', 'N/A')}")
-        if resultado.get('links_aulas'):
-            print(f"   Links: {resultado['links_aulas']}")
+        print(f"\n❓ {pergunta}")
+        print(f"   Sucesso: {resultado['sucesso']} | Confiança: {resultado['confianca']*100:.0f}%")
