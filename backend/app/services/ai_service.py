@@ -5,8 +5,14 @@ Suporta: Mock (demo com respostas humanizadas).
 
 import os
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-from openai import OpenAI
 from flask import current_app
+
+try:
+    from openai import OpenAI
+    OPENAI_DISPONIVEL = True
+except Exception:
+    OPENAI_DISPONIVEL = False
+    OpenAI = None
 
 
 # Importar knowledge base
@@ -45,7 +51,7 @@ class AiService:
                 self.mode = 'mock'
         else:
             # OpenAI remoto
-            if self.api_key:
+            if self.api_key and OPENAI_DISPONIVEL:
                 self.client = OpenAI(api_key=self.api_key)
                 print("[OPENAI] AiService: Usando OpenAI remoto")
                 self.mode = 'openai'
