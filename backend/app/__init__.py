@@ -28,8 +28,9 @@ def create_app():
     """Factory para criar a aplicação Flask"""
     app = Flask(__name__)
     
-    # Usar config de desenvolvimento (SQLite para evitar problemas PostgreSQL)
-    app.config.from_object(config['development'])
+    # Selecionar config pelo ambiente (FLASK_ENV="production" em produção)
+    env = os.getenv('FLASK_ENV', 'development')
+    app.config.from_object(config.get(env, config['development']))
     
     # Inicializar extensões
     db.init_app(app)

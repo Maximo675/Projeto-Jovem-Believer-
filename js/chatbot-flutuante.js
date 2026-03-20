@@ -62,6 +62,15 @@ const ChatbotFlutuante = {
                         placeholder="Digite sua pergunta para Jade..." 
                         autocomplete="off"
                     >
+                    <!-- Botão para enviar print/imagem -->
+                    <input type="file" id="chatbot-image-input" accept="image/*" style="display:none">
+                    <button id="chatbot-image-btn" class="chatbot-image-btn" title="Enviar print ou imagem">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </button>
                     <button id="chatbot-send" class="chatbot-send-btn" title="Enviar">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -396,6 +405,44 @@ const ChatbotFlutuante = {
             .chatbot-send-btn:active {
                 transform: scale(0.98);
             }
+
+            .chatbot-image-btn {
+                background: #f0f4f5;
+                color: #1a99ac;
+                border: 1px solid #d0e8ec;
+                padding: 10px 12px;
+                border-radius: 8px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                flex-shrink: 0;
+            }
+
+            .chatbot-image-btn:hover {
+                background: #d0e8ec;
+                transform: translateY(-2px);
+            }
+
+            .chatbot-image-btn:active {
+                transform: scale(0.98);
+            }
+
+            .chatbot-image-preview {
+                max-width: 180px;
+                border-radius: 8px;
+                margin-top: 6px;
+                border: 1px solid #e0e0e0;
+                display: block;
+            }
+
+            .chatbot-ocr-badge {
+                font-size: 0.72rem;
+                color: #888;
+                margin-top: 4px;
+                font-style: italic;
+            }
             
             /* Responsivo */
             @media (max-width: 600px) {
@@ -436,6 +483,16 @@ const ChatbotFlutuante = {
         sendBtn?.addEventListener('click', () => this.sendMessage());
         input?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendMessage();
+        });
+
+        // Upload de imagem
+        const imageBtn = document.getElementById('chatbot-image-btn');
+        const imageInput = document.getElementById('chatbot-image-input');
+        imageBtn?.addEventListener('click', () => imageInput?.click());
+        imageInput?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) this.sendImageMessage(file);
+            imageInput.value = ''; // Permite selecionar o mesmo arquivo novamente
         });
     },
     
@@ -482,7 +539,9 @@ const ChatbotFlutuante = {
         try {
             // Enviar para API
             const token = localStorage.getItem('authToken');
-            const response = await fetch('http://127.0.0.1:5001/api/ia/chat', {
+            const _apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://127.0.0.1:5001' : window.location.origin;
+            const response = await fetch(`${_apiBase}/api/ia/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -532,6 +591,96 @@ const ChatbotFlutuante = {
         this.saveConversationHistory();
     },
     
+    async sendImageMessage(file) {
+        const TIPOS_PERMITIDOS = ['image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/webp', 'image/tiff'];
+        if (!TIPOS_PERMITIDOS.includes(file.type)) {
+            this.addMessageToUI('ai', '⚠️ Formato de imagem não suportado. Envie PNG, JPG, GIF, BMP ou WEBP.');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            this.addMessageToUI('ai', '⚠️ Imagem muito grande. Tamanho máximo: 10 MB.');
+            return;
+        }
+
+        const perguntaExtra = document.getElementById('chatbot-input')?.value.trim() || '';
+        if (perguntaExtra) {
+            document.getElementById('chatbot-input').value = '';
+        }
+
+        // Exibir preview da imagem no chat
+        const objectUrl = URL.createObjectURL(file);
+        const previewHTML = `<img src="${objectUrl}" class="chatbot-image-preview" alt="Print enviado">${perguntaExtra ? `<div style="margin-top:6px">${perguntaExtra}</div>` : ''}`;
+        const messagesContainer = document.getElementById('chatbot-messages');
+        const previewEl = document.createElement('div');
+        previewEl.className = 'message user';
+        previewEl.innerHTML = previewHTML;
+        messagesContainer?.appendChild(previewEl);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        // Indicador de carregamento
+        const loadingEl = document.createElement('div');
+        loadingEl.className = 'message ai';
+        loadingEl.innerHTML = '🔍 Analisando sua imagem...';
+        messagesContainer?.appendChild(loadingEl);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        try {
+            const token = localStorage.getItem('authToken');
+            const usuarioId = localStorage.getItem('userId');
+
+            const formData = new FormData();
+            formData.append('imagem', file);
+            if (perguntaExtra) formData.append('mensagem', perguntaExtra);
+            if (usuarioId) formData.append('usuario_id', usuarioId);
+
+            const _apiBase2 = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://127.0.0.1:5001' : window.location.origin;
+
+            const response = await fetch(`${_apiBase2}/api/ia/chat-imagem`, {
+                method: 'POST',
+                headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                    // SEM Content-Type — o browser define automaticamente o boundary do multipart
+                },
+                body: formData
+            });
+
+            loadingEl.remove();
+            URL.revokeObjectURL(objectUrl);
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                this.addMessageToUI('ai', `⚠️ ${err.erro || 'Erro ao processar a imagem. Tente novamente.'}`);
+                return;
+            }
+
+            const data = await response.json();
+            const aiResponse = data.resposta || 'Desculpe, não consegui analisar a imagem.';
+
+            const msgEl = document.createElement('div');
+            msgEl.className = 'message ai';
+            msgEl.innerHTML = this.renderMarkdown(aiResponse);
+            if (data.texto_extraido) {
+                const badge = document.createElement('div');
+                badge.className = 'chatbot-ocr-badge';
+                badge.textContent = `📝 Texto detectado na imagem: "${data.texto_extraido.slice(0, 80)}${data.texto_extraido.length > 80 ? '...' : ''}"}`;
+                msgEl.appendChild(badge);
+            }
+            messagesContainer?.appendChild(msgEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            this.conversationHistory.push({ role: 'user', content: `[Imagem enviada] ${perguntaExtra}` });
+            this.conversationHistory.push({ role: 'assistant', content: aiResponse });
+            this.saveConversationHistory();
+
+        } catch (error) {
+            loadingEl.remove();
+            URL.revokeObjectURL(objectUrl);
+            console.error('[CHATBOT] Erro ao enviar imagem:', error);
+            this.addMessageToUI('ai', '⚠️ Não consegui processar a imagem. Verifique sua conexão e tente novamente.');
+        }
+    },
+
     addMessageToUI(role, content) {
         const messagesContainer = document.getElementById('chatbot-messages');
         if (!messagesContainer) return;

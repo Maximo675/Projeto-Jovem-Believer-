@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 from openai import OpenAI
 from flask import current_app
 
+
 # Importar knowledge base
 try:
     from .knowledge_base import buscar_resposta, KNOWLEDGE_BASE
@@ -587,17 +588,418 @@ Tem alguma dúvida específica sobre privacidade ou sobre quem tem acesso?"""
             if palavra in pergunta_lower:
                 return resposta
 
+        # ── ERROS DE PLATAFORMA (mensagens de tela / logs) ────────────────────
+        # Detecta padrões típicos de mensagem de erro que vêm via OCR ou digitação
+        erros_plataforma_kw = [
+            'equipamento não encontrado', 'equipamento nao encontrado',
+            'etan não encontrado', 'etan nao encontrado',
+            'device not found', 'dispositivo não encontrado',
+            'unable to find device', 'hardware não detectado',
+        ]
+        if any(k in pergunta_lower for k in erros_plataforma_kw):
+            return """A mensagem **"Equipamento não encontrado"** indica que a plataforma perdeu comunicação com o ETAN. Checklist em ordem:
+
+**1️⃣ Conexão física**
+→ Desconecte e reconecte o cabo **USB-C** nos dois lados
+→ Tente uma porta USB diferente (prefira as traseiras — mais estáveis)
+→ Verifique se o cabo não está dobrado ou com dano
+
+**2️⃣ Reiniciar a plataforma**
+→ Feche completamente e reabra com o ETAN já conectado
+→ Aguarde 15 segundos na tela inicial antes de navegar
+
+**3️⃣ Antivírus / Firewall**
+→ O antivírus pode bloquear silenciosamente o driver do ETAN
+→ Acione o TI para colocar o ETAN na lista de dispositivos confiáveis
+
+**4️⃣ Reiniciar o computador**
+→ Resolve ~70% dos casos de USB não reconhecido
+
+**5️⃣ Ainda não resolveu?**
+→ Abra chamado em **akiyama.com.br/suporte** com: modelo do computador, sistema operacional, número de série do ETAN
+
+O que você já tentou?"""
+
+        # ── TIMEOUT / TRAVAMENTO NA CAPTURA ──────────────────────────────────
+        timeout_kw = [
+            'timeout', 'time out', 'tempo esgotado', 'tempo limite',
+            'captura travou', 'travou na captura', 'não progride', 'nao progride',
+            'ficou parado', 'ficou na mesma tela', 'captura não termina',
+            'aguardando captura', 'operação expirou', 'operacao expirou',
+            'connection timeout', 'request timeout',
+        ]
+        if any(k in pergunta_lower for k in timeout_kw):
+            return """**Timeout na captura** — o sistema esperou demais por uma resposta. Causas e soluções:
+
+**Causa mais comum: dedo mal posicionado**
+→ Reposicione a **falange distal** bem centralizada no visor
+→ Pressão bem leve — quase sem forçar
+
+**Scanner sujo**
+→ O sistema não consegue ler e "desiste" após o timeout
+→ Limpe o visor com gaze **seca** e tente novamente
+
+**USB instável**
+→ Desconecte e reconecte o cabo USB-C, reinicie a plataforma
+
+**Software travado**
+→ Feche completamente (use Gerenciador de Tarefas se necessário), reabra e aguarde a inicialização
+
+**Timeout em todo dedo →** provável problema de driver — reinstale via **akiyama.com.br** ou abra chamado técnico"""
+
+        # ── LOGIN / ACESSO À PLATAFORMA ───────────────────────────────────────
+        login_kw = [
+            'não consigo entrar', 'nao consigo entrar', 'login falhou', 'login failed',
+            'erro de login', 'usuário inválido', 'usuario invalido',
+            'senha inválida', 'senha invalida', 'credenciais inválidas',
+            'invalid credentials', 'não consigo acessar', 'nao consigo acessar',
+            'esqueci a senha', 'esqueci minha senha', 'resetar senha', 'redefinir senha',
+            'conta bloqueada', 'acesso bloqueado', 'authentication failed',
+            'falha na autenticação', 'falha na autenticacao', 'não autenticou',
+        ]
+        if any(k in pergunta_lower for k in login_kw):
+            if any(k in pergunta_lower for k in ['esqueci', 'resetar', 'redefinir', 'reset']):
+                return """Para **redefinir sua senha**:
+
+1. Na tela de login, clique em **"Esqueci minha senha"**
+2. Informe o **e-mail institucional** cadastrado
+3. Verifique sua caixa de entrada (e o **lixo eletrônico** — pode cair no spam)
+4. Clique no link do e-mail — ele expira em **30 minutos**, use logo
+5. Crie uma nova senha e faça login
+
+⚠️ Use sempre o **e-mail institucional** (não o pessoal). Se não chegou o e-mail em 5 minutos, verifique o spam antes de tentar de novo.
+
+Ainda sem acesso? Contate o coordenador do hospital ou suporte em **akiyama.com.br/suporte**"""
+            return """Problema para **entrar na plataforma**:
+
+🔹 Verifique se o **Caps Lock** está desativado
+🔹 Confirme que está usando o **e-mail institucional** correto
+🔹 Tente **copiar e colar** a senha para eliminar erros de digitação
+
+**Conta bloqueada** (várias tentativas erradas):
+→ Aguarde **15 minutos** e tente novamente
+→ Ou contate o coordenador do hospital para desbloqueio
+
+**Primeiro acesso:**
+→ Use as credenciais do e-mail de boas-vindas enviado pela Akiyama
+→ O sistema pedirá para criar uma nova senha no primeiro login
+
+Sem o e-mail de boas-vindas? **akiyama.com.br/suporte**"""
+
+        # ── PLATAFORMA TRAVADA / NÃO RESPONDE ────────────────────────────────
+        trava_kw = [
+            'tela travou', 'tela congelou', 'software travou', 'plataforma travou',
+            'não responde', 'nao responde', 'ficou congelado', 'ficou travado',
+            'programa travou', 'sistema travou', 'tela preta', 'tela branca',
+            'loading infinito', 'carregando para sempre', 'não carrega',
+            'nao carrega', 'botão não funciona', 'botao nao funciona',
+            'interface travou', 'app travou', 'aplicativo travou',
+        ]
+        if any(k in pergunta_lower for k in trava_kw):
+            return """A **plataforma travou ou não responde**:
+
+**Tente primeiro:**
+→ Aguarde 30 segundos (pode ser lentidão momentânea)
+→ Se for navegador: **Ctrl+F5** para reload forçado
+→ Feche e reabra a plataforma
+
+**Se continuar travada:**
+1. Feche completamente (Gerenciador de Tarefas se necessário)
+2. Desconecte e reconecte o ETAN (USB)
+3. Reabra a plataforma e aguarde a inicialização antes de usar
+
+**Tela preta ou branca:**
+→ Atualize o navegador e limpe o cache (**Ctrl+Shift+Del**)
+→ Tente em outro navegador (Chrome ou Edge são recomendados)
+
+**Loading infinito na captura:**
+→ O ETAN pode estar sem comunicação — reconecte o USB e reinicie a plataforma
+
+⚠️ Se travamentos forem frequentes, documente quando acontece e abra chamado em **akiyama.com.br/suporte**"""
+
+        # ── SINCRONIZAÇÃO / DADOS NÃO SALVOS ─────────────────────────────────
+        sync_kw = [
+            'não sincronizou', 'nao sincronizou', 'erro ao sincronizar',
+            'falha na sincronização', 'falha na sincronizacao',
+            'dados não enviados', 'dados nao enviados', 'coleta não foi salva',
+            'coleta nao foi salva', 'sync error', 'upload falhou',
+            'não salvou', 'nao salvou', 'coleta sumiu', 'dados sumiram',
+            'perdi a coleta', 'coleta desapareceu', 'não consta no sistema',
+            'nao consta no sistema', 'servidor indisponível', 'servidor indisponivel',
+        ]
+        if any(k in pergunta_lower for k in sync_kw):
+            return """Problema com **sincronização / coleta não salva**:
+
+**Verificação imediata:**
+→ Filtre o histórico por **data de hoje** — às vezes aparece em outra página
+→ Procure status **"Pendente"** — a coleta pode estar aguardando sincronização
+→ Verifique se você está logada na **conta certa**
+
+**Se estava offline durante a coleta:**
+→ A coleta foi salva localmente — conecte à internet
+→ A sincronização ocorre automaticamente; procure botão **"Sincronizar agora"** se disponível
+
+**Se a coleta realmente sumiu:**
+→ **Não refaça ainda** — entre em contato primeiro com o suporte
+→ **akiyama.com.br/suporte** com: nome do paciente, data/hora aproximada, usuário que realizou
+→ Eles recuperam do servidor mesmo que não apareça na interface"""
+
+        # ── INTERNET / REDE ───────────────────────────────────────────────────
+        rede_kw = [
+            'sem internet', 'sem conexão', 'sem conexao', 'sem rede',
+            'rede indisponível', 'rede indisponivel', 'network error',
+            'falha de rede', 'conexão instável', 'conexao instavel',
+            'internet caiu', 'wifi caiu', 'sem wifi', 'firewall', 'proxy',
+            'não carrega nada', 'nao carrega nada',
+        ]
+        if any(k in pergunta_lower for k in rede_kw):
+            return """Problema de **rede / internet**:
+
+**Verificação rápida:**
+→ Abra outro site (ex: google.com.br) — se abrir, a internet está ok e o problema é na plataforma
+→ Se não abrir: a rede do hospital está fora — acione o **TI hospitalar**
+
+**Internet ok mas plataforma não acessa:**
+→ O firewall ou proxy do hospital pode estar bloqueando
+→ Informe ao TI o domínio **akiyama.com.br** para liberar
+→ Se usar VPN: desconecte e reconecte a VPN
+
+**Sem internet — colete assim mesmo:**
+→ A plataforma opera em **modo offline** — a coleta é salva localmente
+→ Sincroniza automaticamente quando a conexão voltar
+→ Não feche a plataforma antes da sincronização completar
+
+**WiFi instável:** se possível, use **cabo de rede** durante as coletas para mais estabilidade"""
+
+        # ── NFIQ / SCORE DE QUALIDADE ─────────────────────────────────────────
+        nfiq_kw = ['nfiq', 'score de qualidade', 'pontuação baixa', 'pontuacao baixa',
+                   'qualidade insuficiente', 'nota de qualidade', 'quality score',
+                   'nfiq 1', 'nfiq 2', 'score baixo', 'índice de qualidade',
+                   'indice de qualidade']
+        if any(k in pergunta_lower for k in nfiq_kw):
+            return """O **NFIQ** é o score de qualidade da digital no sistema Openbio Enroll. **Quanto maior, melhor:**
+
+| NFIQ | Qualidade | O que fazer |
+|------|-----------|-------------|
+| 5    | ✅ Excelente | Pronto para uso |
+| 4    | ✅ Bom | Aceito |
+| 3    | ⚠️ Regular | Aceito, mas tente melhorar |
+| 2    | ❌ Pobre | Refazer obrigatoriamente |
+| 1    | ❌ Ruim | Falha — refazer obrigatoriamente |
+
+**Threshold mínimo:** NFIQ 3 (equivale a ≈70% de qualidade)
+
+**Como melhorar:**
+🔹 **Dedos muito úmidos** → seque com toalha — NFIQ sobe
+🔹 **Dedos muito secos** → mergulhe as pontas em água, seque bem, tente novamente
+🔹 **Scanner sujo** → flanela de material não abrasivo seca no leitor. Nunca álcool.
+🔹 **Posicionamento** → falange distal centralizada, pressão leve (80–120 mmHg ideal)
+🔹 **Aguarde o beep** → só mova o dedo após o sistema confirmar
+
+NFIQ 1–2 em todos os dedos → scanner pode estar descalibrado → abra chamado em **akiyama.com.br/suporte**"""
+
+        # ── OPENBIO ENROLL / DESCONEXÃO ACIDENTAL ────────────────────────────
+        openbio_kw = [
+            'openbio', 'openbio enroll', 'aplicação fechou', 'aplicacao fechou',
+            'programa fechou sozinho', 'app fechou', 'software fechou',
+            'sistema fechou sozinho', 'fechou sozinho', 'desconectou e fechou',
+        ]
+        if any(k in pergunta_lower for k in openbio_kw):
+            return """O **Openbio Enroll** (software de captura do ETAN) fecha automaticamente quando o cabo USB é desconectado — isso é **comportamento normal**, não é bug.
+
+**Solução rápida:**
+1. Reconecte o cabo USB do ETAN ao notebook
+2. Aguarde o Windows reconhecer o dispositivo (~10 segundos)
+3. Reabra o **Openbio Enroll**
+4. Faça login novamente se necessário
+
+✅ Os dados já registrados ficam seguros no servidor — nenhuma coleta é perdida.
+
+**Prevenção:** fixe o cabo para não tombar durante a coleta."""
+
+        # ── SESSION.JSON (falha de energia / desligamento forçado) ────────────
+        session_kw = [
+            'session.json', 'appdata', 'openbioservices', 'queda de energia',
+            'queda de luz', 'falta de energia', 'desligamento forçado',
+            'desligamento forcado', 'não abre depois de desligar',
+            'nao abre depois de desligar', 'travou no carregamento',
+            'tela preta ao abrir', 'erro ao iniciar', 'nao inicializa',
+            'não inicializa',
+        ]
+        if any(k in pergunta_lower for k in session_kw):
+            return """Após **queda de energia** ou **desligamento forçado**, o arquivo `Session.json` pode ficar corrompido e impedir a abertura do Openbio Enroll.
+
+**Passos para resolver:**
+1. Feche o Openbio Enroll completamente
+2. Abra o **Explorador de Arquivos** (Win + E)
+3. Cole na barra de endereços e pressione Enter:
+   ```
+   C:\\Users\\User\\AppData\\Roaming\\OpenbioServices
+   ```
+4. Localize e **delete** o arquivo **Session.json**
+5. Reinicie o Openbio Enroll
+
+✅ O sistema cria um novo Session.json automaticamente — sem perda de dados.
+
+⚠️ Se `AppData` não aparecer: no Explorador → **Exibir → Itens ocultos** → ative."""
+
+        # ── EQUIPAMENTO DESCALIBRADO (margens na área de captura) ────────────
+        descalib_kw = [
+            'descalibrado', 'descalibração', 'descalibracao', 'margens na tela',
+            'sombra na captura', 'borda preta na imagem', 'área de captura com borda',
+            'faixa escura na imagem', 'listras na captura',
+        ]
+        if any(k in pergunta_lower for k in descalib_kw):
+            return """Margens pretas ou sombras na **área de captura** indicam que o ETAN está **descalibrado**.
+
+⚠️ **Não tente resolver sozinha** — requer intervenção da equipe técnica Akiyama.
+
+**O que fazer:**
+1. Anote o **número de série (S/N)** do equipamento (etiqueta na lateral/fundo)
+2. Tire uma **foto/print** da tela mostrando as margens
+3. Abra chamado em: **akiyama.com.br/suporte**
+   - Informe: S/N do ETAN + descrição + foto
+
+A equipe fará ajuste remoto ou substituição do equipamento.
+Enquanto aguarda, **evite usar esse ETAN** — as digitais terão NFIQ comprometido."""
+
+        # ── SENSOR AQUECIDO (queda de qualidade após muitas capturas) ────────
+        aquecido_kw = [
+            'sensor quente', 'qualidade caiu do nada', 'qualidade piorou de repente',
+            'muitas capturas seguidas', 'qualidade baixou de repente',
+            'etan esquentou', 'sensor esquentou', 'uso intensivo',
+            'capturando muitos bebês', 'capturando muitos bebes',
+            'qualidade caindo', 'ficou ruim de repente',
+        ]
+        if any(k in pergunta_lower for k in aquecido_kw):
+            return """Após **~20 capturas consecutivas**, o sensor do ETAN pode aquecer e a qualidade cai temporariamente — isso é **comportamento esperado**, não é defeito.
+
+**Solução:**
+→ Descanse o equipamento por **2–3 minutos** sem capturar
+→ A qualidade volta ao normal após o resfriamento
+
+**Dica:** em berçários com muitos RNs, alterne entre dois ETANs se disponível, ou faça pequenas pausas entre grupos de capturas."""
+
+        # ── PERMISSÃO DE CÂMERA (navegador) ──────────────────────────────────
+        camera_perm_kw = [
+            'permissão negada', 'permissao negada', 'câmera bloqueada',
+            'camera bloqueada', 'câmera não permitida', 'camera nao permitida',
+            'cadeado câmera', 'browser câmera', 'navegador câmera',
+            'site sem câmera', 'permission denied camera',
+        ]
+        if any(k in pergunta_lower for k in camera_perm_kw):
+            return """O navegador bloqueou a câmera. Desbloqueie conforme o navegador:
+
+**Chrome / Edge:**
+1. Clique no **cadeado 🔒** na barra de endereços
+2. **Permissões** → **Câmera** → **Permitir**
+3. Pressione **F5** para recarregar
+
+**Firefox:**
+1. Clique no **cadeado** ou ícone de câmera na barra de endereços
+2. **Câmera** → **Remover bloqueio**
+3. Pressione **F5** → clique **Permitir**
+
+⚠️ Se câmera estiver aberta no Teams/Zoom → feche primeiro.
+⚠️ Computador com política de TI restritiva → acione o TI do hospital."""
+
+        # ── DEDOS SECOS (técnica do copo de água) ────────────────────────────
+        seco_kw = [
+            'dedos secos', 'dedo seco', 'digital não aparece', 'digital nao aparece',
+            'demora para aparecer', 'scanner não pega', 'scanner nao pega',
+            'não reconhece o dedo', 'nao reconhece o dedo', 'dedo muito seco',
+            'pele seca demais', 'copo de agua', 'mergulhar dedo', 'umidificar dedo',
+        ]
+        if any(k in pergunta_lower for k in seco_kw):
+            return """Dedos muito secos deixam a digital apagada e o NFIQ cai.
+
+**Técnica oficial (protocolo Akiyama):**
+1. Pegue um **copo com água**
+2. Peça para a paciente **mergulhar as pontas dos dedos** por 10–15 segundos
+3. **Seque completamente** com toalha ou gaze seca
+4. Realize a captura **imediatamente** após secar
+
+✅ Aumenta significativamente o NFIQ em pacientes com pele ressecada.
+
+⚠️ **Importante:** os dedos devem estar **completamente secos** ao colocar no scanner — dedo molhado também prejudica (imagem fica escura)."""
+
+        # ── ANÁLISE DE LOG / CÓDIGO DE ERRO ──────────────────────────────────
+        # Este bloco detecta quando a enfermeira colou um log ou mensagem de erro genérica
+        log_kw = [
+            'error:', 'erro:', 'exception', 'traceback', 'stack trace',
+            'code 43', 'código 43', '0x000', 'err_', 'failed:', 'failure:',
+            'access denied', 'acesso negado', 'permission denied',
+            'unable to', 'cannot', 'not found', 'null pointer',
+            'unhandled exception', 'crash', 'fatal error',
+        ]
+        if any(k in pergunta_lower for k in log_kw):
+            return """Recebi o erro! Vou analisar:
+
+**Para me ajudar a dar a solução certa, me diz:**
+1️⃣ **Onde apareceu** esse erro? (na plataforma, no computador, no Gerenciador de Dispositivos?)
+2️⃣ **O que você estava fazendo** quando apareceu? (fazendo login, durante captura, ao abrir o sistema?)
+3️⃣ **O ETAN estava conectado** nesse momento?
+
+**Enquanto isso, tente:**
+→ Fechar e reabrir a plataforma
+→ Desconectar e reconectar o ETAN (USB)
+→ Se for erro de driver: reinstale via **akiyama.com.br** → downloads
+
+Se o erro tiver um **código específico** (tipo "Error 0x0002" ou "Code 43"), me manda que consigo orientar com mais precisão.
+
+Ou se quiser, **tira um print da tela de erro** e me manda pelo botão 📷 do chat — analiso diretamente!"""
+
+        # ── CERTIFICADO SSL ───────────────────────────────────────────────────
+        ssl_kw = [
+            'certificado inválido', 'certificado invalido', 'ssl error',
+            'conexão não segura', 'conexao nao segura', 'certificado expirado',
+            'sua conexão não é privada', 'sua conexao nao e privada',
+            'net::err_cert', 'site inseguro', 'aviso de segurança',
+        ]
+        if any(k in pergunta_lower for k in ssl_kw):
+            return """Erro de **certificado SSL / "Conexão não segura"**:
+
+**Causa mais comum: data e hora erradas no computador**
+→ Clique no relógio do Windows → "Configurações de data e hora"
+→ Ative **"Definir horário automaticamente"**
+→ Tente acessar novamente
+
+**Navegador desatualizado:**
+→ Chrome: Menu ⋮ → Ajuda → Sobre o Google Chrome → atualiza automaticamente
+
+**Antivírus inspecionando HTTPS:**
+→ Alguns antivírus interceptam conexões seguras e causam esse erro
+→ Informe ao **TI hospitalar** — eles precisam configurar exceção para **akiyama.com.br**
+
+**Para uso temporário** (somente em rede hospitalar controlada):
+→ Na tela de erro: clique em "Avançado" → "Prosseguir assim mesmo"
+
+Se o problema persistir após o horário e o navegador atualizados → **akiyama.com.br/suporte**"""
+
         # Fallback final — não sabe o tema, mas tenta ser útil
         return f"""Boa pergunta! Não tenho uma resposta específica para "{pergunta[:60]}{'...' if len(pergunta) > 60 else ''}" aqui na base de conhecimento.
 
-Posso responder sobre:
-- Protocolo ETAN (etapas, ordem, técnica)
-- Equipamento (scanner, limpeza, problemas)
-- Qualidade de imagem (borrada, escurecida, não captura)
-- Casos especiais (prematuro, vernix, bebê agitado, reflexo de grasping)
-- Suporte técnico (abrir chamado)
+Posso ajudar com:
 
-Tenta reformular ou me conta com mais detalhes o que está acontecendo! 😊"""
+**📋 Protocolo ETAN**
+- Etapas da coleta, ordem dos dedos, técnica de posicionamento
+
+**🔧 Equipamento e Hardware**
+- ETAN não encontrado, erro de USB, driver, firmware
+
+**💻 Plataforma / Software**
+- Login, tela travada, sincronização, dados não salvos
+
+**📸 Qualidade de Imagem**
+- Digital borrada, NFIQ baixo, imagem escura/clara
+
+**🏥 Casos Clínicos**
+- Bebê agitado, prematuro, reflexo de grasping, vernix
+
+**🎫 Suporte Técnico**
+- Como abrir chamado na Akiyama
+
+Tenta reformular ou me conta com mais detalhes o que está acontecendo. Se tiver uma tela de erro, usa o botão 📷 para me mandar o print! 😊"""
 
     def _construir_system_prompt(self, curso_id=None):
         """
@@ -679,6 +1081,36 @@ Casos especiais:
 Progenitora: 4 dedos — polegares e indicadores (direito e esquerdo)
 
 Pare imediatamente se: cianose, dificuldade respiratória, palidez, choro de agonia → acione o médico
+
+INFORMAÇÕES TÉCNICAS DO SISTEMA:
+
+Software de captura: **Openbio Enroll** (não use "plataforma" genérico — o nome é Openbio Enroll)
+
+Desconexão acidental USB: o Openbio Enroll fecha automaticamente → comportamento normal → reconecte e reabra.
+
+Após queda de energia ou crash: delete `C:\\Users\\User\\AppData\\Roaming\\OpenbioServices\\Session.json` e reinicie o Openbio Enroll.
+
+Equipamento descalibrado (margens na área de captura): NÃO tente resolver — abrir ticket em akiyama.com.br/suporte com o S/N do ETAN.
+
+Sensor aquece após ~20 capturas consecutivas → NFIQ cai temporariamente → descansar 2-3 minutos → qualidade volta. Não é defeito.
+
+Dedos muito secos (NFIQ baixo, imagem apagada): mergulhe as pontas dos dedos em copo com água 10-15s, seque completamente antes de capturar.
+Dedos muito úmidos (NFIQ baixo, imagem escura): seque com toalha ou gaze antes de capturar.
+
+Limpeza do scanner: flanela de material NÃO abrasivo ou gaze seca. Nunca álcool diretamente no sensor.
+
+REGRAS DE OURO (do fabricante Akiyama):
+- "Nunca coloque a mão molhada no scanner"
+- "Nunca use duas mãos no scanner ao mesmo tempo"
+- Após terminar a coleta: desconectar o leitor do notebook é recomendado
+
+ESCALA NFIQ CORRETA (padrão INFANT.ID / Akiyama):
+- NFIQ 5: Excelente (90-100% qualidade) — ideal
+- NFIQ 4: Bom (80-89%) — adequado
+- NFIQ 3: Regular (70-79%) — threshold mínimo aceito
+- NFIQ 2: Pobre (50-69%) — repetir se possível
+- NFIQ 1: Ruim (<50%) — repetir obrigatoriamente
+(Quanto MAIOR o NFIQ, MELHOR a qualidade — nunca inverta essa escala)
 
 LIMITES:
 - Não dê orientações médicas fora do escopo da coleta

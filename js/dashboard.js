@@ -546,8 +546,9 @@ const ChatAI = {
             // Enviar para API de IA com timeout
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
-            
-            const response = await fetch('http://127.0.0.1:5001/api/ia/chat', {
+            const _apiBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://127.0.0.1:5001' : window.location.origin;
+            const response = await fetch(`${_apiBase}/api/ia/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

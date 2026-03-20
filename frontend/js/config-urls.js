@@ -15,21 +15,25 @@ class ConfigURLs {
         // Configurar portas baseado no ambiente
         this.isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1';
         
-        // SERVIDOR FLASK - Plataforma Principal (Porta 5001)
-        this.FLASK_HOST = 'localhost';
-        this.FLASK_PORT = 5001;
-        this.FLASK_URL = `${protocol}//${hostname}:${this.FLASK_PORT}`;
+        // SERVIDOR FLASK - Dinâmico: usa localhost:5001 em dev, mesma origem em produção
+        this.FLASK_HOST = this.isDevelopment ? 'localhost' : hostname;
+        this.FLASK_PORT = this.isDevelopment ? 5001 : (window.location.port || '');
+        this.FLASK_URL = this.isDevelopment
+            ? `${protocol}//${this.FLASK_HOST}:5001`
+            : window.location.origin;
         
-        // DEVICE SERVICE - Captura Biométrica (Porta 5000)
+        // DEVICE SERVICE - Captura Biométrica (sempre local, porta 5000)
         this.DEVICE_PORT = 5000;
         this.DEVICE_URL = `http://localhost:${this.DEVICE_PORT}`;
         
-        // PROXY BRIDGE - Intermediário Node (Openbio Bridge - Porta 3333 - HTTPS)
+        // PROXY BRIDGE - Intermediário Node (Openbio Bridge - sempre local, porta 3333 - HTTPS)
         this.PROXY_PORT = 3333;
         this.PROXY_URL = `https://localhost:${this.PROXY_PORT}`;
         
-        // WEBSOCKET CONFIGURATION
-        this.WEBSOCKET_NAMESPACE = 'http://localhost:5001/socket.io';
+        // WEBSOCKET CONFIGURATION - Dinâmico
+        this.WEBSOCKET_NAMESPACE = this.isDevelopment
+            ? 'http://localhost:5001/socket.io'
+            : window.location.origin + '/socket.io';
         this.WEBSOCKET_OPTIONS = {
             reconnection: true,
             reconnectionDelay: 1000,

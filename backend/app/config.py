@@ -26,7 +26,9 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Configuração de produção"""
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # Render.com retorna URLs com prefixo "postgres://" -- SQLAlchemy exige "postgresql://"
+    _db_url = os.getenv('DATABASE_URL', '')
+    SQLALCHEMY_DATABASE_URI = _db_url.replace('postgres://', 'postgresql://', 1) if _db_url else None
 
 class TestingConfig(Config):
     """Configuração de testes"""

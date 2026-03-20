@@ -2,8 +2,10 @@
    UTILITÁRIOS JAVASCRIPT
    ========================================== */
 
-// API base URL
-const API_URL = 'http://127.0.0.1:5001/api';
+// API base URL — dinâmica: funciona em localhost (dev) e em nuvem (prod)
+const API_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:5001/api'
+    : window.location.origin + '/api';
 
 // ==========================================
 // GERENCIAMENTO DE TOKEN

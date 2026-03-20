@@ -1,0 +1,34 @@
+# render.yaml — Configuração de deploy automático no Render.com
+# Documentação: https://render.com/docs/render-yaml-spec
+
+services:
+  - type: web
+    name: wingedmind-platform
+    runtime: python
+    region: oregon        # Altere para "frankfurt" se quiser servidor mais perto do Brasil
+    plan: free            # "starter" para produção sem sleep (U$ 7/mês)
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn --worker-class eventlet -w 1 run:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true       # Render gera automaticamente uma chave segura
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wingedmind-db
+          property: connectionString
+      # Opcional: adicione sua chave OpenAI se quiser IA avançada
+      # - key: OPENAI_API_KEY
+      #   value: sk-...
+
+databases:
+  - name: wingedmind-db
+    databaseName: wingedmind
+    user: wingedmind_user
+    plan: free            # PostgreSQL gratuito (90 dias no free tier do Render)
+    region: oregon
