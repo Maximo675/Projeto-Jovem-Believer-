@@ -26,13 +26,15 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Configuração de produção"""
     DEBUG = False
-    # Render.com retorna URLs com prefixo "postgres://" -- SQLAlchemy exige "postgresql://"
+    # SQLite por padrão no Render — evita timeout de conexão PostgreSQL no startup (502)
+    # Para usar PostgreSQL: configure DATABASE_URL E defina USE_POSTGRES=true nas env vars do Render
     _db_url = os.getenv('DATABASE_URL', '')
-    if _db_url:
+    _use_pg = os.getenv('USE_POSTGRES', 'false').lower() == 'true'
+    if _db_url and _use_pg:
         SQLALCHEMY_DATABASE_URI = _db_url.replace('postgres://', 'postgresql://', 1)
+        # Timeout curto para não travar o startup caso o banco esteja indisponível
+        SQLALCHEMY_ENGINE_OPTIONS = {'connect_args': {'connect_timeout': 5}, 'pool_pre_ping': True}
     else:
-        # Fallback SQLite quando DATABASE_URL não está configurado no Render
-        # Isso evita crash 502 no startup — banco PostgreSQL pode ser adicionado depois
         import tempfile as _tmp
         SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(_tmp.gettempdir(), 'infant_id_render.db')
 

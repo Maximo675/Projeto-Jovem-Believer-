@@ -15,17 +15,16 @@ load_dotenv()
 
 # Inicializar banco de dados e SocketIO
 db = SQLAlchemy()
-# async_mode='eventlet' é obrigatório quando gunicorn usa --worker-class eventlet
-# async_mode='threading' causa deadlock/timeout no startup com o eventlet worker
-import os as _os
-_async_mode = 'eventlet' if _os.getenv('FLASK_ENV') == 'production' else 'threading'
+# async_mode=None: Flask-SocketIO auto-detecta o modo correto
+# Com gunicorn+eventlet worker: usa eventlet (já patchado pelo worker)
+# Com python run.py local: usa threading
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode=_async_mode,
+    async_mode=None,
     ping_timeout=60,
     ping_interval=25,
     engineio_logger=False,
-    transports=['websocket', 'polling']  # Allow both WebSocket and HTTP polling
+    transports=['websocket', 'polling']
 )
 
 def create_app():
@@ -41,10 +40,10 @@ def create_app():
     socketio.init_app(
         app,
         cors_allowed_origins="*",
-        async_mode=_async_mode,
+        async_mode=None,
         ping_timeout=60,
         ping_interval=25,
-        transports=['websocket', 'polling']  # Allow both WebSocket and HTTP polling
+        transports=['websocket', 'polling']
     )
     
     # ============================================================
@@ -763,11 +762,15 @@ def create_app():
         # Retornar JSON vazio ao invés de erro para não quebrar infant
         return jsonify({'status': 'ok', 'data': {}}), 200
     
-    # Criar tabelas se não existirem - dentro do contexto
-    with app.app_context():
-        try:
-            db.create_all()
-        except Exception as e:
-            print(f"[WARNING] Erro ao criar tabelas: {e}")
+    # Criar tabelas apenas em desenvolvimento — em produção o timeout de conexão
+    # PostgreSQL pode travar o startup e causar 502 no Render
+    if os.getenv('FLASK_ENV', 'development') != 'production':
+        with app.app_context():
+            try:
+                db.create_all()
+            except Exception as e:
+                print(f"[WARNING] Erro ao criar tabelas: {e}")
+    else:
+        print('[INFO] Produção: db.create_all() ignorado no startup (evita timeout 502)')
     
     return app

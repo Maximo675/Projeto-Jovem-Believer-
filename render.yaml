@@ -8,7 +8,7 @@ services:
     region: oregon        # Altere para "frankfurt" se quiser servidor mais perto do Brasil
     plan: free            # "starter" para produção sem sleep (U$ 7/mês)
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn --worker-class eventlet -w 1 run:app --bind 0.0.0.0:$PORT
+    startCommand: cd backend && gunicorn --worker-class eventlet -w 1 --timeout 120 run:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV
         value: production
