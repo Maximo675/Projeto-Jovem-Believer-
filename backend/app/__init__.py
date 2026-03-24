@@ -15,9 +15,13 @@ load_dotenv()
 
 # Inicializar banco de dados e SocketIO
 db = SQLAlchemy()
+# async_mode='eventlet' é obrigatório quando gunicorn usa --worker-class eventlet
+# async_mode='threading' causa deadlock/timeout no startup com o eventlet worker
+import os as _os
+_async_mode = 'eventlet' if _os.getenv('FLASK_ENV') == 'production' else 'threading'
 socketio = SocketIO(
     cors_allowed_origins="*",
-    async_mode='threading',
+    async_mode=_async_mode,
     ping_timeout=60,
     ping_interval=25,
     engineio_logger=False,
@@ -35,9 +39,9 @@ def create_app():
     # Inicializar extensões
     db.init_app(app)
     socketio.init_app(
-        app, 
+        app,
         cors_allowed_origins="*",
-        async_mode='threading',
+        async_mode=_async_mode,
         ping_timeout=60,
         ping_interval=25,
         transports=['websocket', 'polling']  # Allow both WebSocket and HTTP polling
