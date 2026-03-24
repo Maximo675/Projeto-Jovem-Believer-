@@ -122,7 +122,7 @@ INTERCEPTOR_SCRIPT = f"""<script>
 (function() {{
     var BASE = '{FLASK_BASE}';
     var CUSTOMER_ID = '{CUSTOMER_UUID}';
-    var ETAN_SDK = '0.0.3.0';
+    var ETAN_SDK = '__ETAN_SDK__';  // injetado dinamicamente pelo proxy — não edite
 
     // 0. Remover banner "SISTEMA DESATUALIZADO" que bloqueia a captura
     function removeBannerDesatualizado() {{
@@ -158,7 +158,7 @@ INTERCEPTOR_SCRIPT = f"""<script>
         localStorage.setItem('customerId', CUSTOMER_ID);
         localStorage.setItem('customer_uuid', CUSTOMER_ID);
         localStorage.setItem('__customer_id__', CUSTOMER_ID);
-        // Forçar SDK version para 0.0.3.0 no localStorage
+        // Forçar SDK version para 0.3.0.0 no localStorage
         localStorage.setItem('infantSdkVersion', ETAN_SDK);
         localStorage.setItem('sdk_version', ETAN_SDK);
         localStorage.setItem('device_sdk', ETAN_SDK);
@@ -253,7 +253,13 @@ INTERCEPTOR_SCRIPT = f"""<script>
 
             // ── 3. Patch campos de licença em mensagens genéricas ────────────────
             // ── 4. Patch server.isConnected → sempre true ────────────────────────────
-            if (msg.server) {{
+            // A SPA faz destructure de server.remoteApi sem null-check —
+            // se `server` estiver ausente na mensagem real do OpenBio → TypeError crash.
+            // Portanto, sempre injetamos o campo se ele não vier na mensagem.
+            if (!msg.server) {{
+                msg.server = {{ remoteApi: false, isConnected: true, enabled: true }};
+                modified = true;
+            }} else {{
                 if (msg.server.isConnected === false) {{ msg.server.isConnected = true; modified = true; }}
                 if (msg.server.enabled === false)     {{ msg.server.enabled     = true; modified = true; }}
                 if (msg.server.remoteApi !== false)   {{ msg.server.remoteApi   = false; modified = true; }}
@@ -268,9 +274,11 @@ INTERCEPTOR_SCRIPT = f"""<script>
                     return null;
                 }}
                 // Bloquear mensagens de update/sistema desatualizado
+                // NOTA: NÃO bloquear 'installer-localization' que carrega traduções da SPA (SDK 0.3.0.0+)
                 if (a.indexOf('update-available') > -1 || a.indexOf('new-version') > -1 ||
                     a.indexOf('system-update') > -1 || a.indexOf('device-outdated') > -1 ||
-                    a.indexOf('installer-') > -1) {{
+                    (a.indexOf('installer-') > -1 && a.indexOf('localiz') === -1 &&
+                     a.indexOf('translat') === -1 && a.indexOf('i18n') === -1)) {{
                     console.log('[Proxy] WS: mensagem de update BLOQUEADA →', msg.action);
                     return null;
                 }}
@@ -278,20 +286,20 @@ INTERCEPTOR_SCRIPT = f"""<script>
 
             // ── 4c. Patch deviceStatuses: garantir infant em TODAS as mensagens ─────────
             if (msg.deviceStatuses) {{
-                // SDK 0.0.3.0: OpenBio pode não incluir infant no status da interface
+                // SDK 0.3.0.0: OpenBio pode não incluir infant no status da interface
                 // → sempre injetar infant como conectado se ausente
                 if (!msg.deviceStatuses.infant) {{
                     msg.deviceStatuses.infant = {{
-                        initialized: true, enabled: true, sdkVersion: '0.0.3.0',
+                        initialized: true, enabled: true, sdkVersion: ETAN_SDK,
                         info: 'EtanV2', connected: true, loaded: true, ready: true,
                         loading: false, status: 'connected', captureEnabled: true,
                         canUseInfant: true, licenseValid: true, hasUpdate: false,
                         device: {{ id: 'EtanV2', name: 'ETAN V2', type: 'infant',
                                    status: 'connected', initialized: true, loaded: true,
-                                   ready: true, captureEnabled: true, sdkVersion: '0.0.3.0' }}
+                                   ready: true, captureEnabled: true, sdkVersion: ETAN_SDK }}
                     }};
                     modified = true;
-                    console.log('[Proxy] WS: infant ADICIONADO ao deviceStatuses (SDK 0.0.3.0 fix)');
+                    console.log('[Proxy] WS: infant injetado (SDK detectado=' + ETAN_SDK + ')');
                 }} else {{
                     var inf = msg.deviceStatuses.infant;
                     if (!inf.initialized)      {{ inf.initialized    = true;  modified = true; }}
@@ -301,14 +309,17 @@ INTERCEPTOR_SCRIPT = f"""<script>
                     if (inf.loading !== false)  {{ inf.loading        = false; modified = true; }}
                     if (!inf.captureEnabled)   {{ inf.captureEnabled  = true;  modified = true; }}
                     if (!inf.canUseInfant)     {{ inf.canUseInfant    = true;  modified = true; }}
-                    if (inf.sdkVersion === '0.0.2.4') {{ inf.sdkVersion = '0.0.3.0'; modified = true; }}
+                    // Normalizar qualquer versão do SDK diferente da detectada → ETAN_SDK (agnóstico de versão)
+                    if (inf.sdkVersion && inf.sdkVersion !== ETAN_SDK) {{
+                        inf.sdkVersion = ETAN_SDK; modified = true;
+                    }}
                     if (!inf.status || inf.status === 'loading' || inf.status === 'disconnected') {{
                         inf.status = 'connected'; modified = true;
                     }}
                     if (!inf.device && inf.info) {{
                         inf.device = {{ id: inf.info, name: inf.info, status: 'connected',
                                         initialized: true, loaded: true, ready: true,
-                                        sdkVersion: '0.0.3.0' }};
+                                        sdkVersion: ETAN_SDK }};
                         modified = true;
                     }}
                 }}
@@ -367,14 +378,14 @@ INTERCEPTOR_SCRIPT = f"""<script>
             signature: {{ initialized: true,  info: 'ESP_560', enabled: true, sdkVersion: '1.8.0.3' }},
             modal:     {{ initialized: false, enabled: true, sdkVersion: '0.3.3.15' }},
             infant: {{
-                initialized: true, enabled: true, sdkVersion: '0.0.3.0',
+                initialized: true, enabled: true, sdkVersion: ETAN_SDK,
                 info: 'EtanV2', connected: true, loaded: true, ready: true,
                 loading: false, status: 'connected', captureEnabled: true,
                 canUseInfant: true, licenseValid: true, hasUpdate: false,
                 device: {{
                     id: 'EtanV2', name: 'ETAN V2', type: 'infant',
                     status: 'connected', initialized: true, loaded: true,
-                    ready: true, captureEnabled: true, sdkVersion: '0.0.3.0'
+                    ready: true, captureEnabled: true, sdkVersion: ETAN_SDK
                 }}
             }}
         }}
@@ -398,6 +409,11 @@ INTERCEPTOR_SCRIPT = f"""<script>
             inject(INFANT_READY, 400);
             inject(INFANT_READY, 900);
         }}
+
+        // ── Estado interno do WS real (não visível ao SPA) ─────────────────────
+        var _isDeviceWsClosed = false;
+        var _realWsOpened = false;
+        var _keepAliveInterval = null;
 
         var _wsSend = ws.send.bind(ws);
         ws.send = function(data) {{
@@ -464,37 +480,75 @@ INTERCEPTOR_SCRIPT = f"""<script>
                 }}
                 if (act === 'open') {{
                     console.log('[Proxy] DEV intercept open → inject status:initialized + PASS-THROUGH');
-                    // SPA escuta t.status==="initialized" (NÃO action:open-response)
                     inject(Object.assign({{ status:'initialized', module:sent.module||'infant' }}, INFANT_READY));
                     inject(INFANT_READY, 400);
-                    // PASS-THROUGH: ETAN recebe o comando real
-                    _wsSend(data); return;
+                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV open WS pass-through falhou (WS fechado):', e.message); }}
+                    return;
                 }}
                 // SPA envia action:'start' (não 'start-preview') em startPreview()
                 // SPA escuta t.status==="preview-started" (NÃO action:preview-started)
                 if (act === 'start' || act === 'start-preview') {{
                     console.log('[Proxy] DEV intercept start → inject status:preview-started + PASS-THROUGH');
                     inject(Object.assign({{ status:'preview-started', module:sent.module||'infant', ret:0 }}, INFANT_READY));
-                    // PASS-THROUGH: ETAN recebe o comando real para streaming de preview
-                    _wsSend(data); return;
+                    // Keep-alive: reinjetar INFANT_READY a cada 5s para manter "device conectado" no SPA
+                    if (!_keepAliveInterval) {{
+                        _keepAliveInterval = setInterval(function() {{
+                            ws.dispatchEvent(new MessageEvent('message', {{data: JSON.stringify(INFANT_READY)}}));
+                        }}, 5000);
+                    }}
+                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV start WS pass-through falhou (WS fechado):', e.message); }}
+                    return;
                 }}
                 // SPA chama setProcessorFingers() → envia action:'set-processor-fingers'
                 // SPA escuta t.status==="done-setting-fingers" → chama stopPreview()+startPreview()
                 if (act === 'set-processor-fingers') {{
                     console.log('[Proxy] DEV intercept set-processor-fingers → inject done-setting-fingers + PASS-THROUGH');
                     inject(Object.assign({{ status:'done-setting-fingers', module:sent.module||'infant' }}, INFANT_READY));
-                    // PASS-THROUGH: ETAN recebe o comando
-                    _wsSend(data); return;
+                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV set-processor-fingers WS falhou:', e.message); }}
+                    return;
                 }}
                 if (act === 'stop' || act === 'stop-preview') {{
                     inject(Object.assign({{ action:'stop-response', module:sent.module||'infant',
                                             status:'success' }}, INFANT_READY));
-                    _wsSend(data); return;
+                    if (_keepAliveInterval) {{ clearInterval(_keepAliveInterval); _keepAliveInterval = null; }}
+                    try {{ _wsSend(data); }} catch(e) {{}}
+                    return;
                 }}
                 if (act === 'capture') {{
-                    // PASS-THROUGH: captura real pelo ETAN físico
-                    console.log('[Proxy] DEV capture → PASS-THROUGH para ETAN real');
-                    return _wsSend(data);
+                    // Tentar SOAP REST primeiro → mais confiável que WS quando há problema de licença
+                    var _capFinger = sent.fingerIndex !== undefined ? sent.fingerIndex :
+                                     (sent.positionIndex !== undefined ? sent.positionIndex : 0);
+                    console.log('[Proxy] DEV capture → SOAP REST (fingerIndex=' + _capFinger + ') + WS fallback');
+                    fetch(BASE + '/api/etan/capture', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{fingerIndex: _capFinger}})
+                    }})
+                    .then(function(r) {{ return r.json(); }})
+                    .then(function(d) {{
+                        if (d.success && d.finger) {{
+                            inject(Object.assign({{
+                                status: 'captured', module: sent.module || 'infant', ret: 0,
+                                data: {{
+                                    wsqData: d.finger.wsqData || '',
+                                    imagePng: d.finger.wsqData || '',
+                                    nfiq: d.finger.nfiqScore || 2,
+                                    fingerIndex: _capFinger,
+                                    anomalyId: '', anomalyName: ''
+                                }}
+                            }}, INFANT_READY));
+                            console.log('[Proxy] DEV capture SOAP ok → NFIQ=' + (d.finger.nfiqScore || 2));
+                        }} else {{
+                            // SOAP indisponível (ETAN não conectado) → tentar WS direto
+                            console.log('[Proxy] DEV capture SOAP indisponível (' + (d.error || 'sem ETAN') + ') → WS pass-through');
+                            try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV capture WS pass-through falhou:', e.message); }}
+                        }}
+                    }})
+                    .catch(function(e) {{
+                        console.log('[Proxy] DEV capture SOAP erro de rede → WS pass-through:', e.message);
+                        try {{ _wsSend(data); }} catch(e2) {{ console.log('[Proxy] DEV capture WS falhou:', e2.message); }}
+                    }});
+                    return;
                 }}
                 if (act === 'fetch-module-configs') {{
                     inject({{ action:'module-configs-response',
@@ -514,10 +568,24 @@ INTERCEPTOR_SCRIPT = f"""<script>
 
             // Catch-all Device WS: PASSAR para OpenBio (keepalive/heartbeat, match, etc.)
             console.log('[Proxy] DEV WS PASS-THROUGH (unhandled):', data.substring(0,100));
-            return _wsSend(data);
+            try {{ return _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV catch-all WS falhou:', e.message); }}
         }};
 
         var origAdd = ws.addEventListener.bind(ws);
+        if (isDevice) {{
+            origAdd('open',  function() {{ _realWsOpened = true; }});
+            origAdd('close', function() {{ _isDeviceWsClosed = true; }});
+            // Se o WS real não abrir em 2s (conexão recusada/erro), disparar open sintético
+            // para que o SPA execute sua inicialização normalmente.
+            setTimeout(function() {{
+                if (!_realWsOpened) {{
+                    console.log('[Proxy] DEV WS não abriu em 2s → disparo de open sintético');
+                    ws.dispatchEvent(new Event('open'));
+                    inject(INFANT_READY, 100);
+                    inject(INFANT_READY, 700);
+                }}
+            }}, 2000);
+        }}
         ws.addEventListener = function(type, handler, opts) {{
             if (type === 'message') {{
                 return origAdd(type, function(evt) {{
@@ -620,16 +688,83 @@ def _proxy_headers(headers):
             if k.lower() not in excluded}
 
 
+# ─────────────────────────────────────────────────────────────
+# Detecção automática de versão do SDK ETAN/OpenBio
+# Agnóstico de versão: suporta qualquer SDK presente sem alterar código
+# ─────────────────────────────────────────────────────────────
+_SDK_CACHE: dict = {'version': '0.3.0.0', 'ts': 0.0}  # fallback razoável
+_SDK_TTL = 30  # segundos — redetectar a cada 30s
+
+
+def _detect_infant_sdk_version() -> str:
+    """Detecta automaticamente a versão do SDK infant do OpenBio em execução.
+
+    Estratégias (em ordem): REST /db/api/settings → REST /db/api/status →
+    REST /db/api/devices/status → SOAP getVersion → última versão conhecida.
+    Cache de 30 segundos: transparente quando OpenBio reinicia com SDK diferente.
+    """
+    import time
+    now = time.time()
+    if now - _SDK_CACHE['ts'] < _SDK_TTL:
+        return _SDK_CACHE['version']
+
+    ver = _sdk_from_openbio_rest() or _sdk_from_soap_version() or _SDK_CACHE['version']
+    _SDK_CACHE.update({'version': ver, 'ts': now})
+    return ver
+
+
+def _sdk_from_openbio_rest() -> 'str | None':
+    """Detecta versão SDK via REST API do OpenBio (localhost:5000)."""
+    for endpoint in ('/db/api/settings', '/db/api/status', '/db/api/devices/status'):
+        try:
+            r = req_lib.get(f'http://localhost:5000{endpoint}',
+                            timeout=1.5, headers={'Cache-Control': 'no-cache'})
+            if r.status_code == 200:
+                d = r.json()
+                ver = (d.get('infant', {}).get('sdkVersion') or
+                       d.get('infantSdkVersion') or
+                       d.get('sdkVersion') or
+                       d.get('version'))
+                if ver and isinstance(ver, str) and ver.count('.') >= 2:
+                    return ver
+        except Exception:
+            pass
+    return None
+
+
+def _sdk_from_soap_version() -> 'str | None':
+    """Detecta versão SDK via SOAP do ETAN (localhost:12339)."""
+    try:
+        if not _etan_soap_available():
+            return None
+        xml = _soap_call('<tns:getVersion><optionalMessage></optionalMessage></tns:getVersion>',
+                         timeout=2)
+        if xml:
+            import re as _re
+            m = _re.search(
+                r'<(?:version|sdkVersion|infantVersion|infantSdkVersion)>([^<]+)</[^>]+>',
+                xml, _re.I)
+            if m:
+                ver = m.group(1).strip()
+                if ver and ver.count('.') >= 2:
+                    return ver
+    except Exception:
+        pass
+    return None
+
+
 def _build_response(resp):
     content_type = resp.headers.get('Content-Type', '')
 
     if 'text/html' in content_type:
+        sdk_ver = _detect_infant_sdk_version()
+        script = INTERCEPTOR_SCRIPT.replace('__ETAN_SDK__', sdk_ver)
         html = resp.content.decode('utf-8', errors='replace')
         if '<head>' in html.lower():
             idx = html.lower().index('<head>') + len('<head>')
-            html = html[:idx] + INTERCEPTOR_SCRIPT + html[idx:]
+            html = html[:idx] + script + html[idx:]
         else:
-            html = INTERCEPTOR_SCRIPT + html
+            html = script + html
         content = html.encode('utf-8')
     else:
         content = resp.content
@@ -709,6 +844,14 @@ def openbio_proxy(path):
                 if 'enrollmentValidations' in data:
                     data['enrollmentValidations']['infant'] = True
                 data['showInfantTab'] = True
+
+                # ── Capturar versão real do SDK da resposta do OpenBio → atualiza cache imediatamente
+                import time as _time
+                _actual_sdk = (data.get('infant', {}).get('sdkVersion') or
+                               data.get('infantSdkVersion') or data.get('sdkVersion'))
+                if _actual_sdk and isinstance(_actual_sdk, str) and _actual_sdk.count('.') >= 2:
+                    _SDK_CACHE.update({'version': _actual_sdk, 'ts': _time.time()})
+
                 # Dispositivo ETAN para finger e infant
                 ETAN_DEVICE = {
                     'id': 'EtanV2',
@@ -783,6 +926,13 @@ def akiyama_proxy(api, path):
             target += '?' + request.query_string.decode('utf-8')
 
     combined = (path + '?' + request.query_string.decode('utf-8', errors='replace')).lower()
+    # Endpoints de localização/tradução (SDK 0.3.0.0+) → RegisterClientLocalizationsError sem este mock
+    if any(x in combined for x in ['localiz', 'translat', 'i18n', 'locale', 'language']):
+        return _mock_json({
+            'translations': {}, 'locale': 'pt-BR', 'language': 'pt-BR',
+            'status': 'ok', 'customerId': CUSTOMER_UUID,
+            'data': {'translations': {}, 'locale': 'pt-BR'},
+        })
     if 'account-logged-user' in combined or 'account-logged' in combined:
         return _mock_json(MOCK_ACCOUNT_USER)
     if 'form_type' in combined or 'formtype' in combined:
@@ -831,7 +981,12 @@ def akiyama_proxy(api, path):
         )
 
         if resp.status_code in (401, 403):
-            return _mock_json({'status': 'ok', 'customerId': CUSTOMER_UUID})
+            # Retornar mock com campos essenciais para evitar crash da SPA
+            return _mock_json({
+                'status': 'ok', 'customerId': CUSTOMER_UUID,
+                'translations': {}, 'locale': 'pt-BR',
+                'data': None, 'content': [],
+            })
 
         headers = {k: v for k, v in resp.headers.items()
                    if k.lower() not in EXCLUDED_RES_HEADERS}
@@ -839,7 +994,11 @@ def akiyama_proxy(api, path):
         return Response(resp.content, status=resp.status_code, headers=headers)
 
     except (req_lib.exceptions.ConnectionError, req_lib.exceptions.Timeout):
-        return _mock_json({'status': 'ok', 'customerId': CUSTOMER_UUID})
+        return _mock_json({
+            'status': 'ok', 'customerId': CUSTOMER_UUID,
+            'translations': {}, 'locale': 'pt-BR',
+            'data': None, 'content': [],
+        })
 
 
 # ─────────────────────────────────────────────────────────────

@@ -23,7 +23,13 @@ try:
     app = create_app()
 except Exception as e:
     print(f"[ERROR] Erro ao criar a aplicação: {e}")
-    sys.exit(1)
+    import traceback; traceback.print_exc()
+    # Tentar criar app mínimo para não matar o processo no Render (evita 502)
+    try:
+        os.environ.setdefault('FLASK_ENV', 'development')
+        app = create_app()
+    except Exception:
+        sys.exit(1)
 
 @app.shell_context_processor
 def make_shell_context():

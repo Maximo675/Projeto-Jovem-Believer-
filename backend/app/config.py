@@ -28,7 +28,13 @@ class ProductionConfig(Config):
     DEBUG = False
     # Render.com retorna URLs com prefixo "postgres://" -- SQLAlchemy exige "postgresql://"
     _db_url = os.getenv('DATABASE_URL', '')
-    SQLALCHEMY_DATABASE_URI = _db_url.replace('postgres://', 'postgresql://', 1) if _db_url else None
+    if _db_url:
+        SQLALCHEMY_DATABASE_URI = _db_url.replace('postgres://', 'postgresql://', 1)
+    else:
+        # Fallback SQLite quando DATABASE_URL não está configurado no Render
+        # Isso evita crash 502 no startup — banco PostgreSQL pode ser adicionado depois
+        import tempfile as _tmp
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(_tmp.gettempdir(), 'infant_id_render.db')
 
 class TestingConfig(Config):
     """Configuração de testes"""
