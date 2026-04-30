@@ -4,7 +4,8 @@ Flask-CORS==4.0.0
 Flask-SocketIO==5.3.5
 python-socketio==5.10.0
 python-engineio==4.8.0
-eventlet==0.35.1
+gevent==23.9.1
+gevent-websocket==0.10.1
 Werkzeug==2.3.7
 
 # Database ORM
@@ -22,7 +23,10 @@ bcrypt==4.1.1
 Flask-Login==0.6.3
 
 # IA & Machine Learning
-openai==1.11.0
+# openai desabilitado no Render: modo mock não usa o SDK e os proxy objects
+# do openai>=1.x são incompatíveis com eventlet.monkey_patch() (crash no boot).
+# Para reativar IA real: descomente a linha abaixo E configure OPENAI_API_KEY + USE_MOCK_AI=false
+# openai==1.11.0
 numpy==1.24.3
 pandas==2.1.3
 
@@ -34,6 +38,9 @@ pydantic==2.5.0
 requests==2.31.0
 Pillow==10.1.0
 pytesseract==0.3.10
+# httpx pinnado: openai<=1.x passa `proxies` para httpx, removido no httpx>=0.28
+# necessário enquanto openai estiver instalado (ex: cache do Render)
+httpx==0.27.2
 
 # WSGI Server
 gunicorn==21.2.0

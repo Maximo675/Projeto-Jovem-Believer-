@@ -25,7 +25,13 @@ except ImportError:
 
 bp = Blueprint('ai', __name__, url_prefix='/api/ia')
 
-ai_service = AiService()
+try:
+    ai_service = AiService()
+except Exception as _e:
+    print(f"[AI] Falha ao inicializar AiService: {_e}. Usando instância mock de emergência.")
+    os.environ.setdefault('USE_MOCK_AI', 'true')
+    os.environ.setdefault('USE_OLLAMA', 'false')
+    ai_service = AiService()
 
 @bp.route('/chat', methods=['POST'])
 def chat_ia():

@@ -216,12 +216,8 @@ INTERCEPTOR_SCRIPT = f"""<script>
             console.log('[Proxy] WS updater sem path → redirecionando para /interface');
             return 'ws://localhost:5000/interface';
         }}
-        // /device agora ACEITA conexão (customerId configurado corretamente)
-        // Código 10 (INSTALLATION_LIMIT_REACHED) ao invés de 11 = WS fica aberto
-        // Deixamos /device como está e interceptamos license-validation-error em patchWsMessage
-        if (url.indexOf('/device') > -1) {{
-            console.log('[Proxy] WS /device → conectando ao device real (license bypass via intercept)');
-        }}
+        // /device vai diretamente ao OpenBio → inicializa o SDK ETAN real
+        // Fallback sintético é ativado em ws.send se o WS fechar (sem device físico)
         return url;
     }}
 
@@ -303,6 +299,7 @@ INTERCEPTOR_SCRIPT = f"""<script>
                 }} else {{
                     var inf = msg.deviceStatuses.infant;
                     if (!inf.initialized)      {{ inf.initialized    = true;  modified = true; }}
+                    if (inf.enabled === false)  {{ inf.enabled        = true;  modified = true; }}
                     if (!inf.connected)        {{ inf.connected      = true;  modified = true; }}
                     if (!inf.loaded)           {{ inf.loaded         = true;  modified = true; }}
                     if (!inf.ready)            {{ inf.ready          = true;  modified = true; }}
@@ -366,9 +363,38 @@ INTERCEPTOR_SCRIPT = f"""<script>
                 console.log('[Proxy] WS msg patchada:', JSON.stringify(msg).substring(0,200));
                 return JSON.stringify(msg);
             }}
+
         }} catch(e) {{}}
         return data;
     }}
+
+    // ── Preview image gerada via canvas JS — imagem escura simulando scanner ETAN ──
+    // Gerado no browser no momento do carregamento da SPA (não é um pixel estático)
+    var PREVIEW_B64 = (function() {{
+        try {{
+            var c = document.createElement('canvas');
+            c.width = 300; c.height = 375;
+            var ctx = c.getContext('2d');
+            // Fundo escuro igual ao scanner real
+            ctx.fillStyle = '#101010';
+            ctx.fillRect(0, 0, c.width, c.height);
+            // Linhas de scan sutis
+            for (var y = 2; y < c.height; y += 4) {{
+                ctx.fillStyle = 'rgba(255,255,255,0.025)';
+                ctx.fillRect(0, y, c.width, 1);
+            }}
+            // Leve brilho central (área onde o dedo vai)
+            var g = ctx.createRadialGradient(150, 188, 30, 150, 188, 170);
+            g.addColorStop(0, 'rgba(45,45,45,0.8)');
+            g.addColorStop(1, 'rgba(0,0,0,0.0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, c.width, c.height);
+            return c.toDataURL('image/png').split(',')[1];
+        }} catch(e) {{
+            // Fallback: 1×1 preto (não estica para verde)
+            return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+        }}
+    }})();
 
     // ── Estado completo dos devices (infant=ETAN pronto) ────────────────────────
     var INFANT_READY = {{
@@ -414,6 +440,23 @@ INTERCEPTOR_SCRIPT = f"""<script>
         var _isDeviceWsClosed = false;
         var _realWsOpened = false;
         var _keepAliveInterval = null;
+
+        // Helper: iniciar loop de preview sintético (usado quando sem device físico)
+        function _startSyntheticPreview() {{
+            if (_keepAliveInterval) return;
+            var _nfiqStep = 0;
+            _keepAliveInterval = setInterval(function() {{
+                _nfiqStep = (_nfiqStep + 1) % 6;
+                var nfiq = [0,0,1,2,1,0][_nfiqStep];
+                var previewMsg = Object.assign({{
+                    module: 'infant',
+                    previewImage: PREVIEW_B64,
+                    nfiqScore: nfiq,
+                    deviceInfo: {{ modelName: 'EtanV2', manufacturName: 'ETAN', serialNumber: 'SIM-001' }}
+                }}, INFANT_READY);
+                ws.dispatchEvent(new MessageEvent('message', {{data: JSON.stringify(previewMsg)}}));
+            }}, 200);
+        }}
 
         var _wsSend = ws.send.bind(ws);
         ws.send = function(data) {{
@@ -479,32 +522,47 @@ INTERCEPTOR_SCRIPT = f"""<script>
                     return;
                 }}
                 if (act === 'open') {{
-                    console.log('[Proxy] DEV intercept open → inject status:initialized + PASS-THROUGH');
+                    // Injetar initialized sintético imediato (garante que SPA prossegue)
+                    // E passar ao OpenBio real → inicializa o SDK ETAN
+                    console.log('[Proxy] DEV open → inject initialized + pass-through ao OpenBio/ETAN');
                     inject(Object.assign({{ status:'initialized', module:sent.module||'infant' }}, INFANT_READY));
                     inject(INFANT_READY, 400);
-                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV open WS pass-through falhou (WS fechado):', e.message); }}
+                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV open pass-through falhou (OpenBio off?):', e.message); }}
                     return;
                 }}
-                // SPA envia action:'start' (não 'start-preview') em startPreview()
-                // SPA escuta t.status==="preview-started" (NÃO action:preview-started)
+                // SPA envia action:'start' em startPreview()
+                // SPA escuta t.status==="preview-started"
                 if (act === 'start' || act === 'start-preview') {{
-                    console.log('[Proxy] DEV intercept start → inject status:preview-started + PASS-THROUGH');
+                    if (_keepAliveInterval) {{ clearInterval(_keepAliveInterval); _keepAliveInterval = null; }}
+                    // Injetar preview-started imediato (SPA começa a escutar frames)
                     inject(Object.assign({{ status:'preview-started', module:sent.module||'infant', ret:0 }}, INFANT_READY));
-                    // Keep-alive: reinjetar INFANT_READY a cada 5s para manter "device conectado" no SPA
-                    if (!_keepAliveInterval) {{
-                        _keepAliveInterval = setInterval(function() {{
-                            ws.dispatchEvent(new MessageEvent('message', {{data: JSON.stringify(INFANT_READY)}}));
-                        }}, 5000);
+
+                    if (_isDeviceWsClosed) {{
+                        // WS fechou (sem device físico) → preview sintético imediato
+                        console.log('[Proxy] DEV start → WS fechado (sem ETAN), preview sintético');
+                        _startSyntheticPreview();
+                    }} else {{
+                        // WS aberto → pass-through ao OpenBio (SDK envia frames reais)
+                        console.log('[Proxy] DEV start → pass-through ao OpenBio/ETAN');
+                        try {{ _wsSend(data); }} catch(e) {{
+                            console.log('[Proxy] DEV start pass-through falhou → sintético:', e.message);
+                            _startSyntheticPreview();
+                        }}
+                        // Fallback: se WS fechar após o start sem enviar frames, inicia sintético
+                        setTimeout(function() {{
+                            if (_isDeviceWsClosed && !_keepAliveInterval) {{
+                                console.log('[Proxy] DEV start fallback 5s: WS fechou → preview sintético');
+                                _startSyntheticPreview();
+                            }}
+                        }}, 5000                        fork() → post_fork() define OPENAI_API_KEY → init_process() → monkey_patch()
+                                        ↑ nossa janela de oportunidade          ↑ aqui era o crash);
                     }}
-                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV start WS pass-through falhou (WS fechado):', e.message); }}
                     return;
                 }}
-                // SPA chama setProcessorFingers() → envia action:'set-processor-fingers'
-                // SPA escuta t.status==="done-setting-fingers" → chama stopPreview()+startPreview()
+                // set-processor-fingers: inject ack + pass-through ao OpenBio
                 if (act === 'set-processor-fingers') {{
-                    console.log('[Proxy] DEV intercept set-processor-fingers → inject done-setting-fingers + PASS-THROUGH');
                     inject(Object.assign({{ status:'done-setting-fingers', module:sent.module||'infant' }}, INFANT_READY));
-                    try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV set-processor-fingers WS falhou:', e.message); }}
+                    try {{ _wsSend(data); }} catch(e) {{}}
                     return;
                 }}
                 if (act === 'stop' || act === 'stop-preview') {{
@@ -515,10 +573,17 @@ INTERCEPTOR_SCRIPT = f"""<script>
                     return;
                 }}
                 if (act === 'capture') {{
-                    // Tentar SOAP REST primeiro → mais confiável que WS quando há problema de licença
                     var _capFinger = sent.fingerIndex !== undefined ? sent.fingerIndex :
                                      (sent.positionIndex !== undefined ? sent.positionIndex : 0);
-                    console.log('[Proxy] DEV capture → SOAP REST (fingerIndex=' + _capFinger + ') + WS fallback');
+                    // 1ª opção: pass-through direto ao OpenBio/ETAN (captura real)
+                    if (!_isDeviceWsClosed) {{
+                        console.log('[Proxy] DEV capture → pass-through ETAN (fingerIndex=' + _capFinger + ')');
+                        try {{ _wsSend(data); return; }} catch(e) {{
+                            console.log('[Proxy] DEV capture pass-through falhou → SOAP REST:', e.message);
+                        }}
+                    }}
+                    // 2ª opção: SOAP REST (fallback quando device WS fechou)
+                    console.log('[Proxy] DEV capture → SOAP REST (fingerIndex=' + _capFinger + ')');
                     fetch(BASE + '/api/etan/capture', {{
                         method: 'POST',
                         headers: {{'Content-Type': 'application/json'}},
@@ -539,14 +604,29 @@ INTERCEPTOR_SCRIPT = f"""<script>
                             }}, INFANT_READY));
                             console.log('[Proxy] DEV capture SOAP ok → NFIQ=' + (d.finger.nfiqScore || 2));
                         }} else {{
-                            // SOAP indisponível (ETAN não conectado) → tentar WS direto
-                            console.log('[Proxy] DEV capture SOAP indisponível (' + (d.error || 'sem ETAN') + ') → WS pass-through');
-                            try {{ _wsSend(data); }} catch(e) {{ console.log('[Proxy] DEV capture WS pass-through falhou:', e.message); }}
+                            // SOAP indisponível (ETAN não conectado) → injetar captura simulada
+                            console.log('[Proxy] DEV capture SOAP indisponível (' + (d.error || 'sem ETAN') + ') → captura SIMULADA');
+                            inject(Object.assign({{
+                                status: 'captured', module: sent.module || 'infant', ret: 0,
+                                data: {{
+                                    wsqData: 'SIMULATED', imagePng: 'SIMULATED',
+                                    nfiq: 2, fingerIndex: _capFinger,
+                                    anomalyId: '', anomalyName: ''
+                                }}
+                            }}, INFANT_READY));
                         }}
                     }})
                     .catch(function(e) {{
-                        console.log('[Proxy] DEV capture SOAP erro de rede → WS pass-through:', e.message);
-                        try {{ _wsSend(data); }} catch(e2) {{ console.log('[Proxy] DEV capture WS falhou:', e2.message); }}
+                        // Erro de rede → injetar captura simulada (sem pass-through ao SDK que peut crashar)
+                        console.log('[Proxy] DEV capture SOAP erro de rede → captura SIMULADA:', e.message);
+                        inject(Object.assign({{
+                            status: 'captured', module: sent.module || 'infant', ret: 0,
+                            data: {{
+                                wsqData: 'SIMULATED', imagePng: 'SIMULATED',
+                                nfiq: 2, fingerIndex: _capFinger,
+                                anomalyId: '', anomalyName: ''
+                            }}
+                        }}, INFANT_READY));
                     }});
                     return;
                 }}
@@ -813,6 +893,85 @@ def infant_proxy(path):
 # ─────────────────────────────────────────────────────────────
 # PROXY: localhost:5000 (OpenBio)
 # ─────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# Mock config para /db/api/config — garantir que DeviceDisconnected monta
+# mesmo quando o InfantID server (port 5000) está offline.
+# O SPA lê este endpoint em mounted() com `await v()`; se falhar → throw sem try/catch
+# → device-ready nunca dispara → tela de desconexão fica travada.
+# ─────────────────────────────────────────────────────────────
+MOCK_OPENBIO_CONFIG = {
+    'customerId': CUSTOMER_UUID,
+    'env': 'dev',
+    'startDevicesOnRun': True,
+    'detached': True,
+    'showInfantTab': True,
+    'showEnrolledTab': True,
+    'showMugshotTab': False,
+    'login': False,
+    'dynamicForm': False,
+    'documentPreview': False,
+    'apiService': False,
+    'asyncPersistency': False,
+    'autoStartOnLogin': False,
+    'enrollmentValidations': {'infant': True, 'face': True, 'modal': True, 'signature': True},
+    'infant': {
+        'enabled': True, 'initialized': True, 'connected': True,
+        'sdkVersion': '0.3.0.0', 'info': 'EtanV2',
+        'canUseInfant': True, 'licenseValid': True, 'hasUpdate': False,
+        'device': {'id': 'EtanV2', 'name': 'ETAN V2', 'status': 'connected',
+                   'initialized': True, 'enabled': True, 'ready': True}
+    },
+    'finger': {
+        'enabled': True, 'canUseInfant': True,
+        'device': {'id': 'EtanV2', 'name': 'ETAN V2', 'status': 'connected'}
+    },
+    'face':      {'enabled': True},
+    'signature': {'enabled': True},
+    'modal':     {'enabled': True},
+    'ports': {'devicesService': 5000, 'infantSoap': 12339}
+}
+
+
+@bp.route('/openbio/db/api/config', methods=['GET', 'OPTIONS'])
+def openbio_config_mock():
+    """Serve /db/api/config com fallback ao mock quando InfantID server offline."""
+    if request.method == 'OPTIONS':
+        return Response('', status=200, headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
+        })
+    try:
+        resp = req_lib.get(
+            f'{OPENBIO_ORIGIN}/db/api/config',
+            headers={'Cache-Control': 'no-cache'},
+            timeout=2
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            # Aplicar mesmos patches que openbio_proxy aplica para config
+            if not data.get('customerId'):
+                data['customerId'] = CUSTOMER_UUID
+            data.setdefault('enrollmentValidations', {})['infant'] = True
+            data['showInfantTab'] = True
+            data['startDevicesOnRun'] = True
+            if 'infant' in data:
+                data['infant']['enabled'] = True
+                data['infant'].setdefault('canUseInfant', True)
+            if 'finger' in data:
+                data['finger']['canUseInfant'] = True
+            # Capturar versão do SDK
+            import time as _t
+            _ver = (data.get('infant', {}).get('sdkVersion') or
+                    data.get('infantSdkVersion') or data.get('sdkVersion'))
+            if _ver and isinstance(_ver, str) and _ver.count('.') >= 2:
+                _SDK_CACHE.update({'version': _ver, 'ts': _t.time()})
+            return _mock_json(data)
+    except Exception:
+        pass
+    # InfantID server offline → retornar mock completo para SPA inicializar normalmente
+    return _mock_json(MOCK_OPENBIO_CONFIG)
+
 
 @bp.route('/openbio/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/openbio/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])

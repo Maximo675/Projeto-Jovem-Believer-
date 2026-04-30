@@ -8,7 +8,7 @@ services:
     region: oregon        # Altere para "frankfurt" se quiser servidor mais perto do Brasil
     plan: free            # "starter" para produção sem sleep (U$ 7/mês)
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && gunicorn --worker-class eventlet -w 1 --timeout 120 run:app --bind 0.0.0.0:$PORT
+    startCommand: cd backend && gunicorn --worker-class gevent -w 1 --timeout 120 run:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV
         value: production
@@ -22,9 +22,16 @@ services:
         fromDatabase:
           name: wingedmind-db
           property: connectionString
-      # Opcional: adicione sua chave OpenAI se quiser IA avançada
-      # - key: OPENAI_API_KEY
-      #   value: sk-...
+      # IA: Mock mode para QA (sem Ollama nem OpenAI key no Render)
+      - key: USE_MOCK_AI
+        value: "true"
+      - key: USE_OLLAMA
+        value: "false"
+      # Dummy key evita crash do openai SDK durante inicialização do worker
+      # (o SDK cria proxies lazy que falham se não houver nenhuma key definida)
+      - key: OPENAI_API_KEY
+        value: "dummy-not-used-mock-mode"
+      # Para habilitar IA real: troque USE_MOCK_AI para "false" e OPENAI_API_KEY pela chave real
 
 databases:
   - name: wingedmind-db
