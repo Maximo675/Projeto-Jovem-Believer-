@@ -233,39 +233,17 @@ def create_app():
     @app.route('/assets/<path:filename>')
     def serve_assets(filename):
         """
-        Servir assets locais ou proxificar de infant.akiyama.com.br se não existir localmente
-        Isso permite que assets dinamicamente carregados pela infant app funcionem normalmente
+        Serve assets locais. Se não existir, retorna 404 imediatamente.
+        O proxy para infant.akiyama.com.br foi removido — o host não resolve
+        no ambiente Render, causando timeout de 10s por request.
         """
-        import requests as req_lib
-        
         assets_path = os.path.join(root_path, 'assets')
         local_file = os.path.join(assets_path, filename)
-        
-        # Tentar servir do sistema de arquivos local primeiro
+
         if os.path.isfile(local_file):
             return send_from_directory(assets_path, filename)
-        
-        # Se não existe locally, proxificar de infant.akiyama.com.br
-        # Isso happens quando a infant app faz lazy loading de chunks
-        try:
-            full_url = f'https://infant.akiyama.com.br/assets/{filename}'
-            print(f'📦 [Assets Fallback Proxy] Proxificando dinamicamente: {filename} (lazy load)')
-            
-            response = req_lib.get(full_url, timeout=10, verify=False)
-            
-            headers = {}
-            content_type = response.headers.get('Content-Type', 'application/octet-stream')
-            headers['Content-Type'] = content_type
-            
-            # Cache headers para assets
-            if any(ext in filename for ext in ['.js', '.css', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.svg', '.png', '.jpg', '.gif']):
-                headers['Cache-Control'] = 'public, max-age=31536000'
-            
-            return response.content, response.status_code, headers
-            
-        except Exception as e:
-            print(f'[ERROR] Assets Fallback Proxy - Erro ao proxificar {filename}: {str(e)}')
-            return f'Asset not found: {filename}', 404
+
+        return f'Asset not found: {filename}', 404
     
     # ============================================================
     # PROXY PARA IFRAME INFANT
