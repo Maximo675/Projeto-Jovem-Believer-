@@ -233,15 +233,41 @@ def create_app():
     @app.route('/assets/<path:filename>')
     def serve_assets(filename):
         """
-        Serve assets locais. Se não existir, retorna 404 imediatamente.
-        O proxy para infant.akiyama.com.br foi removido — o host não resolve
-        no ambiente Render, causando timeout de 10s por request.
+        Serve assets locais. Se não existir e estivermos em desenvolvimento,
+        faz proxy para infant.akiyama.com.br (assets do SPA AKIYAMA).
+        Em produção (Render) retorna 404 imediatamente — o host não resolve lá.
         """
         assets_path = os.path.join(root_path, 'assets')
         local_file = os.path.join(assets_path, filename)
 
         if os.path.isfile(local_file):
             return send_from_directory(assets_path, filename)
+
+        # Em produção (Render) não tenta o proxy externo
+        if os.getenv('RENDER'):
+            return f'Asset not found: {filename}', 404
+
+        # Desenvolvimento local: faz proxy para infant.akiyama.com.br
+        try:
+            import requests as req_lib
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            r = req_lib.get(
+                f'https://infant.akiyama.com.br/assets/{filename}',
+                timeout=8,
+                verify=False,
+                stream=True
+            )
+            if r.status_code == 200:
+                from flask import Response as FlaskResponse
+                content_type = r.headers.get('Content-Type', 'application/octet-stream')
+                return FlaskResponse(r.content, status=200, headers={
+                    'Content-Type': content_type,
+                    'Cache-Control': 'public, max-age=3600',
+                    'Access-Control-Allow-Origin': '*',
+                })
+        except Exception:
+            pass
 
         return f'Asset not found: {filename}', 404
     
