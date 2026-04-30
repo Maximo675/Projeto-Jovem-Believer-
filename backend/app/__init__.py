@@ -740,15 +740,123 @@ def create_app():
         # Retornar JSON vazio ao invés de erro para não quebrar infant
         return jsonify({'status': 'ok', 'data': {}}), 200
     
-    # Criar tabelas apenas em desenvolvimento — em produção o timeout de conexão
-    # PostgreSQL pode travar o startup e causar 502 no Render
-    if os.getenv('FLASK_ENV', 'development') != 'production':
-        with app.app_context():
-            try:
-                db.create_all()
-            except Exception as e:
-                print(f"[WARNING] Erro ao criar tabelas: {e}")
-    else:
-        print('[INFO] Produção: db.create_all() ignorado no startup (evita timeout 502)')
-    
+    # Criar tabelas e popular dados iniciais
+    # NullPool (ativo em produção) evita o timeout de startup que causava 502
+    with app.app_context():
+        try:
+            db.create_all()
+            print('[INFO] db.create_all() executado com sucesso')
+            _seed_hospitals()
+        except Exception as e:
+            print(f"[WARNING] Erro ao criar/popular tabelas: {e}")
+
     return app
+
+
+def _seed_hospitals():
+    """Insere hospitais padrão se a tabela estiver vazia."""
+    from app.models.hospital import Hospital
+
+    if Hospital.query.first():
+        print('[INFO] Tabela hospitals já possui dados — seed ignorado')
+        return
+
+    hospitais = [
+        Hospital(
+            nome='Hospital das Clínicas de São Paulo',
+            estado='SP', cidade='São Paulo',
+            endereco='Av. Dr. Enéas de Carvalho Aguiar, 255',
+            telefone='(11) 2661-0000',
+            email='contato@hcsp.org.br',
+            cnpj='60.975.737/0001-06',
+        ),
+        Hospital(
+            nome='Hospital Albert Einstein',
+            estado='SP', cidade='São Paulo',
+            endereco='Av. Albert Einstein, 627',
+            telefone='(11) 2151-1233',
+            email='contato@einstein.br',
+            cnpj='60.765.823/0001-30',
+        ),
+        Hospital(
+            nome='Hospital Sírio-Libanês',
+            estado='SP', cidade='São Paulo',
+            endereco='R. Dona Adma Jafet, 91',
+            telefone='(11) 3394-0200',
+            email='contato@hsl.org.br',
+            cnpj='61.590.410/0001-28',
+        ),
+        Hospital(
+            nome='Hospital Samaritano',
+            estado='SP', cidade='São Paulo',
+            endereco='R. Conselheiro Brotero, 1486',
+            telefone='(11) 3821-5300',
+            email='contato@samaritano.com.br',
+            cnpj='61.671.915/0001-80',
+        ),
+        Hospital(
+            nome='Hospital Municipal de Campinas',
+            estado='SP', cidade='Campinas',
+            endereco='Av. Anchieta, 200',
+            telefone='(19) 3772-5000',
+            email='contato@hmcampinas.sp.gov.br',
+        ),
+        Hospital(
+            nome='Hospital Universitário Clementino Fraga Filho',
+            estado='RJ', cidade='Rio de Janeiro',
+            endereco='Rua Prof. Rodolpho Paulo Rocco, 255',
+            telefone='(21) 3938-2745',
+            email='contato@hucff.ufrj.br',
+        ),
+        Hospital(
+            nome='Hospital Copa Star',
+            estado='RJ', cidade='Rio de Janeiro',
+            endereco='Rua Figueiredo Magalhães, 875',
+            telefone='(21) 3289-2500',
+            email='contato@copastar.com.br',
+        ),
+        Hospital(
+            nome='Hospital das Clínicas de Belo Horizonte',
+            estado='MG', cidade='Belo Horizonte',
+            endereco='Av. Prof. Alfredo Balena, 110',
+            telefone='(31) 3409-9000',
+            email='contato@hc.ufmg.br',
+        ),
+        Hospital(
+            nome='Hospital de Clínicas de Porto Alegre',
+            estado='RS', cidade='Porto Alegre',
+            endereco='Rua Ramiro Barcelos, 2350',
+            telefone='(51) 3359-8000',
+            email='contato@hcpa.edu.br',
+        ),
+        Hospital(
+            nome='Hospital Universitário Walter Cantídio',
+            estado='CE', cidade='Fortaleza',
+            endereco='Rua Capitão Francisco Pedro, 1290',
+            telefone='(85) 3366-8000',
+            email='contato@huwc.ufc.br',
+        ),
+        Hospital(
+            nome='Hospital de Base do Distrito Federal',
+            estado='DF', cidade='Brasília',
+            endereco='SMHS — Área Especial, Quadra 101',
+            telefone='(61) 3315-1616',
+            email='contato@hbdf.saude.df.gov.br',
+        ),
+        Hospital(
+            nome='Hospital Getúlio Vargas',
+            estado='AM', cidade='Manaus',
+            endereco='Av. Mário Ypiranga, 1581',
+            telefone='(92) 3635-5050',
+            email='contato@hgv.am.gov.br',
+        ),
+    ]
+
+    from app import db
+    try:
+        db.session.bulk_save_objects(hospitais)
+        db.session.commit()
+        print(f'[INFO] Seed: {len(hospitais)} hospitais inseridos com sucesso')
+    except Exception as e:
+        db.session.rollback()
+        print(f'[WARNING] Seed hospitals falhou: {e}')
