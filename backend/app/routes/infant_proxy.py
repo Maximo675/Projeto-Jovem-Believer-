@@ -554,8 +554,7 @@ INTERCEPTOR_SCRIPT = f"""<script>
                                 console.log('[Proxy] DEV start fallback 5s: WS fechou → preview sintético');
                                 _startSyntheticPreview();
                             }}
-                        }}, 5000                        fork() → post_fork() define OPENAI_API_KEY → init_process() → monkey_patch()
-                                        ↑ nossa janela de oportunidade          ↑ aqui era o crash);
+                        }}, 5000);
                     }}
                     return;
                 }}
