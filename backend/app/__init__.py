@@ -863,6 +863,36 @@ def _seed_hospitals():
         print(f'[WARNING] Seed hospitals falhou: {e}')
 
 
+def _patch_video_urls():
+    """Atualiza video_url nas aulas que ainda não têm vídeo vinculado."""
+    from app.models.lesson import Lesson
+    from app import db
+
+    mapa = {
+        'Equipamentos e Dispositivos ETAN':              'https://youtu.be/TI42JZHkA20',
+        'Segurança, Higiene e Aspectos Legais':          'https://youtu.be/0GOkU_0QpKU',
+        'Prática com o Sistema AKIYAMA — Simulação Completa': 'https://youtu.be/UNKHidgcbo4',
+        'Certificação e Boas Práticas — Próximos Passos': 'https://youtu.be/oQjQRJzIzno',
+    }
+
+    atualizadas = 0
+    for titulo, url in mapa.items():
+        aula = Lesson.query.filter_by(titulo=titulo).first()
+        if aula and not aula.video_url:
+            aula.video_url = url
+            atualizadas += 1
+
+    if atualizadas:
+        try:
+            db.session.commit()
+            print(f'[INFO] _patch_video_urls: {atualizadas} aulas atualizadas com video_url')
+        except Exception as e:
+            db.session.rollback()
+            print(f'[WARNING] _patch_video_urls falhou: {e}')
+    else:
+        print('[INFO] _patch_video_urls: todos os video_url já estavam preenchidos')
+
+
 def _seed_courses():
     """Insere cursos e aulas padrão se as tabelas estiverem vazias."""
     from app.models.course import Course
@@ -870,7 +900,8 @@ def _seed_courses():
     from app import db
 
     if Course.query.first():
-        print('[INFO] Tabela courses já possui dados — seed ignorado')
+        # Cursos já existem — apenas garantir que os video_url estão preenchidos
+        _patch_video_urls()
         return
 
     cursos_data = [
@@ -914,6 +945,7 @@ def _seed_courses():
                     titulo='Equipamentos e Dispositivos ETAN',
                     descricao='Conheça o dispositivo ETAN AKIYAMA: componentes, manutenção e calibração.',
                     ordem=2, duracao=25,
+                    video_url='https://youtu.be/TI42JZHkA20',
                     conteudo=(
                         '<h2>O Dispositivo ETAN AKIYAMA</h2>'
                         '<p>O ETAN (Equipment for Touch and Analysis of Neonates) é um sensor biométrico '
@@ -970,6 +1002,7 @@ def _seed_courses():
                     titulo='Segurança, Higiene e Aspectos Legais',
                     descricao='Protocolos de higiene, LGPD aplicada à biometria e responsabilidades do profissional.',
                     ordem=4, duracao=45,
+                    video_url='https://youtu.be/0GOkU_0QpKU',
                     conteudo=(
                         '<h2>Segurança e Higiene no Procedimento Biométrico</h2>'
                         '<h3>Higienização do equipamento</h3>'
@@ -1119,6 +1152,7 @@ def _seed_courses():
                     titulo='Prática com o Sistema AKIYAMA — Simulação Completa',
                     descricao='Exercício prático simulando uma captura real completa do início ao fim.',
                     ordem=4, duracao=45,
+                    video_url='https://youtu.be/UNKHidgcbo4',
                     conteudo=(
                         '<h2>Prática Real com o Sistema AKIYAMA</h2>'
                         '<p>Esta aula é prática. Você vai simular um procedimento completo de captura biométrica '
@@ -1247,6 +1281,7 @@ def _seed_courses():
                     titulo='Certificação e Boas Práticas — Próximos Passos',
                     descricao='Caminhos de certificação profissional e boas práticas para manter a excelência.',
                     ordem=4, duracao=40,
+                    video_url='https://youtu.be/oQjQRJzIzno',
                     conteudo=(
                         '<h2>Certificação e Desenvolvimento Profissional</h2>'
                         '<p>Concluir os três cursos da plataforma Winged Mind é o primeiro passo '
@@ -1290,6 +1325,7 @@ def _seed_courses():
                     conteudo=aula_data['conteudo'],
                     ordem=aula_data['ordem'],
                     duracao=aula_data.get('duracao'),
+                    video_url=aula_data.get('video_url'),
                 )
                 db.session.add(aula)
         db.session.commit()
