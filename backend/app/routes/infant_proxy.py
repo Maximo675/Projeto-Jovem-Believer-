@@ -860,12 +860,12 @@ def _build_response(resp):
 # PROXY: infant.akiyama.com.br  (não seguir redirect para plataformaid)
 # ─────────────────────────────────────────────────────────────
 
-_RENDER_UNAVAILABLE_HTML = """<!DOCTYPE html>
+_RENDER_LOCAL_REDIRECT_HTML = """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captura Biométrica — Indisponível</title>
+    <title>Captura Biométrica ETAN</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -877,38 +877,88 @@ _RENDER_UNAVAILABLE_HTML = """<!DOCTYPE html>
         }
         .card {
             background: white; border-radius: 16px;
-            padding: 40px 36px; max-width: 480px; width: 100%;
+            padding: 32px 28px; max-width: 440px; width: 100%;
             text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        .icon { font-size: 3.5rem; margin-bottom: 16px; }
-        h1 { color: #0f4c75; font-size: 1.4rem; margin-bottom: 10px; }
-        p  { color: #555; font-size: 0.95rem; line-height: 1.6; margin-bottom: 12px; }
-        .badge {
-            display: inline-block; background: #e8f4f8; color: #0f4c75;
-            padding: 6px 16px; border-radius: 20px; font-size: 0.8rem;
-            font-weight: 600; margin-top: 8px;
+        .icon { font-size: 2.8rem; margin-bottom: 12px; }
+        h1   { color: #0f4c75; font-size: 1.2rem; margin-bottom: 8px; }
+        p    { color: #555; font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px; }
+        .btn {
+            display: inline-block; background: #0f4c75; color: white;
+            padding: 11px 24px; border-radius: 8px; text-decoration: none;
+            font-weight: 600; font-size: 0.88rem; cursor: pointer;
+            border: none; transition: background 0.2s;
         }
-        .info {
-            background: #f9fafb; border-left: 4px solid #0f4c75;
-            padding: 14px 16px; border-radius: 6px;
-            text-align: left; margin-top: 20px; font-size: 0.85rem; color: #444;
+        .btn:hover { background: #1b6ca8; }
+        .sub  { font-size: 0.72rem; color: #999; margin-top: 10px; }
+        .warn {
+            background: #fff8e1; border-left: 4px solid #f39c12;
+            padding: 10px 14px; border-radius: 6px;
+            text-align: left; margin-top: 16px; font-size: 0.8rem; color: #555;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="icon">🔬</div>
-        <h1>Captura Biométrica ETAN</h1>
-        <p>Esta funcionalidade requer o <strong>leitor biométrico ETAN</strong> e o
-           software <strong>OpenBio</strong> instalados e rodando na máquina local.</p>
-        <p>No ambiente de produção (nuvem) não é possível acessar dispositivos
-           de hardware conectados ao computador do usuário.</p>
-        <div class="info">
-            💡 <strong>Para usar a captura real:</strong> acesse o sistema localmente
-            com o ETAN conectado e o OpenBio (porta 5000) em execução.
-        </div>
-        <span class="badge">🏥 Disponível apenas na rede interna hospitalar</span>
+<div class="card">
+    <div class="icon">🔬</div>
+    <h1>Captura Biométrica ETAN</h1>
+    <p>Para usar o dispositivo ETAN via plataforma Render, o
+       <strong>servidor local</strong> precisa estar rodando na sua máquina
+       junto com o <strong>OpenBio</strong>.</p>
+    <button class="btn" id="btnRedir">Conectar ao servidor local</button>
+    <div class="sub" id="statusMsg">Redirecionando automaticamente em <span id="countdown">3</span>s...</div>
+    <div class="warn" id="warnBox">
+        ⚠️ Não foi possível conectar. Certifique-se de que o servidor local está
+        rodando em <strong>http://localhost:5001</strong> e tente novamente.
     </div>
+</div>
+<script>
+(function() {
+    // Determinar qual página do lado externo está usando este iframe
+    var outerPath = '/pages/etan-captura-biometrica.html';
+    try {
+        if (window.top && window.top.location && window.top !== window) {
+            outerPath = window.top.location.pathname || outerPath;
+        }
+    } catch(e) {}
+    var localUrl = 'http://localhost:5001' + outerPath;
+
+    function doRedirect() {
+        try {
+            if (window.top && window.top !== window) {
+                // Dentro de iframe: navega o frame externo
+                window.top.location.href = localUrl;
+            } else {
+                // Acesso direto
+                window.location.href = localUrl;
+            }
+        } catch(e) {
+            document.getElementById('warnBox').style.display = 'block';
+            document.getElementById('statusMsg').style.display = 'none';
+        }
+    }
+
+    document.getElementById('btnRedir').onclick = doRedirect;
+
+    // Countdown automático
+    var t = 3;
+    var iv = setInterval(function() {
+        t--;
+        var el = document.getElementById('countdown');
+        if (el) el.textContent = t;
+        if (t <= 0) {
+            clearInterval(iv);
+            doRedirect();
+            // Se após 5s ainda estiver nesta página, mostrar aviso
+            setTimeout(function() {
+                document.getElementById('warnBox').style.display = 'block';
+                document.getElementById('statusMsg').textContent = 'Redirecionamento concluído (verifique a aba).';
+            }, 5000);
+        }
+    }, 1000);
+})();
+</script>
 </body>
 </html>"""
 
@@ -916,11 +966,14 @@ _RENDER_UNAVAILABLE_HTML = """<!DOCTYPE html>
 @bp.route('/infant/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/infant/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def infant_proxy(path):
-    # Em produção (Render) não há como chegar ao infant.akiyama.com.br
-    # nem ao OpenBio local → retorna página informativa em vez de timeout/502
+    # No Render, infant.akiyama.com.br não resolve via DNS do servidor.
+    # O browser do usuário (com ETAN+OpenBio na máquina) SIM consegue.
+    # Solução: redirecionar o frame externo para o Flask local (localhost:5001)
+    # que consegue fazer o proxy completo com a injeção JS necessária.
+    # Navegação JS para http://localhost é permitida pelo Chrome mesmo a partir de HTTPS.
     if os.getenv('RENDER'):
         return Response(
-            _RENDER_UNAVAILABLE_HTML,
+            _RENDER_LOCAL_REDIRECT_HTML,
             status=200,
             headers={'Content-Type': 'text/html; charset=utf-8'}
         )
