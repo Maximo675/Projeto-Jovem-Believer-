@@ -966,18 +966,6 @@ _RENDER_LOCAL_REDIRECT_HTML = """<!DOCTYPE html>
 @bp.route('/infant/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/infant/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def infant_proxy(path):
-    # No Render, infant.akiyama.com.br não resolve via DNS do servidor.
-    # O browser do usuário (com ETAN+OpenBio na máquina) SIM consegue.
-    # Solução: redirecionar o frame externo para o Flask local (localhost:5001)
-    # que consegue fazer o proxy completo com a injeção JS necessária.
-    # Navegação JS para http://localhost é permitida pelo Chrome mesmo a partir de HTTPS.
-    if os.getenv('RENDER'):
-        return Response(
-            _RENDER_LOCAL_REDIRECT_HTML,
-            status=200,
-            headers={'Content-Type': 'text/html; charset=utf-8'}
-        )
-
     target = f"{INFANT_ORIGIN}/{path}"
     if request.query_string:
         target += '?' + request.query_string.decode('utf-8')
