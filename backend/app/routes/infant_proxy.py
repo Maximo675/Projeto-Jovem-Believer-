@@ -971,33 +971,133 @@ _IFRAME_DIRECT_HTML = """<!DOCTYPE html>
 <title>Captura Biométrica ETAN</title>
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ width:100%; height:100vh; overflow:hidden; background:#000; font-family:sans-serif; }}
-  iframe {{ width:100%; height:100%; border:none; display:block; }}
-  #msg {{ display:none; position:fixed; inset:0; background:#0f4c75;
-          color:#fff; align-items:center; justify-content:center; flex-direction:column; gap:16px; }}
-  #msg p {{ font-size:0.9rem; opacity:0.8; max-width:360px; text-align:center; }}
+  html, body {{ width:100%; height:100%; overflow:hidden; }}
+  body {{ font-family:'Segoe UI',Arial,sans-serif; background:#0a2540; }}
+
+  /* iframe ocupa tudo */
+  #fr {{ position:fixed; inset:0; width:100%; height:100%; border:none; display:block; z-index:1; }}
+
+  /* overlay de loading — fica por cima do iframe enquanto carrega */
+  #loading {{
+    position:fixed; inset:0; z-index:10;
+    background:linear-gradient(135deg,#0a2540 0%,#1a4a7a 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+    transition:opacity .4s ease;
+  }}
+  #loading.hide {{ opacity:0; pointer-events:none; }}
+
+  .spinner {{
+    width:56px; height:56px;
+    border:5px solid rgba(255,255,255,.15);
+    border-top-color:#4fc3f7;
+    border-radius:50%;
+    animation:spin .9s linear infinite;
+  }}
+  @keyframes spin {{ to {{ transform:rotate(360deg); }} }}
+
+  .load-title {{ color:#fff; font-size:1.15rem; font-weight:600; letter-spacing:.3px; }}
+  .load-sub   {{ color:rgba(255,255,255,.55); font-size:.82rem; }}
+
+  /* tela de erro — escondida por padrão */
+  #erro {{
+    position:fixed; inset:0; z-index:20; display:none;
+    background:linear-gradient(135deg,#0a2540 0%,#1a4a7a 100%);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:0; padding:32px; text-align:center;
+  }}
+  .erro-icon {{ font-size:3.2rem; margin-bottom:12px; }}
+  .erro-title {{ color:#fff; font-size:1.25rem; font-weight:700; margin-bottom:8px; }}
+  .erro-sub   {{ color:rgba(255,255,255,.65); font-size:.88rem; max-width:380px; line-height:1.6; margin-bottom:28px; }}
+  .erro-steps {{
+    background:rgba(255,255,255,.07); border-radius:12px;
+    padding:16px 20px; max-width:380px; width:100%;
+    text-align:left; margin-bottom:28px;
+  }}
+  .erro-steps li {{ color:rgba(255,255,255,.75); font-size:.82rem; line-height:1.9; list-style:none; padding-left:4px; }}
+  .erro-steps li::before {{ content:'→ '; color:#4fc3f7; font-weight:700; }}
+  .btn-primary {{
+    background:#4fc3f7; color:#0a2540;
+    padding:13px 28px; border-radius:10px;
+    font-weight:700; font-size:.9rem; text-decoration:none;
+    display:inline-flex; align-items:center; gap:8px;
+    transition:background .2s, transform .1s;
+    border:none; cursor:pointer;
+  }}
+  .btn-primary:hover {{ background:#81d4fa; transform:translateY(-1px); }}
+  .btn-secondary {{
+    background:transparent; color:rgba(255,255,255,.6);
+    border:1px solid rgba(255,255,255,.2);
+    padding:10px 22px; border-radius:10px;
+    font-size:.82rem; text-decoration:none; margin-top:10px;
+    display:inline-block; transition:all .2s;
+    cursor:pointer;
+  }}
+  .btn-secondary:hover {{ color:#fff; border-color:rgba(255,255,255,.5); }}
 </style>
 </head>
 <body>
-<iframe id="fr" src="https://infant.akiyama.com.br/" allow="camera; microphone; usb"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"></iframe>
-<div id="msg">
-  <h2>⚠️ Não foi possível carregar</h2>
-  <p>Verifique sua conexão ou abra o sistema diretamente.</p>
-  <a href="https://infant.akiyama.com.br/#/infant-capture" target="_blank"
-     style="background:#fff;color:#0f4c75;padding:10px 20px;border-radius:8px;font-weight:700;text-decoration:none">
-    Abrir em nova aba
-  </a>
+
+<!-- iframe real — sem sandbox para não bloquear localStorage/WebSocket -->
+<iframe id="fr" src="https://infant.akiyama.com.br/#/infant-capture"
+        allow="camera; microphone; usb; clipboard-write"></iframe>
+
+<!-- loading enquanto iframe carrega -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-title">Carregando sistema ETAN</div>
+  <div class="load-sub">Conectando a infant.akiyama.com.br…</div>
 </div>
+
+<!-- tela de erro (aparece só se iframe falhar) -->
+<div id="erro">
+  <div class="erro-icon">🔬</div>
+  <div class="erro-title">Sistema ETAN indisponível no iframe</div>
+  <div class="erro-sub">
+    O sistema de captura biométrica precisa ser acessado diretamente pelo navegador
+    para comunicar com o dispositivo ETAN conectado à sua máquina.
+  </div>
+  <ul class="erro-steps">
+    <li>Clique em <strong>"Abrir sistema ETAN"</strong> abaixo</li>
+    <li>O sistema abrirá em uma nova aba</li>
+    <li>Certifique-se que o OpenBio está rodando (porta 5000)</li>
+    <li>Realize a captura normalmente e feche a aba</li>
+  </ul>
+  <a class="btn-primary" href="https://infant.akiyama.com.br/#/infant-capture" target="_blank">
+    🚀 Abrir sistema ETAN
+  </a>
+  <button class="btn-secondary" onclick="tentarNovamente()">Tentar novamente no iframe</button>
+</div>
+
 <script>
-// Se o iframe não carregar em 10s, mostrar aviso
-var t = setTimeout(function() {{
+var TIMEOUT = 12000; // ms até mostrar erro se iframe não carregar
+var timer;
+
+function mostrarErro() {{
+  document.getElementById('loading').classList.add('hide');
+  document.getElementById('erro').style.display = 'flex';
+  document.getElementById('fr').style.display = 'none';
+}}
+
+function tentarNovamente() {{
+  document.getElementById('erro').style.display = 'none';
+  document.getElementById('loading').classList.remove('hide');
+  document.getElementById('fr').style.display = 'block';
   var fr = document.getElementById('fr');
-  if (!fr) return;
-  document.getElementById('msg').style.display = 'flex';
-  fr.style.display = 'none';
-}}, 10000);
-document.getElementById('fr').onload = function() {{ clearTimeout(t); }};
+  fr.src = fr.src; // reload
+  timer = setTimeout(mostrarErro, TIMEOUT);
+}}
+
+// Quando iframe carregar com sucesso
+document.getElementById('fr').onload = function() {{
+  clearTimeout(timer);
+  // Pequeno delay para garantir que a SPA montou antes de esconder o loader
+  setTimeout(function() {{
+    document.getElementById('loading').classList.add('hide');
+  }}, 800);
+}};
+
+// Fallback: se não carregar em TIMEOUT ms → mostrar tela de erro amigável
+timer = setTimeout(mostrarErro, TIMEOUT);
 </script>
 </body>
 </html>"""
