@@ -963,9 +963,64 @@ _RENDER_LOCAL_REDIRECT_HTML = """<!DOCTYPE html>
 </html>"""
 
 
+_IFRAME_DIRECT_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captura Biométrica ETAN</title>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ width:100%; height:100vh; overflow:hidden; background:#000; font-family:sans-serif; }}
+  iframe {{ width:100%; height:100%; border:none; display:block; }}
+  #msg {{ display:none; position:fixed; inset:0; background:#0f4c75;
+          color:#fff; align-items:center; justify-content:center; flex-direction:column; gap:16px; }}
+  #msg p {{ font-size:0.9rem; opacity:0.8; max-width:360px; text-align:center; }}
+</style>
+</head>
+<body>
+<iframe id="fr" src="https://infant.akiyama.com.br/" allow="camera; microphone; usb"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"></iframe>
+<div id="msg">
+  <h2>⚠️ Não foi possível carregar</h2>
+  <p>Verifique sua conexão ou abra o sistema diretamente.</p>
+  <a href="https://infant.akiyama.com.br/#/infant-capture" target="_blank"
+     style="background:#fff;color:#0f4c75;padding:10px 20px;border-radius:8px;font-weight:700;text-decoration:none">
+    Abrir em nova aba
+  </a>
+</div>
+<script>
+// Se o iframe não carregar em 10s, mostrar aviso
+var t = setTimeout(function() {{
+  var fr = document.getElementById('fr');
+  if (!fr) return;
+  document.getElementById('msg').style.display = 'flex';
+  fr.style.display = 'none';
+}}, 10000);
+document.getElementById('fr').onload = function() {{ clearTimeout(t); }};
+</script>
+</body>
+</html>"""
+
+
 @bp.route('/infant/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/infant/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def infant_proxy(path):
+    # Se a requisição é pelo iframe root (navegador pedindo a página wrapper),
+    # e estamos no Render, servir direto a página com iframe apontando para infant.akiyama.com.br.
+    # O browser do usuário faz a requisição diretamente, sem passar pelo servidor Render.
+    is_browser_nav = (
+        path == '' and
+        request.method == 'GET' and
+        'text/html' in request.headers.get('Accept', '')
+    )
+    if is_browser_nav and os.getenv('RENDER'):
+        return Response(
+            _IFRAME_DIRECT_HTML,
+            status=200,
+            headers={'Content-Type': 'text/html; charset=utf-8'}
+        )
+
     target = f"{INFANT_ORIGIN}/{path}"
     if request.query_string:
         target += '?' + request.query_string.decode('utf-8')
@@ -986,10 +1041,14 @@ def infant_proxy(path):
             resp = req_lib.get(INFANT_ORIGIN + '/', allow_redirects=False,
                                timeout=15, verify=False)
         return _build_response(resp)
-    except req_lib.exceptions.ConnectionError:
-        return Response("Infant proxy: sem conexão com o servidor remoto.", status=502)
-    except req_lib.exceptions.Timeout:
-        return Response("Infant proxy: timeout.", status=504)
+    except (req_lib.exceptions.ConnectionError, req_lib.exceptions.Timeout):
+        # Render não conseguiu chegar ao servidor remoto — retornar iframe direto
+        # para que o BROWSER do usuário faça a requisição diretamente.
+        return Response(
+            _IFRAME_DIRECT_HTML,
+            status=200,
+            headers={'Content-Type': 'text/html; charset=utf-8'}
+        )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1040,11 +1099,8 @@ def openbio_config_mock():
     """Serve /db/api/config com fallback ao mock quando InfantID server offline."""
     if request.method == 'OPTIONS':
         return Response('', status=200, headers={
-            'Access-Control-Allow-Origin': request.headers.get('Origin', '*'),
-            'Access-Control-Allow-Headers': request.headers.get('Access-Control-Request-Headers', '*'),
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Private-Network': 'true',
-            'Access-Control-Max-Age': '86400',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': '*',
         })
     try:
         resp = req_lib.get(
@@ -1081,15 +1137,6 @@ def openbio_config_mock():
 @bp.route('/openbio/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/openbio/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def openbio_proxy(path):
-    # Chrome Private Network Access preflight — responder imediatamente sem proxiar ao OpenBio
-    if request.method == 'OPTIONS':
-        return Response('', status=200, headers={
-            'Access-Control-Allow-Origin': request.headers.get('Origin', '*'),
-            'Access-Control-Allow-Headers': request.headers.get('Access-Control-Request-Headers', '*'),
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
-            'Access-Control-Allow-Private-Network': 'true',
-            'Access-Control-Max-Age': '86400',
-        })
     target = f"{OPENBIO_ORIGIN}/{path}"
     if request.query_string:
         target += '?' + request.query_string.decode('utf-8')
