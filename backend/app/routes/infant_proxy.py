@@ -860,9 +860,71 @@ def _build_response(resp):
 # PROXY: infant.akiyama.com.br  (não seguir redirect para plataformaid)
 # ─────────────────────────────────────────────────────────────
 
+_RENDER_UNAVAILABLE_HTML = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura Biométrica — Indisponível</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f4c75 0%, #1b6ca8 100%);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: white; border-radius: 16px;
+            padding: 40px 36px; max-width: 480px; width: 100%;
+            text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .icon { font-size: 3.5rem; margin-bottom: 16px; }
+        h1 { color: #0f4c75; font-size: 1.4rem; margin-bottom: 10px; }
+        p  { color: #555; font-size: 0.95rem; line-height: 1.6; margin-bottom: 12px; }
+        .badge {
+            display: inline-block; background: #e8f4f8; color: #0f4c75;
+            padding: 6px 16px; border-radius: 20px; font-size: 0.8rem;
+            font-weight: 600; margin-top: 8px;
+        }
+        .info {
+            background: #f9fafb; border-left: 4px solid #0f4c75;
+            padding: 14px 16px; border-radius: 6px;
+            text-align: left; margin-top: 20px; font-size: 0.85rem; color: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔬</div>
+        <h1>Captura Biométrica ETAN</h1>
+        <p>Esta funcionalidade requer o <strong>leitor biométrico ETAN</strong> e o
+           software <strong>OpenBio</strong> instalados e rodando na máquina local.</p>
+        <p>No ambiente de produção (nuvem) não é possível acessar dispositivos
+           de hardware conectados ao computador do usuário.</p>
+        <div class="info">
+            💡 <strong>Para usar a captura real:</strong> acesse o sistema localmente
+            com o ETAN conectado e o OpenBio (porta 5000) em execução.
+        </div>
+        <span class="badge">🏥 Disponível apenas na rede interna hospitalar</span>
+    </div>
+</body>
+</html>"""
+
+
 @bp.route('/infant/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/infant/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def infant_proxy(path):
+    # Em produção (Render) não há como chegar ao infant.akiyama.com.br
+    # nem ao OpenBio local → retorna página informativa em vez de timeout/502
+    if os.getenv('RENDER'):
+        return Response(
+            _RENDER_UNAVAILABLE_HTML,
+            status=200,
+            headers={'Content-Type': 'text/html; charset=utf-8'}
+        )
+
     target = f"{INFANT_ORIGIN}/{path}"
     if request.query_string:
         target += '?' + request.query_string.decode('utf-8')
