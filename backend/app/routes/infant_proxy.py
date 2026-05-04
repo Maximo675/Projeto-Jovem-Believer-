@@ -1040,8 +1040,11 @@ def openbio_config_mock():
     """Serve /db/api/config com fallback ao mock quando InfantID server offline."""
     if request.method == 'OPTIONS':
         return Response('', status=200, headers={
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': '*',
+            'Access-Control-Allow-Origin': request.headers.get('Origin', '*'),
+            'Access-Control-Allow-Headers': request.headers.get('Access-Control-Request-Headers', '*'),
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Private-Network': 'true',
+            'Access-Control-Max-Age': '86400',
         })
     try:
         resp = req_lib.get(
@@ -1078,6 +1081,15 @@ def openbio_config_mock():
 @bp.route('/openbio/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 @bp.route('/openbio/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'HEAD'])
 def openbio_proxy(path):
+    # Chrome Private Network Access preflight — responder imediatamente sem proxiar ao OpenBio
+    if request.method == 'OPTIONS':
+        return Response('', status=200, headers={
+            'Access-Control-Allow-Origin': request.headers.get('Origin', '*'),
+            'Access-Control-Allow-Headers': request.headers.get('Access-Control-Request-Headers', '*'),
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS, HEAD',
+            'Access-Control-Allow-Private-Network': 'true',
+            'Access-Control-Max-Age': '86400',
+        })
     target = f"{OPENBIO_ORIGIN}/{path}"
     if request.query_string:
         target += '?' + request.query_string.decode('utf-8')

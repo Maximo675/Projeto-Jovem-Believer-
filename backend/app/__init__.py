@@ -99,6 +99,9 @@ def create_app():
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+        # Private Network Access: permite que páginas HTTPS no Render chamem este Flask local
+        # via http://localhost:5001/openbio/ sem bloqueio de PNA do Chrome
+        response.headers['Access-Control-Allow-Private-Network'] = 'true'
         
         # Headers de cache para API
         if request.path.startswith('/api/'):
