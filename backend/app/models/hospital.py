@@ -13,13 +13,15 @@ class Hospital(db.Model):
     telefone = db.Column(db.String(20), nullable=False)
     email = db.Column(db.String(120), nullable=False, unique=True)
     cnpj = db.Column(db.String(18), unique=True, nullable=True)
+    dominio_email = db.Column(db.String(120), nullable=True, index=True)  # ex: einstein.br
     ativo = db.Column(db.Boolean, default=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relacionamento será definido apenas no User model - SEM backref aqui!
     
-    def __init__(self, nome, estado, cidade, endereco, telefone, email, cnpj=None, ativo=True):
+    def __init__(self, nome, estado, cidade, endereco, telefone, email,
+                 cnpj=None, dominio_email=None, ativo=True):
         self.nome = nome
         self.estado = estado
         self.cidade = cidade
@@ -27,6 +29,7 @@ class Hospital(db.Model):
         self.telefone = telefone
         self.email = email
         self.cnpj = cnpj
+        self.dominio_email = dominio_email.lower().strip() if dominio_email else None
         self.ativo = ativo
 
     def to_dict(self):
@@ -38,7 +41,8 @@ class Hospital(db.Model):
             'cidade': self.cidade,
             'telefone': self.telefone,
             'email': self.email,
-            'ativo': self.ativo
+            'ativo': self.ativo,
+            'dominio_email': self.dominio_email,
         }
 
     def __repr__(self):

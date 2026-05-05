@@ -1,0 +1,187 @@
+# -*- coding: utf-8 -*-
+"""
+Rotas de convites — /api/invitations
+
+Permissões:
+  POST   /                        → admin ou super_admin (convida enfermeira)
+  GET    /                        → admin (lista convites do seu hospital)
+                                    super_admin (lista todos)
+  DELETE /<id>                    → admin (cancela convite do seu hospital)
+  GET    /validate/<token>        → público (frontend exibe dados antes de aceitar)
+  POST   /accept/<token>          → público (aceita via email/senha)
+"""
+
+from flask import Blueprint, jsonify, request, g
+from app import db
+from app.models.invitation import Invitation
+from app.models.user import User
+from app.models.hospital import Hospital
+from app.utils.decorators import token_requerido, admin_requerido, requer_papel
+from datetime import datetime
+import os
+
+bp = Blueprint('invitations', __name__, url_prefix='/api/invitations')
+
+
+# ─── Criar convite ────────────────────────────────────────────────────────────
+
+@bp.route('', methods=['POST'])
+@token_requerido
+@admin_requerido
+def criar_convite():
+    """admin convida enfermeira; super_admin pode convidar qualquer papel."""
+    data = request.get_json() or {}
+
+    email      = (data.get('email') or '').strip().lower()
+    funcao     = data.get('funcao', 'usuario')
+    hospital_id = data.get('hospital_id')
+
+    if not email:
+        return jsonify({'erro': 'Email é obrigatório'}), 400
+
+    # admin só pode convidar para o próprio hospital e apenas papel 'usuario'
+    if g.usuario.funcao == 'admin':
+        hospital_id = g.usuario.hospital_id
+        if funcao not in ('usuario', 'instrutor'):
+            return jsonify({'erro': 'Admin pode convidar apenas usuários e instrutores'}), 403
+    else:
+        # super_admin deve informar hospital_id
+        if not hospital_id:
+            return jsonify({'erro': 'hospital_id é obrigatório'}), 400
+        if funcao not in ('usuario', 'instrutor', 'admin'):
+            return jsonify({'erro': 'Papel inválido'}), 400
+
+    hospital = Hospital.query.get(hospital_id)
+    if not hospital or not hospital.ativo:
+        return jsonify({'erro': 'Hospital não encontrado ou inativo'}), 404
+
+    # Não convidar quem já tem conta
+    if User.query.filter_by(email=email).first():
+        return jsonify({'erro': 'Já existe uma conta com este email'}), 409
+
+    # Invalidar convites anteriores não usados para o mesmo email/hospital
+    Invitation.query.filter_by(
+        email=email, hospital_id=hospital_id, usado=False
+    ).update({'usado': True})
+
+    convite = Invitation(
+        email=email,
+        hospital_id=hospital_id,
+        funcao=funcao,
+        criado_por_id=g.usuario.id,
+    )
+    db.session.add(convite)
+    db.session.commit()
+
+    base_url = os.getenv('APP_BASE_URL', 'http://localhost:5001')
+    link = f'{base_url}/pages/accept-invite.html?token={convite.token}'
+
+    return jsonify({
+        'mensagem': 'Convite criado com sucesso',
+        'convite': convite.to_dict(),
+        'link': link,
+    }), 201
+
+
+# ─── Listar convites ──────────────────────────────────────────────────────────
+
+@bp.route('', methods=['GET'])
+@token_requerido
+@admin_requerido
+def listar_convites():
+    query = Invitation.query
+    if g.usuario.funcao == 'admin':
+        query = query.filter_by(hospital_id=g.usuario.hospital_id)
+
+    apenas_ativos = request.args.get('apenas_ativos', 'false').lower() == 'true'
+    if apenas_ativos:
+        query = query.filter_by(usado=False).filter(
+            Invitation.expires_at > datetime.utcnow()
+        )
+
+    convites = query.order_by(Invitation.data_criacao.desc()).all()
+    return jsonify([c.to_dict() for c in convites]), 200
+
+
+# ─── Cancelar convite ─────────────────────────────────────────────────────────
+
+@bp.route('/<int:convite_id>', methods=['DELETE'])
+@token_requerido
+@admin_requerido
+def cancelar_convite(convite_id):
+    convite = Invitation.query.get_or_404(convite_id)
+
+    if g.usuario.funcao == 'admin' and convite.hospital_id != g.usuario.hospital_id:
+        return jsonify({'erro': 'Sem permissão para este convite'}), 403
+
+    convite.usado = True
+    db.session.commit()
+    return jsonify({'mensagem': 'Convite cancelado'}), 200
+
+
+# ─── Validar token (público — frontend exibe dados antes de aceitar) ──────────
+
+@bp.route('/validate/<token>', methods=['GET'])
+def validar_token(token):
+    convite = Invitation.query.filter_by(token=token).first()
+    if not convite:
+        return jsonify({'erro': 'Convite não encontrado'}), 404
+    if not convite.valido:
+        return jsonify({'erro': 'Convite expirado ou já utilizado'}), 410
+
+    return jsonify({
+        'email':    convite.email,
+        'hospital': convite.hospital.nome if convite.hospital else None,
+        'funcao':   convite.funcao,
+    }), 200
+
+
+# ─── Aceitar convite via email/senha ─────────────────────────────────────────
+
+@bp.route('/accept/<token>', methods=['POST'])
+def aceitar_convite(token):
+    """Cria a conta da enfermeira via email + senha usando o convite."""
+    convite = Invitation.query.filter_by(token=token).first()
+    if not convite:
+        return jsonify({'erro': 'Convite não encontrado'}), 404
+    if not convite.valido:
+        return jsonify({'erro': 'Convite expirado ou já utilizado'}), 410
+
+    data  = request.get_json() or {}
+    nome  = (data.get('nome') or '').strip()
+    senha = data.get('senha', '')
+
+    if not nome:
+        return jsonify({'erro': 'Nome é obrigatório'}), 400
+    if len(senha) < 8:
+        return jsonify({'erro': 'Senha deve ter pelo menos 8 caracteres'}), 400
+
+    if User.query.filter_by(email=convite.email).first():
+        return jsonify({'erro': 'Já existe uma conta com este email'}), 409
+
+    try:
+        usuario = User(
+            email=convite.email,
+            nome=nome,
+            senha=senha,
+            hospital_id=convite.hospital_id,
+            funcao=convite.funcao,
+            ativo=True,
+        )
+        db.session.add(usuario)
+
+        convite.usado = True
+        db.session.commit()
+
+        from app.routes.auth import _gerar_token
+        jwt_token = _gerar_token(usuario)
+
+        return jsonify({
+            'mensagem': 'Conta criada com sucesso!',
+            'token': jwt_token,
+            'usuario': usuario.to_dict(),
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500

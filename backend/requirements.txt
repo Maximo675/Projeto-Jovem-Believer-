@@ -22,6 +22,7 @@ python-dotenv==1.0.0
 PyJWT==2.11.0
 bcrypt==4.1.1
 Flask-Login==0.6.3
+msal==1.28.0
 
 # IA & Machine Learning
 # openai desabilitado no Render: modo mock não usa o SDK e os proxy objects

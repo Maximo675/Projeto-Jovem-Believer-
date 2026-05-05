@@ -7,6 +7,53 @@
     <link rel="stylesheet" href="../css/style.css">
     <link rel="icon" href="/public/icon-blue.ico" type="image/x-icon">
     <script src="../js/theme.js"></script>
+    <style>
+        /* ── Spinner no botão de login ────────────────────────────── */
+        #btnLogin { position: relative; overflow: hidden; transition: opacity .2s; }
+        #btnLogin .btn-spinner {
+            display: none;
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btn-spin .7s linear infinite;
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+        }
+        @keyframes btn-spin { to { transform: translateY(-50%) rotate(360deg); } }
+        #btnLogin.loading { opacity: .75; cursor: not-allowed; padding-right: 48px; }
+        #btnLogin.loading .btn-spinner { display: block; }
+
+        /* ── Botão Microsoft ──────────────────────────────────────── */
+        .ms-divider {
+            display: flex; align-items: center; gap: 12px;
+            margin: 20px 0 16px; color: #aaa; font-size: .82rem;
+        }
+        .ms-divider::before, .ms-divider::after {
+            content: ''; flex: 1; height: 1px; background: #e0e0e0;
+        }
+        .btn-microsoft {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 12px 20px;
+            background: #fff; color: #3c3c3c;
+            border: 1.5px solid #d0d0d0; border-radius: 8px;
+            font-size: .9rem; font-weight: 600; text-decoration: none;
+            transition: background .15s, border-color .15s, box-shadow .15s;
+        }
+        .btn-microsoft:hover {
+            background: #f5f5f5; border-color: #aaa;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        /* ── Feedback inline ──────────────────────────────────────── */
+        .login-feedback {
+            margin-top: 14px; padding: 10px 14px;
+            border-radius: 8px; font-size: .88rem; font-weight: 500;
+            display: none;
+        }
+        .login-feedback:not(:empty) { display: block; }
+        .feedback-error   { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
+        .feedback-success { background: #f0fff4; color: #1a7a3c; border: 1px solid #b7f5c8; }
+    </style>
 </head>
 <body>
     <div class="auth-wrapper">
@@ -43,14 +90,25 @@
                         >
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-large">
-                        Entrar na Plataforma
+                    <button type="submit" class="btn btn-primary btn-large" id="btnLogin">
+                        <span class="btn-text">Entrar na Plataforma</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
                     </button>
                 </form>
 
-                <div class="auth-question">
-                    Não tem conta? <a href="/pages/register.html">Crie uma aqui</a>
-                </div>
+                <div class="ms-divider"><span>ou</span></div>
+
+                <a class="btn-microsoft" id="btnMicrosoft" href="/api/auth/microsoft/login">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="20" height="20">
+                        <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+                        <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    Entrar com Microsoft
+                </a>
+
+                <div id="loginFeedback" class="login-feedback" role="alert"></div>
             </div>
 
             <!-- Right Side - Benefits -->
@@ -89,31 +147,70 @@
     </div>
 
     <script>
+        // ── Capturar token JWT vindo do callback Microsoft ─────────────────────
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const token    = params.get('auth_token');
+            const msError  = params.get('ms_error');
+            if (token) {
+                localStorage.setItem('authToken', token);
+                window.history.replaceState({}, '', window.location.pathname);
+                window.location.href = '/pages/dashboard.html';
+                return;
+            }
+            if (msError) {
+                showFeedback('error', '⚠️ ' + decodeURIComponent(msError.replace(/\+/g, ' ')));
+            }
+        })();
+
+        // ── Helpers de feedback e loading ──────────────────────────────────────
+        function showFeedback(type, msg) {
+            const el = document.getElementById('loginFeedback');
+            el.textContent = msg;
+            el.className = 'login-feedback ' + (type === 'error' ? 'feedback-error' : 'feedback-success');
+        }
+
+        function setLoading(on) {
+            const btn = document.getElementById('btnLogin');
+            btn.disabled = on;
+            btn.classList.toggle('loading', on);
+        }
+
+        // ── Submit do formulário ────────────────────────────────────────────────
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const email = document.getElementById('email').value;
+            const email    = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
+
+            if (!email || !password) {
+                showFeedback('error', 'Preencha seu e-mail e senha.');
+                return;
+            }
+
+            setLoading(true);
+            document.getElementById('loginFeedback').className = 'login-feedback';
 
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ email, senha: password })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, senha: password }),
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
                     localStorage.setItem('authToken', data.token);
-                    window.location.href = '/pages/dashboard.html';
+                    showFeedback('success', '✓ Login realizado! Redirecionando…');
+                    setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 1200);
                 } else {
-                    alert('Erro ao fazer login: ' + data.error);
+                    const msg = data.erro || 'Credenciais inválidas. Tente novamente.';
+                    showFeedback('error', '⚠️ ' + msg);
+                    setLoading(false);
                 }
-            } catch (error) {
-                alert('Erro: ' + error.message);
+            } catch (err) {
+                showFeedback('error', '⚠️ Sem resposta do servidor. Verifique sua conexão.');
+                setLoading(false);
             }
         });
     </script>

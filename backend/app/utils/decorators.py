@@ -1,5 +1,8 @@
 """
 Decoradores customizados para rotas.
+
+Hierarquia de papéis (do mais ao menos privilegiado):
+  super_admin → admin → instrutor → usuario
 """
 
 from functools import wraps
@@ -8,6 +11,18 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 import os
 from app.models.user import User
+
+# Papéis válidos em ordem de privilégio
+ROLES_ORDER = ['super_admin', 'admin', 'instrutor', 'usuario']
+
+
+def _role_gte(usuario_funcao: str, minimo: str) -> bool:
+    """Retorna True se o papel do usuário é >= ao mínimo exigido."""
+    try:
+        return ROLES_ORDER.index(usuario_funcao) <= ROLES_ORDER.index(minimo)
+    except ValueError:
+        return False
+
 
 def token_requerido(f):
     """
@@ -50,31 +65,49 @@ def token_requerido(f):
     return decorada
 
 
+def requer_papel(papel_minimo: str):
+    """Fábrica de decoradores de papel.
+
+    Uso::
+        @token_requerido
+        @requer_papel('admin')
+        def minha_rota(): ...
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorada(*args, **kwargs):
+            if not hasattr(g, 'usuario'):
+                return jsonify({'erro': 'Token não autenticado'}), 401
+            if not _role_gte(g.usuario.funcao, papel_minimo):
+                return jsonify({
+                    'erro': f'Acesso negado. Papel mínimo exigido: {papel_minimo}'
+                }), 403
+            return f(*args, **kwargs)
+        return decorada
+    return decorator
+
+
+# Atalhos para os papéis mais usados
+def super_admin_requerido(f):
+    """Apenas super_admin."""
+    return token_requerido(requer_papel('super_admin')(f))
+
+
 def admin_requerido(f):
-    """
-    Decorador que requer que o usuário seja admin.
-    Deve ser usado com @token_requerido.
-    """
+    """admin ou superior (super_admin)."""
     @wraps(f)
     def decorada(*args, **kwargs):
-        if not hasattr(g, 'usuario') or g.usuario.funcao != 'admin':
+        if not hasattr(g, 'usuario') or not _role_gte(g.usuario.funcao, 'admin'):
             return jsonify({'erro': 'Acesso negado. Admin requerido'}), 403
-        
         return f(*args, **kwargs)
-    
     return decorada
 
 
 def instrutor_requerido(f):
-    """
-    Decorador que requer que o usuário seja instrutor ou admin.
-    Deve ser usado com @token_requerido.
-    """
+    """instrutor ou superior."""
     @wraps(f)
     def decorada(*args, **kwargs):
-        if not hasattr(g, 'usuario') or g.usuario.funcao not in ['instrutor', 'admin']:
+        if not hasattr(g, 'usuario') or not _role_gte(g.usuario.funcao, 'instrutor'):
             return jsonify({'erro': 'Acesso negado. Instrutor requerido'}), 403
-        
         return f(*args, **kwargs)
-    
     return decorada
