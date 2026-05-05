@@ -38,7 +38,7 @@ def _ms_redirect_uri():
     return f'{base}/api/auth/microsoft/callback'
 
 # ─── Helper JWT ───────────────────────────────────────────────────────────────
-_JWT_SECRET  = os.getenv('JWT_SECRET', 'secret')
+_JWT_SECRET  = os.getenv('JWT_SECRET', 'secret-dev-inseguro-troque-em-producao').strip()
 _JWT_EXPIRY  = int(os.getenv('JWT_EXPIRY_HOURS', 8))   # padrão: 1 turno
 
 def _gerar_token(usuario):
