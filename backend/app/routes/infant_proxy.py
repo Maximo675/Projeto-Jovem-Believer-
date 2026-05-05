@@ -13,7 +13,7 @@ UUID do cliente local (C:\Openbio\customer.ini):
   uuid = 05e082fe-6062-43ff-a093-b14b13562b28
 """
 
-from flask import Blueprint, request, Response
+from flask import Blueprint, request, Response, redirect
 import requests as req_lib
 import urllib3
 import json
@@ -1115,11 +1115,7 @@ def infant_proxy(path):
         'text/html' in request.headers.get('Accept', '')
     )
     if is_browser_nav and os.getenv('RENDER'):
-        return Response(
-            _IFRAME_DIRECT_HTML,
-            status=200,
-            headers={'Content-Type': 'text/html; charset=utf-8'}
-        )
+        return redirect('https://infant.akiyama.com.br/#/infant-capture', code=302)
 
     target = f"{INFANT_ORIGIN}/{path}"
     if request.query_string:
@@ -1142,13 +1138,9 @@ def infant_proxy(path):
                                timeout=15, verify=False)
         return _build_response(resp)
     except (req_lib.exceptions.ConnectionError, req_lib.exceptions.Timeout):
-        # Render não conseguiu chegar ao servidor remoto — retornar iframe direto
-        # para que o BROWSER do usuário faça a requisição diretamente.
-        return Response(
-            _IFRAME_DIRECT_HTML,
-            status=200,
-            headers={'Content-Type': 'text/html; charset=utf-8'}
-        )
+        # Render não conseguiu chegar ao servidor remoto — redirecionar diretamente.
+        return redirect('https://infant.akiyama.com.br/#/infant-capture', code=302)
+        
 
 
 # ─────────────────────────────────────────────────────────────
