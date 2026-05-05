@@ -5,6 +5,7 @@ from app.models.lesson import Lesson
 from app.models.progress import Progress
 from app.models.ia_conversation import IAConversation
 from app.models.certificate import Certificate
+from app.models.password_reset import PasswordReset
 
 __all__ = [
     'User',
@@ -13,5 +14,6 @@ __all__ = [
     'Lesson',
     'Progress',
     'IAConversation',
-    'Certificate'
+    'Certificate',
+    'PasswordReset',
 ]

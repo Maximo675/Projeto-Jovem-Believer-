@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redefinir Senha — Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="icon" href="/public/icon-blue.ico" type="image/x-icon">
+    <script src="../js/theme.js"></script>
+    <style>
+        .reset-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg-primary, #f4f6fb);
+        }
+        .reset-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 4px 32px rgba(0,0,0,.10);
+            text-align: center;
+        }
+        .reset-card img { height: 52px; margin-bottom: 28px; }
+        .reset-card h1 { font-size: 1.5rem; color: #1a1a2e; margin: 0 0 8px; }
+        .reset-card .subtitle { color: #666; font-size: .9rem; margin: 0 0 32px; }
+
+        .form-group { text-align: left; margin-bottom: 20px; }
+        .form-group label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: 6px; color: #444; }
+        .form-group input {
+            width: 100%; padding: 12px 14px; border: 1.5px solid #ddd;
+            border-radius: 8px; font-size: .95rem; box-sizing: border-box;
+            transition: border-color .15s;
+        }
+        .form-group input:focus { outline: none; border-color: #1a73e8; }
+
+        .password-hint { font-size: .78rem; color: #999; margin-top: 5px; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px;
+               font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+        .btn-primary { background: #1a73e8; color: #fff; }
+        .btn-primary:hover { opacity: .88; }
+        .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+        .feedback {
+            margin-top: 18px; padding: 12px 16px;
+            border-radius: 8px; font-size: .88rem; font-weight: 500;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback-error   { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
+        .feedback-success { background: #f0fff4; color: #1a7a3c; border: 1px solid #b7f5c8; }
+
+        .back-link { display: inline-block; margin-top: 24px; font-size: .85rem;
+                     color: #1a73e8; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+
+        /* Token inválido / expirado */
+        .state-invalid { display: none; }
+        .state-invalid.show { display: block; }
+        .state-form.hide { display: none; }
+
+        /* Ícone de cadeado */
+        .lock-icon { font-size: 2.8rem; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <div class="reset-wrapper">
+        <div class="reset-card">
+            <img src="../assets/logo/winged_mind_azul.png" alt="Winged Mind">
+
+            <!-- Estado: token inválido / expirado -->
+            <div class="state-invalid" id="stateInvalid">
+                <div class="lock-icon">🔒</div>
+                <h1>Link inválido</h1>
+                <p class="subtitle">Este link de redefinição é inválido ou já expirou.<br>
+                   Links são válidos por <strong>1 hora</strong>.</p>
+                <a href="/pages/login.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600">
+                    Solicitar novo link
+                </a>
+            </div>
+
+            <!-- Estado: formulário -->
+            <div class="state-form" id="stateForm">
+                <div class="lock-icon">🔑</div>
+                <h1>Nova senha</h1>
+                <p class="subtitle">Crie uma senha segura para sua conta.</p>
+
+                <div class="form-group">
+                    <label for="novaSenha">Nova senha</label>
+                    <input type="password" id="novaSenha" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                    <p class="password-hint">Use letras, números e símbolos para maior segurança.</p>
+                </div>
+                <div class="form-group">
+                    <label for="confirmarSenha">Confirmar nova senha</label>
+                    <input type="password" id="confirmarSenha" placeholder="Repita a senha" autocomplete="new-password">
+                </div>
+
+                <button class="btn btn-primary" id="btnRedefinir">Redefinir senha</button>
+
+                <div class="feedback" id="feedback"></div>
+                <a href="/pages/login.html" class="back-link">← Voltar ao login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const token  = params.get('token') || '';
+
+        if (!token) {
+            document.getElementById('stateInvalid').classList.add('show');
+            document.getElementById('stateForm').classList.add('hide');
+        }
+
+        function showFeedback(type, msg) {
+            const el = document.getElementById('feedback');
+            el.textContent = msg;
+            el.className = 'feedback show feedback-' + type;
+        }
+
+        document.getElementById('btnRedefinir').addEventListener('click', async () => {
+            const novaSenha      = document.getElementById('novaSenha').value;
+            const confirmarSenha = document.getElementById('confirmarSenha').value;
+
+            if (!novaSenha || !confirmarSenha) {
+                showFeedback('error', '⚠️ Preencha os dois campos.');
+                return;
+            }
+            if (novaSenha.length < 8) {
+                showFeedback('error', '⚠️ A senha deve ter pelo menos 8 caracteres.');
+                return;
+            }
+            if (novaSenha !== confirmarSenha) {
+                showFeedback('error', '⚠️ As senhas não coincidem.');
+                return;
+            }
+
+            const btn = document.getElementById('btnRedefinir');
+            btn.disabled = true;
+            btn.textContent = 'Salvando…';
+
+            try {
+                const res = await fetch('/api/auth/redefinir-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, nova_senha: novaSenha }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showFeedback('success', '✓ Senha redefinida com sucesso! Redirecionando…');
+                    setTimeout(() => { window.location.href = '/pages/login.html'; }, 2200);
+                } else if (res.status === 410) {
+                    document.getElementById('stateForm').classList.add('hide');
+                    document.getElementById('stateInvalid').classList.add('show');
+                } else {
+                    showFeedback('error', '⚠️ ' + (data.erro || 'Erro ao redefinir senha.'));
+                    btn.disabled = false;
+                    btn.textContent = 'Redefinir senha';
+                }
+            } catch {
+                showFeedback('error', '⚠️ Sem resposta do servidor. Tente novamente.');
+                btn.disabled = false;
+                btn.textContent = 'Redefinir senha';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -53,6 +53,28 @@
         .login-feedback:not(:empty) { display: block; }
         .feedback-error   { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
         .feedback-success { background: #f0fff4; color: #1a7a3c; border: 1px solid #b7f5c8; }
+        /* ── Modal Esqueci Senha ──────────────────────────────────── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.45); z-index: 999;
+            align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: #fff; border-radius: 14px;
+            padding: 36px 32px; width: 100%; max-width: 400px;
+            box-shadow: 0 8px 40px rgba(0,0,0,.18);
+            position: relative; animation: modal-in .2s ease;
+        }
+        @keyframes modal-in { from { transform: scale(.94); opacity: 0; } }
+        .modal-box h3 { margin: 0 0 8px; font-size: 1.2rem; color: #1a1a2e; }
+        .modal-box p  { margin: 0 0 20px; font-size: .88rem; color: #666; }
+        .modal-close {
+            position: absolute; top: 14px; right: 16px;
+            background: none; border: none; font-size: 1.4rem;
+            cursor: pointer; color: #999; line-height: 1;
+        }
+        .modal-close:hover { color: #333; }
     </style>
 </head>
 <body>
@@ -88,6 +110,12 @@
                             placeholder="Digite sua senha" 
                             required
                         >
+                        <div style="text-align:right;margin-top:6px">
+                            <a href="#" id="linkEsqueciSenha"
+                               style="font-size:.82rem;color:#1a73e8;text-decoration:none">
+                                Esqueceu a senha?
+                            </a>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-large" id="btnLogin">
@@ -143,6 +171,28 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: Esqueci minha senha ──────────────────────────────────── -->
+    <div class="modal-overlay" id="modalEsqueciSenha" role="dialog" aria-modal="true">
+        <div class="modal-box">
+            <button class="modal-close" id="btnFecharModal" aria-label="Fechar">&times;</button>
+            <h3>Redefinir senha</h3>
+            <p>Informe seu e-mail e enviaremos um link para criar uma nova senha.</p>
+            <div class="form-group">
+                <label for="resetEmail">E-mail cadastrado</label>
+                <input type="email" id="resetEmail" placeholder="seu.email@hospital.com" autocomplete="email">
+            </div>
+            <button class="btn btn-primary btn-large" id="btnEnviarReset" style="width:100%">
+                <span class="btn-text">Enviar link</span>
+                <span class="btn-spinner" aria-hidden="true"
+                      style="display:none;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);
+                             border-top-color:#fff;border-radius:50%;
+                             animation:btn-spin .7s linear infinite;
+                             position:absolute;right:18px;top:50%;transform:translateY(-50%)"></span>
+            </button>
+            <div id="resetFeedback" class="login-feedback" role="alert" style="margin-top:12px"></div>
         </div>
     </div>
 
@@ -211,6 +261,55 @@
             } catch (err) {
                 showFeedback('error', '⚠️ Sem resposta do servidor. Verifique sua conexão.');
                 setLoading(false);
+            }
+        });
+
+        // ── Modal: Esqueci a senha ──────────────────────────────────────────────
+        const modal      = document.getElementById('modalEsqueciSenha');
+        const resetFb    = document.getElementById('resetFeedback');
+
+        document.getElementById('linkEsqueciSenha').addEventListener('click', (e) => {
+            e.preventDefault();
+            modal.classList.add('open');
+            document.getElementById('resetEmail').focus();
+        });
+
+        document.getElementById('btnFecharModal').addEventListener('click', () => {
+            modal.classList.remove('open');
+            resetFb.textContent = '';
+            resetFb.className = 'login-feedback';
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('open');
+                resetFb.textContent = '';
+                resetFb.className = 'login-feedback';
+            }
+        });
+
+        document.getElementById('btnEnviarReset').addEventListener('click', async () => {
+            const email = document.getElementById('resetEmail').value.trim();
+            if (!email) {
+                resetFb.textContent = '⚠️ Informe seu e-mail.';
+                resetFb.className = 'login-feedback feedback-error';
+                return;
+            }
+            const btn = document.getElementById('btnEnviarReset');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/auth/esqueci-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email }),
+                });
+                const data = await res.json();
+                resetFb.textContent = '✓ ' + (data.mensagem || 'Link enviado!');
+                resetFb.className = 'login-feedback feedback-success';
+            } catch {
+                resetFb.textContent = '⚠️ Sem resposta do servidor. Tente novamente.';
+                resetFb.className = 'login-feedback feedback-error';
+                btn.disabled = false;
             }
         });
     </script>

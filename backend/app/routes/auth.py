@@ -268,3 +268,160 @@ def logout():
     """Logout (client-side, apenas para confirmação)"""
     return jsonify({'mensagem': 'Logout realizado com sucesso'}), 200
 
+
+# ─── Reset de senha ───────────────────────────────────────────────────────────
+
+def _enviar_email_reset(email_destino, nome, link):
+    """
+    Envia e-mail de reset.
+    Prioridade: 1) Microsoft Graph API (usa o app Azure já configurado)
+                2) SMTP clássico (MAIL_SERVER + MAIL_USERNAME)
+                3) Log no console (sem configuração de e-mail)
+    """
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+      <img src="https://projeto-jovem-believer.onrender.com/assets/logo/winged_mind_azul.png"
+           style="height:48px;margin-bottom:28px" alt="Winged Mind">
+      <h2 style="color:#1a73e8;margin:0 0 16px">Redefinição de senha</h2>
+      <p style="color:#444">Olá, <strong>{nome}</strong>.</p>
+      <p style="color:#444">Recebemos uma solicitação para redefinir a senha da sua conta.<br>
+         Clique no botão abaixo — o link expira em <strong>1 hora</strong>.</p>
+      <a href="{link}"
+         style="display:inline-block;margin:24px 0;padding:14px 32px;
+                background:#1a73e8;color:#fff;text-decoration:none;
+                border-radius:8px;font-weight:600;font-size:1rem">
+        Redefinir minha senha
+      </a>
+      <p style="color:#888;font-size:.83rem">
+        Se você não fez essa solicitação, ignore este email. Sua senha permanece a mesma.
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+      <p style="color:#bbb;font-size:.75rem">Winged Mind · Plataforma de Treinamento Hospitalar</p>
+    </div>
+    """
+
+    # ── 1. Microsoft Graph API ────────────────────────────────────────────────
+    mail_sender = os.getenv('MAIL_SENDER', '').strip()
+    if _MSAL_AVAILABLE and _MS_CLIENT_ID and _MS_CLIENT_SECRET and mail_sender:
+        try:
+            import requests as _req
+            ms = msal.ConfidentialClientApplication(
+                _MS_CLIENT_ID,
+                authority=_MS_AUTHORITY,
+                client_credential=_MS_CLIENT_SECRET,
+            )
+            result = ms.acquire_token_for_client(
+                scopes=['https://graph.microsoft.com/.default']
+            )
+            if 'access_token' not in result:
+                raise RuntimeError(result.get('error_description', 'Falha ao obter token Graph'))
+
+            payload = {
+                'message': {
+                    'subject': 'Redefinição de senha — Winged Mind',
+                    'body': {'contentType': 'HTML', 'content': html},
+                    'toRecipients': [{'emailAddress': {'address': email_destino}}],
+                },
+                'saveToSentItems': False,
+            }
+            resp = _req.post(
+                f'https://graph.microsoft.com/v1.0/users/{mail_sender}/sendMail',
+                json=payload,
+                headers={
+                    'Authorization': f'Bearer {result["access_token"]}',
+                    'Content-Type': 'application/json',
+                },
+                timeout=15,
+            )
+            if resp.status_code == 202:
+                print(f'[RESET] Email enviado via Microsoft Graph para {email_destino}')
+                return True
+            print(f'[RESET] Graph API retornou {resp.status_code}: {resp.text}')
+        except Exception as exc:
+            print(f'[RESET] Erro no Graph API: {exc}')
+        # Se chegou aqui, Graph falhou — tenta SMTP como fallback
+
+    # ── 2. SMTP clássico ──────────────────────────────────────────────────────
+    mail_user   = os.getenv('MAIL_USERNAME', '').strip()
+    mail_pass   = os.getenv('MAIL_PASSWORD', '').strip()
+    mail_server = os.getenv('MAIL_SERVER', 'smtp.office365.com').strip()
+    mail_port   = int(os.getenv('MAIL_PORT', 587))
+    mail_from   = os.getenv('MAIL_DEFAULT_SENDER', mail_sender or mail_user).strip()
+
+    if mail_user and mail_pass:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Redefinição de senha — Winged Mind'
+        msg['From']    = mail_from
+        msg['To']      = email_destino
+        msg.attach(MIMEText(html, 'html', 'utf-8'))
+        try:
+            with smtplib.SMTP(mail_server, mail_port, timeout=10) as smtp:
+                smtp.ehlo(); smtp.starttls(); smtp.login(mail_user, mail_pass)
+                smtp.sendmail(mail_from, [email_destino], msg.as_string())
+            print(f'[RESET] Email enviado via SMTP para {email_destino}')
+            return True
+        except Exception as exc:
+            print(f'[RESET] Falha no SMTP: {exc}')
+
+    # ── 3. Sem configuração: apenas loga o link ───────────────────────────────
+    print(f'[RESET] Nenhum provedor de e-mail configurado.')
+    print(f'[RESET] Link de reset para {email_destino}: {link}')
+    return True
+
+
+@bp.route('/esqueci-senha', methods=['POST'])
+def esqueci_senha():
+    from app.models.password_reset import PasswordReset
+    dados = request.get_json(silent=True) or {}
+    email = (dados.get('email') or '').strip().lower()
+
+    if not email:
+        return jsonify({'erro': 'Email obrigatório.'}), 400
+
+    usuario = User.query.filter_by(email=email, ativo=True).first()
+
+    # Sempre responder 200 — evita enumeração de emails cadastrados
+    if not usuario:
+        return jsonify({'mensagem': 'Se o email estiver cadastrado, você receberá o link em breve.'}), 200
+
+    # Invalidar tokens anteriores ainda não usados
+    PasswordReset.query.filter_by(user_id=usuario.id, usado=False).update({'usado': True})
+    db.session.flush()
+
+    reset = PasswordReset(user_id=usuario.id)
+    db.session.add(reset)
+    db.session.commit()
+
+    base = os.getenv('APP_BASE_URL', 'http://localhost:5001').strip().rstrip('/')
+    link = f'{base}/pages/redefinir-senha.html?token={reset.token}'
+    _enviar_email_reset(usuario.email, usuario.nome, link)
+
+    return jsonify({'mensagem': 'Se o email estiver cadastrado, você receberá o link em breve.'}), 200
+
+
+@bp.route('/redefinir-senha', methods=['POST'])
+def redefinir_senha():
+    from app.models.password_reset import PasswordReset
+    dados      = request.get_json(silent=True) or {}
+    token      = (dados.get('token') or '').strip()
+    nova_senha = dados.get('nova_senha', '')
+
+    if not token or not nova_senha:
+        return jsonify({'erro': 'Token e nova senha são obrigatórios.'}), 400
+
+    if len(nova_senha) < 8:
+        return jsonify({'erro': 'A senha deve ter pelo menos 8 caracteres.'}), 400
+
+    reset = PasswordReset.query.filter_by(token=token, usado=False).first()
+    if not reset or not reset.valido:
+        return jsonify({'erro': 'Link inválido ou expirado. Solicite um novo.'}), 410
+
+    reset.usuario.set_password(nova_senha)
+    reset.usado = True
+    db.session.commit()
+
+    return jsonify({'mensagem': 'Senha redefinida com sucesso!'}), 200
+
