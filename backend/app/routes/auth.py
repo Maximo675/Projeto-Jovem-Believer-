@@ -90,11 +90,13 @@ def microsoft_login():
 @bp.route('/microsoft/callback', methods=['GET'])
 def microsoft_callback():
     """Callback OAuth — troca code por token, cria/recupera usuário, emite JWT."""
+    import traceback as _tb
+
     code  = request.args.get('code')
     error = request.args.get('error')
 
     # URL base do frontend (onde redirecionar após autenticação)
-    frontend_base = os.getenv('APP_BASE_URL', 'http://localhost:5001')
+    frontend_base = os.getenv('APP_BASE_URL', 'http://localhost:5001').strip().rstrip('/')
     login_page    = f'{frontend_base}/pages/login.html'
     dash_page     = f'{frontend_base}/pages/dashboard.html'
 
@@ -103,17 +105,26 @@ def microsoft_callback():
         return redirect(f'{login_page}?ms_error={desc}')
 
     try:
-        app = _ms_app()
-        result = app.acquire_token_by_authorization_code(
+        ms = _ms_app()
+        result = ms.acquire_token_by_authorization_code(
             code,
             scopes=_MS_SCOPES,
             redirect_uri=_ms_redirect_uri(),
         )
     except Exception as e:
-        return redirect(f'{login_page}?ms_error=Falha+na+troca+de+token')
+        return jsonify({
+            'etapa': 'acquire_token',
+            'erro': str(e),
+            'tipo': type(e).__name__,
+            'trace': _tb.format_exc(),
+        }), 500
 
     if 'error' in result:
-        return redirect(f'{login_page}?ms_error={result.get("error_description","Erro")}')
+        return jsonify({
+            'etapa': 'msal_result',
+            'erro': result.get('error'),
+            'descricao': result.get('error_description'),
+        }), 500
 
     claims = result.get('id_token_claims', {})
     email  = claims.get('preferred_username') or claims.get('email') or claims.get('upn', '')
