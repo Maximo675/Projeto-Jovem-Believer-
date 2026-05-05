@@ -34,7 +34,7 @@ def _ms_app():
     )
 
 def _ms_redirect_uri():
-    base = os.getenv('APP_BASE_URL', 'http://localhost:5001')
+    base = os.getenv('APP_BASE_URL', 'http://localhost:5001').strip().rstrip('/')
     return f'{base}/api/auth/microsoft/callback'
 
 # ─── Helper JWT ───────────────────────────────────────────────────────────────
