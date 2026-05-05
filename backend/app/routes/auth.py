@@ -70,12 +70,20 @@ def microsoft_login():
             'erro': 'Login Microsoft não configurado neste ambiente.',
             'detalhes': problemas
         }), 503
-    app = _ms_app()
-    auth_url = app.get_authorization_request_url(
-        scopes=_MS_SCOPES,
-        redirect_uri=_ms_redirect_uri(),
-        prompt='select_account',
-    )
+    try:
+        ms = _ms_app()
+        auth_url = ms.get_authorization_request_url(
+            scopes=_MS_SCOPES,
+            redirect_uri=_ms_redirect_uri(),
+            prompt='select_account',
+        )
+    except Exception as exc:
+        import traceback
+        return jsonify({
+            'erro': str(exc),
+            'tipo': type(exc).__name__,
+            'trace': traceback.format_exc(),
+        }), 500
     return redirect(auth_url)
 
 
