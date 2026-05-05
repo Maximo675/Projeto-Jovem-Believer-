@@ -23,6 +23,85 @@ import os
 bp = Blueprint('invitations', __name__, url_prefix='/api/invitations')
 
 
+def _enviar_email_convite(email_destino, nome_hospital, funcao, link, criado_por_nome):
+    """Envia email de convite via Microsoft Graph ou loga o link."""
+    funcao_labels = {
+        'usuario': 'Usuário',
+        'instrutor': 'Instrutor',
+        'admin': 'Administrador',
+        'super_admin': 'Super Admin',
+    }
+    funcao_label = funcao_labels.get(funcao, funcao.title())
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
+      <img src="https://projeto-jovem-believer.onrender.com/assets/logo/winged_mind_azul.png"
+           style="height:48px;margin-bottom:28px" alt="Winged Mind">
+      <h2 style="color:#1a73e8;margin:0 0 16px">Você foi convidado!</h2>
+      <p style="color:#444">
+        <strong>{criado_por_nome}</strong> convidou você para acessar a plataforma
+        <strong>Winged Mind</strong> como <strong>{funcao_label}</strong>
+        do <strong>{nome_hospital}</strong>.
+      </p>
+      <p style="color:#444">Clique no botão abaixo para criar sua conta. O link expira em <strong>7 dias</strong>.</p>
+      <a href="{link}"
+         style="display:inline-block;margin:24px 0;padding:14px 32px;
+                background:#1a73e8;color:#fff;text-decoration:none;
+                border-radius:8px;font-weight:600;font-size:1rem">
+        Criar minha conta
+      </a>
+      <p style="color:#888;font-size:.83rem">
+        Se você não esperava este convite, ignore este email.
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+      <p style="color:#bbb;font-size:.75rem">Winged Mind · Plataforma de Treinamento Hospitalar</p>
+    </div>
+    """
+
+    # Tenta Microsoft Graph API
+    try:
+        import msal as _msal
+        import requests as _req
+        client_id     = os.getenv('MICROSOFT_CLIENT_ID', '').strip()
+        client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '').strip()
+        tenant_id     = os.getenv('MICROSOFT_TENANT_ID', 'common').strip()
+        mail_sender   = os.getenv('MAIL_SENDER', '').strip()
+
+        if client_id and client_secret and mail_sender:
+            authority = f'https://login.microsoftonline.com/{tenant_id}'
+            ms = _msal.ConfidentialClientApplication(
+                client_id, authority=authority, client_credential=client_secret
+            )
+            result = ms.acquire_token_for_client(
+                scopes=['https://graph.microsoft.com/.default']
+            )
+            if 'access_token' in result:
+                payload = {
+                    'message': {
+                        'subject': f'Convite para a plataforma Winged Mind — {nome_hospital}',
+                        'body': {'contentType': 'HTML', 'content': html},
+                        'toRecipients': [{'emailAddress': {'address': email_destino}}],
+                    },
+                    'saveToSentItems': False,
+                }
+                resp = _req.post(
+                    f'https://graph.microsoft.com/v1.0/users/{mail_sender}/sendMail',
+                    json=payload,
+                    headers={'Authorization': f'Bearer {result["access_token"]}',
+                             'Content-Type': 'application/json'},
+                    timeout=15,
+                )
+                if resp.status_code == 202:
+                    print(f'[CONVITE] Email enviado via Graph para {email_destino}')
+                    return
+                print(f'[CONVITE] Graph retornou {resp.status_code}: {resp.text}')
+    except Exception as exc:
+        print(f'[CONVITE] Erro Graph API: {exc}')
+
+    # Fallback: log do link
+    print(f'[CONVITE] Link de convite para {email_destino}: {link}')
+
+
 # ─── Criar convite ────────────────────────────────────────────────────────────
 
 @bp.route('', methods=['POST'])
@@ -73,8 +152,16 @@ def criar_convite():
     db.session.add(convite)
     db.session.commit()
 
-    base_url = os.getenv('APP_BASE_URL', 'http://localhost:5001')
+    base_url = os.getenv('APP_BASE_URL', 'http://localhost:5001').strip().rstrip('/')
     link = f'{base_url}/pages/accept-invite.html?token={convite.token}'
+
+    _enviar_email_convite(
+        email_destino=email,
+        nome_hospital=hospital.nome,
+        funcao=funcao,
+        link=link,
+        criado_por_nome=g.usuario.nome,
+    )
 
     return jsonify({
         'mensagem': 'Convite criado com sucesso',

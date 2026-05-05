@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar conta — Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="icon" href="/public/icon-blue.ico" type="image/x-icon">
+    <script src="../js/theme.js"></script>
+    <style>
+        .invite-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: var(--bg-primary, #f4f6fb);
+        }
+        .invite-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 460px;
+            box-shadow: 0 4px 32px rgba(0,0,0,.10);
+        }
+        .invite-card img { height: 48px; display: block; margin-bottom: 28px; }
+        .invite-card h1 { font-size: 1.5rem; color: #1a1a2e; margin: 0 0 6px; }
+        .invite-card .subtitle { color: #666; font-size: .9rem; margin: 0 0 28px; }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #e8f0fe; color: #1a73e8;
+            padding: 5px 12px; border-radius: 20px;
+            font-size: .82rem; font-weight: 600; margin-bottom: 24px;
+        }
+
+        .info-block {
+            background: #f8f9fe; border: 1px solid #dde3f5;
+            border-radius: 10px; padding: 14px 16px; margin-bottom: 24px;
+            font-size: .88rem; color: #444;
+        }
+        .info-block strong { color: #1a1a2e; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block; font-size: .88rem; font-weight: 600;
+            margin-bottom: 6px; color: #444;
+        }
+        .form-group input {
+            width: 100%; padding: 12px 14px;
+            border: 1.5px solid #ddd; border-radius: 8px;
+            font-size: .95rem; box-sizing: border-box;
+            transition: border-color .15s;
+        }
+        .form-group input:focus { outline: none; border-color: #1a73e8; }
+        .form-group input:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
+        .password-hint { font-size: .78rem; color: #999; margin-top: 5px; }
+
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: opacity .2s; margin-top: 4px;
+        }
+        .btn-primary { background: #1a73e8; color: #fff; }
+        .btn-primary:hover { opacity: .88; }
+        .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+        .ms-divider {
+            display: flex; align-items: center; gap: 12px;
+            margin: 20px 0 16px; color: #aaa; font-size: .82rem;
+        }
+        .ms-divider::before, .ms-divider::after {
+            content: ''; flex: 1; height: 1px; background: #e0e0e0;
+        }
+        .btn-microsoft {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 12px 20px;
+            background: #fff; color: #3c3c3c;
+            border: 1.5px solid #d0d0d0; border-radius: 8px;
+            font-size: .9rem; font-weight: 600; text-decoration: none;
+            transition: background .15s, border-color .15s, box-shadow .15s;
+            box-sizing: border-box;
+        }
+        .btn-microsoft:hover {
+            background: #f5f5f5; border-color: #aaa;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .feedback {
+            margin-top: 16px; padding: 12px 16px;
+            border-radius: 8px; font-size: .88rem; font-weight: 500;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback-error   { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
+        .feedback-success { background: #f0fff4; color: #1a7a3c; border: 1px solid #b7f5c8; }
+
+        /* Estado inválido */
+        #stateInvalid { display: none; text-align: center; }
+        #stateInvalid.show { display: block; }
+        #stateForm.hide { display: none; }
+        .big-icon { font-size: 3rem; margin-bottom: 12px; }
+
+        /* Skeleton loader */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+            border-radius: 6px; height: 18px; margin-bottom: 8px;
+        }
+        @keyframes shimmer { to { background-position: -200% 0; } }
+    </style>
+</head>
+<body>
+    <div class="invite-wrapper">
+        <div class="invite-card">
+            <img src="../assets/logo/winged_mind_azul.png" alt="Winged Mind">
+
+            <!-- Estado: token inválido / expirado -->
+            <div id="stateInvalid">
+                <div class="big-icon">⛔</div>
+                <h1>Convite inválido</h1>
+                <p class="subtitle">Este link de convite é inválido, já foi usado ou expirou.<br>
+                    Peça ao administrador que envie um novo convite.</p>
+                <a href="/pages/login.html"
+                   style="display:inline-block;margin-top:8px;color:#1a73e8;text-decoration:none;font-size:.9rem">
+                    ← Ir para o login
+                </a>
+            </div>
+
+            <!-- Estado: carregando -->
+            <div id="stateLoading">
+                <div class="skeleton" style="width:60%;height:22px;margin-bottom:16px"></div>
+                <div class="skeleton" style="width:100%;height:60px;margin-bottom:16px"></div>
+                <div class="skeleton" style="width:100%;height:46px"></div>
+            </div>
+
+            <!-- Estado: formulário -->
+            <div id="stateForm" class="hide">
+                <h1>Criar minha conta</h1>
+                <p class="subtitle">Você foi convidado para a plataforma Winged Mind.</p>
+
+                <div class="info-block" id="infoConvite">
+                    <div>📧 <strong id="infoEmail">—</strong></div>
+                    <div style="margin-top:5px">🏥 <strong id="infoHospital">—</strong></div>
+                    <div style="margin-top:5px">🎖️ Função: <strong id="infoFuncao">—</strong></div>
+                </div>
+
+                <!-- Opção 1: Criar com email + senha -->
+                <div class="form-group">
+                    <label for="nomeCompleto">Seu nome completo</label>
+                    <input type="text" id="nomeCompleto" placeholder="Como você prefere ser chamado?" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="novaSenha">Criar senha</label>
+                    <input type="password" id="novaSenha" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                    <p class="password-hint">Use letras, números e símbolos.</p>
+                </div>
+                <div class="form-group">
+                    <label for="confirmarSenha">Confirmar senha</label>
+                    <input type="password" id="confirmarSenha" placeholder="Repita a senha" autocomplete="new-password">
+                </div>
+
+                <button class="btn btn-primary" id="btnCriarConta">Criar minha conta</button>
+
+                <!-- Opção 2: Usar conta Microsoft -->
+                <div class="ms-divider"><span>ou entre com</span></div>
+                <a class="btn-microsoft" id="btnMicrosoft" href="/api/auth/microsoft/login">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="20" height="20">
+                        <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
+                        <rect x="1"  y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    Continuar com Microsoft
+                </a>
+
+                <div class="feedback" id="feedback"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const token  = params.get('token') || '';
+
+        const stateInvalid  = document.getElementById('stateInvalid');
+        const stateLoading  = document.getElementById('stateLoading');
+        const stateForm     = document.getElementById('stateForm');
+        const feedback      = document.getElementById('feedback');
+
+        function showFeedback(type, msg) {
+            feedback.textContent = msg;
+            feedback.className = 'feedback show feedback-' + type;
+        }
+
+        function funcaoLabel(f) {
+            return { usuario: 'Usuário', instrutor: 'Instrutor', admin: 'Administrador', super_admin: 'Super Admin' }[f] || f;
+        }
+
+        async function carregarConvite() {
+            if (!token) {
+                stateLoading.style.display = 'none';
+                stateInvalid.classList.add('show');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/invitations/validate/${token}`);
+                stateLoading.style.display = 'none';
+
+                if (!res.ok) {
+                    stateInvalid.classList.add('show');
+                    return;
+                }
+
+                const data = await res.json();
+                document.getElementById('infoEmail').textContent    = data.email;
+                document.getElementById('infoHospital').textContent = data.hospital || '—';
+                document.getElementById('infoFuncao').textContent   = funcaoLabel(data.funcao);
+
+                // O email do convite está fixo — usuário não pode mudar
+                // Pré-preenche e desabilita se o usuário entrar com Microsoft
+                stateForm.classList.remove('hide');
+            } catch {
+                stateLoading.style.display = 'none';
+                stateInvalid.classList.add('show');
+            }
+        }
+
+        carregarConvite();
+
+        // ── Criar conta com email + senha ───────────────────────────────────
+        document.getElementById('btnCriarConta').addEventListener('click', async () => {
+            const nome     = document.getElementById('nomeCompleto').value.trim();
+            const senha    = document.getElementById('novaSenha').value;
+            const confirma = document.getElementById('confirmarSenha').value;
+
+            if (!nome)          return showFeedback('error', '⚠️ Informe seu nome.');
+            if (senha.length < 8) return showFeedback('error', '⚠️ A senha deve ter pelo menos 8 caracteres.');
+            if (senha !== confirma) return showFeedback('error', '⚠️ As senhas não coincidem.');
+
+            const btn = document.getElementById('btnCriarConta');
+            btn.disabled = true;
+            btn.textContent = 'Criando conta…';
+
+            try {
+                const res = await fetch(`/api/invitations/accept/${token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, senha }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    showFeedback('success', '✓ Conta criada! Redirecionando…');
+                    setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 1500);
+                } else if (res.status === 410) {
+                    stateForm.classList.add('hide');
+                    stateInvalid.classList.add('show');
+                } else {
+                    showFeedback('error', '⚠️ ' + (data.erro || 'Erro ao criar conta.'));
+                    btn.disabled = false;
+                    btn.textContent = 'Criar minha conta';
+                }
+            } catch {
+                showFeedback('error', '⚠️ Sem resposta do servidor.');
+                btn.disabled = false;
+                btn.textContent = 'Criar minha conta';
+            }
+        });
+    </script>
+</body>
+</html>
