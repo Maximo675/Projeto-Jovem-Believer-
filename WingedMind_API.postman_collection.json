@@ -1,0 +1,515 @@
+{
+  "info": {
+    "name": "Winged Mind API — Guia de Testes",
+    "_postman_id": "wingedmind-tests-v1",
+    "description": "Coleção completa para testar autenticação, hierarquia de papéis e convites.\n\n**Como usar:**\n1. Importe esta coleção no Postman\n2. Crie um Environment chamado `WingedMind` com a variável `base_url = https://projeto-jovem-believer.onrender.com`\n3. Execute as requests na ordem das pastas (1 → 2 → 3 → 4)\n\nO token JWT é salvo automaticamente após o login — você não precisa copiar e colar nada.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://projeto-jovem-believer.onrender.com" },
+    { "key": "token_super_admin", "value": "" },
+    { "key": "token_admin", "value": "" },
+    { "key": "token_usuario", "value": "" },
+    { "key": "ultimo_convite_token", "value": "" },
+    { "key": "ultimo_convite_id", "value": "" }
+  ],
+  "item": [
+
+    {
+      "name": "1. Autenticação",
+      "description": "Aqui testamos o login. Toda API protegida exige um token JWT no header.\nPensando como professora: é como o crachá do hospital — sem ele, você não entra em nenhuma área restrita.",
+      "item": [
+
+        {
+          "name": "1.1 Login super_admin ✅",
+          "description": "Faz login com o super_admin que criamos no banco.\n\nO que acontece por baixo:\n1. O front envia email + senha\n2. O backend busca o usuário no banco\n3. Compara a senha com o hash bcrypt armazenado\n4. Se bater, gera um token JWT com prazo de 8h\n5. Retorna o token — que é salvo automaticamente pela variável `token_super_admin`",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maximo.silva@akiyama.com.br\",\n  \"senha\": \"Admin@1234\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 - Login realizado', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Resposta tem token JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  // Salva o token para usar em todas as próximas requests automaticamente",
+                  "  pm.collectionVariables.set('token_super_admin', body.token);",
+                  "  console.log('Token super_admin salvo!');",
+                  "});",
+                  "",
+                  "pm.test('Usuário retornado tem papel super_admin', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.usuario.funcao).to.equal('super_admin');",
+                  "});",
+                  "",
+                  "pm.test('Token expira em 8 horas', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.expira_em_horas).to.equal(8);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "1.2 Login com senha errada ❌",
+          "description": "Testa o que acontece quando a senha está incorreta.\n\nEsperado: status 401 (Unauthorized)\n\nDiferença importante:\n- 401 = não autenticado (não provou quem é)\n- 403 = autenticado mas sem permissão (sabe quem é, mas não pode entrar aqui)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"maximo.silva@akiyama.com.br\",\n  \"senha\": \"senhaerrada123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 - Credenciais inválidas', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Resposta não tem token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.not.have.property('token');",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro clara', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.erro).to.include('inválidos');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "1.3 Acessar rota protegida SEM token ❌",
+          "description": "Testa o que acontece quando esquecemos de enviar o token.\n\nIsso simula uma enfermeira tentando acessar uma área sem estar logada.\nEsperado: 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/api/invitations", "host": ["{{base_url}}"], "path": ["api","invitations"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 - Token não fornecido', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem indica falta de token', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.erro).to.include('Token');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "2. Hierarquia de Papéis",
+      "description": "Aqui testamos se as barreiras de acesso funcionam corretamente.\n\nA hierarquia é:\n  super_admin > admin > instrutor > usuario\n\nUm usuário comum NÃO pode criar convites — isso é exclusivo de admin para cima.",
+      "item": [
+
+        {
+          "name": "2.1 Decodificar meu token JWT 🔍",
+          "description": "Esta request busca os dados do usuário logado usando o token do super_admin.\n\nConceitualmente: o JWT é como um RG — ele já carrega as informações dentro dele (email, papel, prazo). O backend não precisa consultar o banco toda vez, só valida a assinatura.\n\nVocê pode ver o conteúdo do seu token em: https://jwt.io",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_super_admin}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/users/me", "host": ["{{base_url}}"], "path": ["api","users","me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Decodifica o JWT localmente para inspecionar o payload",
+                  "// JWT tem 3 partes separadas por ponto: header.payload.assinatura",
+                  "const token = pm.collectionVariables.get('token_super_admin');",
+                  "if (token) {",
+                  "    const parts = token.split('.');",
+                  "    const payload = JSON.parse(atob(parts[1]));",
+                  "    console.log('=== CONTEÚDO DO SEU TOKEN JWT ===');",
+                  "    console.log('Email:', payload.email);",
+                  "    console.log('Papel:', payload.funcao);",
+                  "    console.log('Expira em:', new Date(payload.exp * 1000).toLocaleString('pt-BR'));",
+                  "    pm.test('Token contém campo funcao', function () {",
+                  "        pm.expect(payload).to.have.property('funcao');",
+                  "    });",
+                  "    pm.test('Token contém campo exp (expiração)', function () {",
+                  "        pm.expect(payload).to.have.property('exp');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "2.2 usuario tentando criar convite ❌ (403)",
+          "description": "Um usuário comum NÃO pode criar convites — só admin ou superior.\n\nEsperado: 403 Forbidden\n\nNote a diferença entre 401 e 403:\n- 401: você não está autenticado (sem token)\n- 403: você está autenticado, mas não tem permissão para ISSO",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_usuario}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/invitations", "host": ["{{base_url}}"], "path": ["api","invitations"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"teste@hospital.com\",\n  \"funcao\": \"usuario\",\n  \"hospital_id\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 ou 403 - sem permissão', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});",
+                  "",
+                  "pm.test('Resposta tem mensagem de erro', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('erro');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "3. Fluxo de Convites",
+      "description": "Aqui simulamos o ciclo de vida completo de um convite:\n1. super_admin cria o convite\n2. Sistema gera um link com token único\n3. Enfermeira acessa o link e valida\n4. Enfermeira cria a conta\n\nPense nisso como um 'link mágico' que expira em 7 dias.",
+      "item": [
+
+        {
+          "name": "3.1 Criar convite como super_admin ✅",
+          "description": "O super_admin convida uma enfermeira para um hospital específico.\n\nO backend:\n1. Verifica que você é admin ou superior (via JWT)\n2. Verifica que o hospital existe\n3. Verifica que o email ainda não tem conta\n4. Gera um token único de 64 caracteres (uuid4)\n5. Retorna o link que deve ser enviado para a enfermeira",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_super_admin}}" }
+            ],
+            "url": { "raw": "{{base_url}}/api/invitations", "host": ["{{base_url}}"], "path": ["api","invitations"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"enfermeira.teste@hospital.com\",\n  \"funcao\": \"usuario\",\n  \"hospital_id\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 - Convite criado', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Resposta tem token e link do convite', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.convite).to.have.property('token');",
+                  "  pm.expect(body).to.have.property('link');",
+                  "  // Salva o token e id para usar nas próximas requests",
+                  "  pm.collectionVariables.set('ultimo_convite_token', body.convite.token);",
+                  "  pm.collectionVariables.set('ultimo_convite_id', body.convite.id);",
+                  "  console.log('Link do convite:', body.link);",
+                  "  console.log('Token salvo para validação:', body.convite.token);",
+                  "});",
+                  "",
+                  "pm.test('Convite tem validade de 7 dias', function () {",
+                  "  const body = pm.response.json();",
+                  "  const expira = new Date(body.convite.expires_at);",
+                  "  const agora = new Date();",
+                  "  const diffDias = (expira - agora) / (1000 * 60 * 60 * 24);",
+                  "  pm.expect(diffDias).to.be.closeTo(7, 1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "3.2 Validar token do convite (público) ✅",
+          "description": "Quando a enfermeira clica no link, o frontend chama este endpoint ANTES de mostrar o formulário.\n\nMotivo: mostrar para a enfermeira 'Você foi convidada para o Hospital Einstein como Usuária' antes de pedir os dados.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/invitations/validate/{{ultimo_convite_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations","validate","{{ultimo_convite_token}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 - Token válido', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Retorna email e hospital da enfermeira', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('email');",
+                  "  pm.expect(body).to.have.property('hospital');",
+                  "  pm.expect(body).to.have.property('funcao');",
+                  "  console.log('Convite para:', body.email, '|', body.hospital, '|', body.funcao);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "3.3 Aceitar convite — criar conta ✅",
+          "description": "A enfermeira preenche o formulário com nome + senha e submete.\n\nO backend:\n1. Valida o token (não expirado, não usado)\n2. Cria a conta JÁ vinculada ao hospital correto\n3. Marca o convite como 'usado' (não pode ser reusado)\n4. Retorna um JWT para ela entrar direto no dashboard",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/invitations/accept/{{ultimo_convite_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations","accept","{{ultimo_convite_token}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Enfermeira Teste Silva\",\n  \"senha\": \"Enf@12345\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 - Conta criada', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Retorna token JWT para login imediato', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('token');",
+                  "  // Salva como token de usuário para testar acesso",
+                  "  pm.collectionVariables.set('token_usuario', body.token);",
+                  "  console.log('Conta criada! Token de usuário salvo.');",
+                  "});",
+                  "",
+                  "pm.test('Usuário criado tem papel usuario', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.usuario.funcao).to.equal('usuario');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "3.4 Tentar reúsar o mesmo convite ❌ (410)",
+          "description": "Segurança: um convite só pode ser usado UMA vez.\n\nDepois de aceito, o campo `usado = true` no banco.\nSe alguém tentar o mesmo link de novo, recebe 410 Gone.\n\n410 significa 'este recurso existiu mas não existe mais' — mais preciso que 404.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/invitations/accept/{{ultimo_convite_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations","accept","{{ultimo_convite_token}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Outra Pessoa\",\n  \"senha\": \"Teste@123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 410 - Convite já utilizado', function () {",
+                  "  pm.response.to.have.status(410);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem indica que convite foi usado', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.erro).to.include('utilizado');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "3.5 Listar convites (admin) ✅",
+          "description": "Admin vê todos os convites do seu hospital.\nsuper_admin vê de todos os hospitais.\n\nÚtil para o painel de gestão: saber quem foi convidado, quem aceitou, quais expiram em breve.",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_super_admin}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/invitations",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 - Lista retornada', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Resposta é um array', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "  console.log('Total de convites:', body.length);",
+                  "  if (body.length > 0) {",
+                  "    console.log('Último convite:', body[0].email, '| usado:', body[0].usado);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "4. Segurança — Casos de borda",
+      "description": "Testes que verificam se o sistema resiste a situações inesperadas.\nNo QA, chamamos isso de 'testes negativos' — tentamos quebrar o sistema de propósito para garantir que ele se defende.",
+      "item": [
+
+        {
+          "name": "4.1 Token inválido/adulterado ❌",
+          "description": "O que acontece se alguém tentar forjar um token?\n\nO JWT é assinado com o JWT_SECRET do servidor. Qualquer alteração no payload invalida a assinatura.\n\nEsperado: 401 com 'Token inválido'",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer token.falso.aqui" }
+            ],
+            "url": { "raw": "{{base_url}}/api/invitations", "host": ["{{base_url}}"], "path": ["api","invitations"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401 - Token inválido rejeitado', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Sistema não retorna dados com token adulterado', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.not.have.property('token');",
+                  "  pm.expect(body).to.have.property('erro');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "4.2 Convite com token inexistente ❌",
+          "description": "Se alguém tentar adivinhar ou forçar um token de convite.\n\nEsperado: 404 Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/invitations/validate/token-que-nao-existe-00000000",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations","validate","token-que-nao-existe-00000000"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404 - Token não encontrado', function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Mensagem de erro adequada', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('erro');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "4.3 Senha fraca no aceite de convite ❌",
+          "description": "Validação de senha mínima de 8 caracteres.\n\nSegurança básica: senhas muito curtas são fáceis de descobrir por força bruta.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/invitations/accept/qualquer-token",
+              "host": ["{{base_url}}"],
+              "path": ["api","invitations","accept","qualquer-token"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"Enfermeira\",\n  \"senha\": \"123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400 ou 404 - Senha fraca ou token inválido', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+
+  ]
+}

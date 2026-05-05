@@ -6,7 +6,12 @@ from app.models.invitation import Invitation
 from datetime import datetime, timedelta
 import jwt
 import os
-import msal
+
+try:
+    import msal
+    _MSAL_AVAILABLE = True
+except ImportError:
+    _MSAL_AVAILABLE = False
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -16,6 +21,10 @@ _MS_CLIENT_SECRET = os.getenv('MICROSOFT_CLIENT_SECRET', '')
 _MS_TENANT_ID     = os.getenv('MICROSOFT_TENANT_ID', 'common')
 _MS_AUTHORITY     = f'https://login.microsoftonline.com/{_MS_TENANT_ID}'
 _MS_SCOPES        = ['User.Read']
+
+def _ms_configurado():
+    """Retorna True apenas se msal está instalado E as variáveis foram configuradas."""
+    return _MSAL_AVAILABLE and bool(_MS_CLIENT_ID) and bool(_MS_CLIENT_SECRET)
 
 def _ms_app():
     return msal.ConfidentialClientApplication(
@@ -48,8 +57,19 @@ def _gerar_token(usuario):
 @bp.route('/microsoft/login', methods=['GET'])
 def microsoft_login():
     """Inicia o fluxo OAuth com Microsoft. Redireciona para a tela de login MS."""
-    if not _MS_CLIENT_ID:
-        return jsonify({'erro': 'Login Microsoft não configurado neste ambiente.'}), 503
+    if not _ms_configurado():
+        # Diagnóstico claro para facilitar o debug
+        problemas = []
+        if not _MSAL_AVAILABLE:
+            problemas.append('biblioteca msal não instalada (verifique requirements.txt e redeploy)')
+        if not _MS_CLIENT_ID:
+            problemas.append('variável MICROSOFT_CLIENT_ID não configurada no Render')
+        if not _MS_CLIENT_SECRET:
+            problemas.append('variável MICROSOFT_CLIENT_SECRET não configurada no Render')
+        return jsonify({
+            'erro': 'Login Microsoft não configurado neste ambiente.',
+            'detalhes': problemas
+        }), 503
     app = _ms_app()
     auth_url = app.get_authorization_request_url(
         scopes=_MS_SCOPES,
