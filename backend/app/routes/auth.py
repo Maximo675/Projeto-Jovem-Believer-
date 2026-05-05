@@ -16,9 +16,9 @@ except ImportError:
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 # ─── Configurações Microsoft ──────────────────────────────────────────────────
-_MS_CLIENT_ID     = os.getenv('MICROSOFT_CLIENT_ID', '')
-_MS_CLIENT_SECRET = os.getenv('MICROSOFT_CLIENT_SECRET', '')
-_MS_TENANT_ID     = os.getenv('MICROSOFT_TENANT_ID', 'common')
+_MS_CLIENT_ID     = os.getenv('MICROSOFT_CLIENT_ID', '').strip()
+_MS_CLIENT_SECRET = os.getenv('MICROSOFT_CLIENT_SECRET', '').strip()
+_MS_TENANT_ID     = os.getenv('MICROSOFT_TENANT_ID', 'common').strip()
 _MS_AUTHORITY     = f'https://login.microsoftonline.com/{_MS_TENANT_ID}'
 _MS_SCOPES        = ['User.Read']
 
