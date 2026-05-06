@@ -279,13 +279,97 @@ def _expiry_label(minutes):
     return f'{horas} hora{"s" if horas != 1 else ""}'
 
 
+def _enviar_via_graph(html, email_destino, assunto):
+    """Tenta enviar via Microsoft Graph. Retorna True se enviou, False se falhou."""
+    mail_sender = os.getenv('MAIL_SENDER', '').strip()
+    if not (_MSAL_AVAILABLE and _MS_CLIENT_ID and _MS_CLIENT_SECRET and mail_sender):
+        return False
+    try:
+        import requests as _req
+        ms = msal.ConfidentialClientApplication(
+            _MS_CLIENT_ID, authority=_MS_AUTHORITY, client_credential=_MS_CLIENT_SECRET,
+        )
+        result = ms.acquire_token_for_client(scopes=['https://graph.microsoft.com/.default'])
+        if 'access_token' not in result:
+            print(f'[EMAIL] Graph: token negado — {result.get("error_description")}')
+            return False
+        resp = _req.post(
+            f'https://graph.microsoft.com/v1.0/users/{mail_sender}/sendMail',
+            json={
+                'message': {
+                    'subject': assunto,
+                    'body': {'contentType': 'HTML', 'content': html},
+                    'toRecipients': [{'emailAddress': {'address': email_destino}}],
+                },
+                'saveToSentItems': False,
+            },
+            headers={'Authorization': f'Bearer {result["access_token"]}', 'Content-Type': 'application/json'},
+            timeout=15,
+        )
+        if resp.status_code == 202:
+            print(f'[EMAIL] Enviado via Microsoft Graph → {email_destino}')
+            return True
+        print(f'[EMAIL] Graph retornou {resp.status_code}: {resp.text}')
+        return False
+    except Exception as exc:
+        print(f'[EMAIL] Erro Graph: {exc}')
+        return False
+
+
+def _enviar_via_smtp(html, email_destino, assunto):
+    """Tenta enviar via SMTP (Gmail, Office365, etc). Retorna True se enviou, False se falhou."""
+    mail_user   = os.getenv('MAIL_USERNAME', '').strip()
+    mail_pass   = os.getenv('MAIL_PASSWORD', '').strip()
+    if not (mail_user and mail_pass):
+        return False
+
+    mail_server = os.getenv('MAIL_SERVER', 'smtp.gmail.com').strip()
+    mail_port   = int(os.getenv('MAIL_PORT', 587))
+    mail_from   = os.getenv('MAIL_DEFAULT_SENDER', mail_user).strip()
+
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = assunto
+    msg['From']    = mail_from
+    msg['To']      = email_destino
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
+    try:
+        with smtplib.SMTP(mail_server, mail_port, timeout=15) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(mail_user, mail_pass)
+            smtp.sendmail(mail_from, [email_destino], msg.as_string())
+        print(f'[EMAIL] Enviado via SMTP ({mail_server}) → {email_destino}')
+        return True
+    except Exception as exc:
+        print(f'[EMAIL] Erro SMTP: {exc}')
+        return False
+
+
+def _enviar_email(html, email_destino, assunto):
+    """
+    Cascata de envio:
+      1. Microsoft Graph API  (requer MAIL_SENDER + permissão Mail.Send no Azure)
+      2. SMTP / Gmail         (requer MAIL_USERNAME + MAIL_PASSWORD)
+      3. Log no console       (fallback final — link aparece nos logs do Render)
+    """
+    if _enviar_via_graph(html, email_destino, assunto):
+        return True
+    if _enviar_via_smtp(html, email_destino, assunto):
+        return True
+    print(f'[EMAIL] Nenhum provedor configurado. Conteúdo do email para {email_destino}:')
+    print(f'[EMAIL] Assunto: {assunto}')
+    # Extrai o link do HTML para facilitar cópia nos logs
+    import re
+    links = re.findall(r'href="(https?://[^"]+)"', html)
+    for l in links:
+        print(f'[EMAIL] Link: {l}')
+    return False
+
+
 def _enviar_email_reset(email_destino, nome, link, expiry_minutes=60):
-    """
-    Envia e-mail de reset.
-    Prioridade: 1) Microsoft Graph API (usa o app Azure já configurado)
-                2) SMTP clássico (MAIL_SERVER + MAIL_USERNAME)
-                3) Log no console (sem configuração de e-mail)
-    """
     expiry_str = _expiry_label(expiry_minutes)
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
@@ -308,77 +392,7 @@ def _enviar_email_reset(email_destino, nome, link, expiry_minutes=60):
       <p style="color:#bbb;font-size:.75rem">Winged Mind · Plataforma de Treinamento Hospitalar</p>
     </div>
     """
-
-    # ── 1. Microsoft Graph API ────────────────────────────────────────────────
-    mail_sender = os.getenv('MAIL_SENDER', '').strip()
-    if _MSAL_AVAILABLE and _MS_CLIENT_ID and _MS_CLIENT_SECRET and mail_sender:
-        try:
-            import requests as _req
-            ms = msal.ConfidentialClientApplication(
-                _MS_CLIENT_ID,
-                authority=_MS_AUTHORITY,
-                client_credential=_MS_CLIENT_SECRET,
-            )
-            result = ms.acquire_token_for_client(
-                scopes=['https://graph.microsoft.com/.default']
-            )
-            if 'access_token' not in result:
-                raise RuntimeError(result.get('error_description', 'Falha ao obter token Graph'))
-
-            payload = {
-                'message': {
-                    'subject': 'Redefinição de senha — Winged Mind',
-                    'body': {'contentType': 'HTML', 'content': html},
-                    'toRecipients': [{'emailAddress': {'address': email_destino}}],
-                },
-                'saveToSentItems': False,
-            }
-            resp = _req.post(
-                f'https://graph.microsoft.com/v1.0/users/{mail_sender}/sendMail',
-                json=payload,
-                headers={
-                    'Authorization': f'Bearer {result["access_token"]}',
-                    'Content-Type': 'application/json',
-                },
-                timeout=15,
-            )
-            if resp.status_code == 202:
-                print(f'[RESET] Email enviado via Microsoft Graph para {email_destino}')
-                return True
-            print(f'[RESET] Graph API retornou {resp.status_code}: {resp.text}')
-        except Exception as exc:
-            print(f'[RESET] Erro no Graph API: {exc}')
-        # Se chegou aqui, Graph falhou — tenta SMTP como fallback
-
-    # ── 2. SMTP clássico ──────────────────────────────────────────────────────
-    mail_user   = os.getenv('MAIL_USERNAME', '').strip()
-    mail_pass   = os.getenv('MAIL_PASSWORD', '').strip()
-    mail_server = os.getenv('MAIL_SERVER', 'smtp.office365.com').strip()
-    mail_port   = int(os.getenv('MAIL_PORT', 587))
-    mail_from   = os.getenv('MAIL_DEFAULT_SENDER', mail_sender or mail_user).strip()
-
-    if mail_user and mail_pass:
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Redefinição de senha — Winged Mind'
-        msg['From']    = mail_from
-        msg['To']      = email_destino
-        msg.attach(MIMEText(html, 'html', 'utf-8'))
-        try:
-            with smtplib.SMTP(mail_server, mail_port, timeout=10) as smtp:
-                smtp.ehlo(); smtp.starttls(); smtp.login(mail_user, mail_pass)
-                smtp.sendmail(mail_from, [email_destino], msg.as_string())
-            print(f'[RESET] Email enviado via SMTP para {email_destino}')
-            return True
-        except Exception as exc:
-            print(f'[RESET] Falha no SMTP: {exc}')
-
-    # ── 3. Sem configuração: apenas loga o link ───────────────────────────────
-    print(f'[RESET] Nenhum provedor de e-mail configurado.')
-    print(f'[RESET] Link de reset para {email_destino}: {link}')
-    return True
+    return _enviar_email(html, email_destino, 'Redefinição de senha — Winged Mind')
 
 
 @bp.route('/esqueci-senha', methods=['POST'])

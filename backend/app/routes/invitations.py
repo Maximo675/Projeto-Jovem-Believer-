@@ -24,15 +24,13 @@ bp = Blueprint('invitations', __name__, url_prefix='/api/invitations')
 
 
 def _enviar_email_convite(email_destino, nome_hospital, funcao, link, criado_por_nome):
-    """Envia email de convite via Microsoft Graph ou loga o link."""
+    """Delega o envio para a cascata centralizada em auth.py."""
+    from app.routes.auth import _enviar_email
     funcao_labels = {
-        'usuario': 'Usuário',
-        'instrutor': 'Instrutor',
-        'admin': 'Administrador',
-        'super_admin': 'Super Admin',
+        'usuario': 'Usuário', 'instrutor': 'Instrutor',
+        'admin': 'Administrador', 'super_admin': 'Super Admin',
     }
     funcao_label = funcao_labels.get(funcao, funcao.title())
-
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
       <img src="https://projeto-jovem-believer.onrender.com/assets/logo/winged_mind_azul.png"
@@ -50,56 +48,12 @@ def _enviar_email_convite(email_destino, nome_hospital, funcao, link, criado_por
                 border-radius:8px;font-weight:600;font-size:1rem">
         Criar minha conta
       </a>
-      <p style="color:#888;font-size:.83rem">
-        Se você não esperava este convite, ignore este email.
-      </p>
+      <p style="color:#888;font-size:.83rem">Se você não esperava este convite, ignore este email.</p>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
       <p style="color:#bbb;font-size:.75rem">Winged Mind · Plataforma de Treinamento Hospitalar</p>
     </div>
     """
-
-    # Tenta Microsoft Graph API
-    try:
-        import msal as _msal
-        import requests as _req
-        client_id     = os.getenv('MICROSOFT_CLIENT_ID', '').strip()
-        client_secret = os.getenv('MICROSOFT_CLIENT_SECRET', '').strip()
-        tenant_id     = os.getenv('MICROSOFT_TENANT_ID', 'common').strip()
-        mail_sender   = os.getenv('MAIL_SENDER', '').strip()
-
-        if client_id and client_secret and mail_sender:
-            authority = f'https://login.microsoftonline.com/{tenant_id}'
-            ms = _msal.ConfidentialClientApplication(
-                client_id, authority=authority, client_credential=client_secret
-            )
-            result = ms.acquire_token_for_client(
-                scopes=['https://graph.microsoft.com/.default']
-            )
-            if 'access_token' in result:
-                payload = {
-                    'message': {
-                        'subject': f'Convite para a plataforma Winged Mind — {nome_hospital}',
-                        'body': {'contentType': 'HTML', 'content': html},
-                        'toRecipients': [{'emailAddress': {'address': email_destino}}],
-                    },
-                    'saveToSentItems': False,
-                }
-                resp = _req.post(
-                    f'https://graph.microsoft.com/v1.0/users/{mail_sender}/sendMail',
-                    json=payload,
-                    headers={'Authorization': f'Bearer {result["access_token"]}',
-                             'Content-Type': 'application/json'},
-                    timeout=15,
-                )
-                if resp.status_code == 202:
-                    print(f'[CONVITE] Email enviado via Graph para {email_destino}')
-                    return
-                print(f'[CONVITE] Graph retornou {resp.status_code}: {resp.text}')
-    except Exception as exc:
-        print(f'[CONVITE] Erro Graph API: {exc}')
-
-    # Fallback: log do link
-    print(f'[CONVITE] Link de convite para {email_destino}: {link}')
+    _enviar_email(html, email_destino, f'Convite para a plataforma Winged Mind — {nome_hospital}')
 
 
 # ─── Criar convite ────────────────────────────────────────────────────────────
