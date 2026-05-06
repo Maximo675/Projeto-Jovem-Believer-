@@ -1,6 +1,7 @@
 from app import db
 from datetime import datetime, timedelta
 import secrets
+import os
 
 
 class PasswordReset(db.Model):
@@ -15,11 +16,18 @@ class PasswordReset(db.Model):
 
     usuario = db.relationship('User', backref='resets_senha')
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, expiry_minutes=None):
+        if expiry_minutes is None:
+            expiry_minutes = int(os.getenv('RESET_TOKEN_EXPIRY_MINUTES', 60))
         self.user_id    = user_id
         self.token      = secrets.token_urlsafe(48)
-        self.expires_at = datetime.utcnow() + timedelta(hours=1)
+        self.expires_at = datetime.utcnow() + timedelta(minutes=expiry_minutes)
 
     @property
     def valido(self):
         return not self.usado and datetime.utcnow() < self.expires_at
+
+    @property
+    def minutos_restantes(self):
+        delta = self.expires_at - datetime.utcnow()
+        return max(0, int(delta.total_seconds() / 60))

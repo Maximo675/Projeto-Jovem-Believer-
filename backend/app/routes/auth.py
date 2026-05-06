@@ -271,13 +271,22 @@ def logout():
 
 # ─── Reset de senha ───────────────────────────────────────────────────────────
 
-def _enviar_email_reset(email_destino, nome, link):
+def _expiry_label(minutes):
+    """Converte minutos em texto legível: '30 minutos', '1 hora', '2 horas'."""
+    if minutes < 60:
+        return f'{minutes} minuto{"s" if minutes != 1 else ""}'
+    horas = minutes // 60
+    return f'{horas} hora{"s" if horas != 1 else ""}'
+
+
+def _enviar_email_reset(email_destino, nome, link, expiry_minutes=60):
     """
     Envia e-mail de reset.
     Prioridade: 1) Microsoft Graph API (usa o app Azure já configurado)
                 2) SMTP clássico (MAIL_SERVER + MAIL_USERNAME)
                 3) Log no console (sem configuração de e-mail)
     """
+    expiry_str = _expiry_label(expiry_minutes)
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px">
       <img src="https://projeto-jovem-believer.onrender.com/assets/logo/winged_mind_azul.png"
@@ -285,7 +294,7 @@ def _enviar_email_reset(email_destino, nome, link):
       <h2 style="color:#1a73e8;margin:0 0 16px">Redefinição de senha</h2>
       <p style="color:#444">Olá, <strong>{nome}</strong>.</p>
       <p style="color:#444">Recebemos uma solicitação para redefinir a senha da sua conta.<br>
-         Clique no botão abaixo — o link expira em <strong>1 hora</strong>.</p>
+         Clique no botão abaixo — o link expira em <strong>{expiry_str}</strong>.</p>
       <a href="{link}"
          style="display:inline-block;margin:24px 0;padding:14px 32px;
                 background:#1a73e8;color:#fff;text-decoration:none;
@@ -391,13 +400,14 @@ def esqueci_senha():
     PasswordReset.query.filter_by(user_id=usuario.id, usado=False).update({'usado': True})
     db.session.flush()
 
-    reset = PasswordReset(user_id=usuario.id)
+    expiry_minutes = int(os.getenv('RESET_TOKEN_EXPIRY_MINUTES', 60))
+    reset = PasswordReset(user_id=usuario.id, expiry_minutes=expiry_minutes)
     db.session.add(reset)
     db.session.commit()
 
     base = os.getenv('APP_BASE_URL', 'http://localhost:5001').strip().rstrip('/')
     link = f'{base}/pages/redefinir-senha.html?token={reset.token}'
-    _enviar_email_reset(usuario.email, usuario.nome, link)
+    _enviar_email_reset(usuario.email, usuario.nome, link, expiry_minutes=expiry_minutes)
 
     return jsonify({'mensagem': 'Se o email estiver cadastrado, você receberá o link em breve.'}), 200
 
