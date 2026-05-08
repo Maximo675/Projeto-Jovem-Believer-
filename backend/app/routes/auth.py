@@ -320,6 +320,39 @@ def _enviar_via_graph(html, email_destino, assunto):
         return False
 
 
+def _enviar_via_brevo(html, email_destino, assunto):
+    """Tenta enviar via Brevo (Sendinblue) API. Retorna True se enviou, False se falhou."""
+    api_key      = os.getenv('BREVO_API_KEY', '').strip()
+    sender_email = os.getenv('BREVO_SENDER_EMAIL', '').strip()
+    sender_name  = os.getenv('BREVO_SENDER_NAME', 'Winged Mind').strip()
+    if not (api_key and sender_email):
+        return False
+    try:
+        import requests as _req
+        resp = _req.post(
+            'https://api.brevo.com/v3/smtp/email',
+            json={
+                'sender': {'name': sender_name, 'email': sender_email},
+                'to': [{'email': email_destino}],
+                'subject': assunto,
+                'htmlContent': html,
+            },
+            headers={
+                'api-key': api_key,
+                'Content-Type': 'application/json',
+            },
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            print(f'[EMAIL] Enviado via Brevo \u2192 {email_destino}')
+            return True
+        print(f'[EMAIL] Brevo retornou {resp.status_code}: {resp.text}')
+        return False
+    except Exception as exc:
+        print(f'[EMAIL] Erro Brevo: {exc}')
+        return False
+
+
 def _enviar_via_resend(html, email_destino, assunto):
     """Tenta enviar via Resend API (HTTPS). Retorna True se enviou, False se falhou."""
     api_key = os.getenv('RESEND_API_KEY', '').strip()
@@ -390,11 +423,14 @@ def _enviar_email(html, email_destino, assunto):
     """
     Cascata de envio:
       1. Microsoft Graph API  (requer MAIL_SENDER + permissão Mail.Send no Azure)
-      2. Resend API           (requer RESEND_API_KEY + MAIL_SENDER)
-      3. SMTP / Gmail         (requer MAIL_USERNAME + MAIL_PASSWORD)
-      4. Log no console       (fallback final — link aparece nos logs do Render)
+      2. Brevo API            (requer BREVO_API_KEY + BREVO_SENDER_EMAIL)
+      3. Resend API           (requer RESEND_API_KEY)
+      4. SMTP / Gmail         (requer MAIL_USERNAME + MAIL_PASSWORD)
+      5. Log no console       (fallback final — link aparece nos logs do Render)
     """
     if _enviar_via_graph(html, email_destino, assunto):
+        return True
+    if _enviar_via_brevo(html, email_destino, assunto):
         return True
     if _enviar_via_resend(html, email_destino, assunto):
         return True
