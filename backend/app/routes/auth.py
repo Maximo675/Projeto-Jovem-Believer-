@@ -135,11 +135,15 @@ def microsoft_callback():
 
     email = email.strip().lower()
 
-    # ── 1. Usuário já existe → login direto ──────────────────────────────────
+    # ── 1. Usuário já existe → login direto (apenas super_admin via MS) ───────
     usuario = User.query.filter_by(email=email).first()
     if usuario:
         if not usuario.ativo:
             return redirect(f'{login_page}?ms_error=Conta+desativada')
+        if usuario.funcao != 'super_admin':
+            return redirect(
+                f'{login_page}?ms_error=Login+com+Microsoft+disponivel+apenas+para+administradores+do+sistema'
+            )
         token = _gerar_token(usuario)
         return redirect(f'{dash_page}?auth_token={token}')
 
@@ -316,6 +320,38 @@ def _enviar_via_graph(html, email_destino, assunto):
         return False
 
 
+def _enviar_via_resend(html, email_destino, assunto):
+    """Tenta enviar via Resend API (HTTPS). Retorna True se enviou, False se falhou."""
+    api_key = os.getenv('RESEND_API_KEY', '').strip()
+    mail_from = os.getenv('MAIL_SENDER', os.getenv('MAIL_USERNAME', '')).strip()
+    if not (api_key and mail_from):
+        return False
+    try:
+        import requests as _req
+        resp = _req.post(
+            'https://api.resend.com/emails',
+            json={
+                'from': mail_from,
+                'to': [email_destino],
+                'subject': assunto,
+                'html': html,
+            },
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            print(f'[EMAIL] Enviado via Resend → {email_destino}')
+            return True
+        print(f'[EMAIL] Resend retornou {resp.status_code}: {resp.text}')
+        return False
+    except Exception as exc:
+        print(f'[EMAIL] Erro Resend: {exc}')
+        return False
+
+
 def _enviar_via_smtp(html, email_destino, assunto):
     """Tenta enviar via SMTP (Gmail, Office365, etc). Retorna True se enviou, False se falhou."""
     mail_user   = os.getenv('MAIL_USERNAME', '').strip()
@@ -352,10 +388,13 @@ def _enviar_email(html, email_destino, assunto):
     """
     Cascata de envio:
       1. Microsoft Graph API  (requer MAIL_SENDER + permissão Mail.Send no Azure)
-      2. SMTP / Gmail         (requer MAIL_USERNAME + MAIL_PASSWORD)
-      3. Log no console       (fallback final — link aparece nos logs do Render)
+      2. Resend API           (requer RESEND_API_KEY + MAIL_SENDER)
+      3. SMTP / Gmail         (requer MAIL_USERNAME + MAIL_PASSWORD)
+      4. Log no console       (fallback final — link aparece nos logs do Render)
     """
     if _enviar_via_graph(html, email_destino, assunto):
+        return True
+    if _enviar_via_resend(html, email_destino, assunto):
         return True
     if _enviar_via_smtp(html, email_destino, assunto):
         return True
