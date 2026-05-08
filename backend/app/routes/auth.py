@@ -323,8 +323,10 @@ def _enviar_via_graph(html, email_destino, assunto):
 def _enviar_via_resend(html, email_destino, assunto):
     """Tenta enviar via Resend API (HTTPS). Retorna True se enviou, False se falhou."""
     api_key = os.getenv('RESEND_API_KEY', '').strip()
-    mail_from = os.getenv('MAIL_SENDER', os.getenv('MAIL_USERNAME', '')).strip()
-    if not (api_key and mail_from):
+    # RESEND_FROM deve ser um domínio verificado no Resend.
+    # Para testes sem domínio próprio, use: onboarding@resend.dev
+    mail_from = os.getenv('RESEND_FROM', 'onboarding@resend.dev').strip()
+    if not api_key:
         return False
     try:
         import requests as _req
