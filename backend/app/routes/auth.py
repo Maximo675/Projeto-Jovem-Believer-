@@ -322,7 +322,7 @@ def _enviar_via_graph(html, email_destino, assunto):
 
 def _enviar_via_brevo(html, email_destino, assunto):
     """Tenta enviar via Brevo (Sendinblue) API. Retorna True se enviou, False se falhou."""
-    api_key      = os.getenv('BREVO_API_KEY', '').strip()
+    api_key      = os.getenv('BREVO_API_KEY', '').replace('\n', '').replace('\r', '').replace(' ', '')
     sender_email = os.getenv('BREVO_SENDER_EMAIL', '').strip()
     sender_name  = os.getenv('BREVO_SENDER_NAME', 'Winged Mind').strip()
     if not (api_key and sender_email):
