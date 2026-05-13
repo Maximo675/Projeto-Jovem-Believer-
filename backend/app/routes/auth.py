@@ -77,13 +77,10 @@ def microsoft_login():
             redirect_uri=_ms_redirect_uri(),
             prompt='select_account',
         )
-    except Exception as exc:
-        import traceback
-        return jsonify({
-            'erro': str(exc),
-            'tipo': type(exc).__name__,
-            'trace': traceback.format_exc(),
-        }), 500
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro ao iniciar OAuth Microsoft')
+        return jsonify({'erro': 'Serviço de autenticação temporariamente indisponível.'}), 503
     return redirect(auth_url)
 
 
@@ -101,8 +98,8 @@ def microsoft_callback():
     dash_page     = f'{frontend_base}/pages/dashboard.html'
 
     if error or not code:
-        desc = request.args.get('error_description', error or 'Acesso negado')
-        return redirect(f'{login_page}?ms_error={desc}')
+        # Nunca reflita error_description diretamente — pode conter dados internos
+        return redirect(f'{login_page}?ms_error=Acesso+negado+pela+Microsoft.')
 
     try:
         ms = _ms_app()
@@ -111,20 +108,17 @@ def microsoft_callback():
             scopes=_MS_SCOPES,
             redirect_uri=_ms_redirect_uri(),
         )
-    except Exception as e:
-        return jsonify({
-            'etapa': 'acquire_token',
-            'erro': str(e),
-            'tipo': type(e).__name__,
-            'trace': _tb.format_exc(),
-        }), 500
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro ao trocar code por token (MSAL)')
+        return redirect(f'{login_page}?ms_error=Falha+na+autenticacao.+Tente+novamente.')
 
     if 'error' in result:
-        return jsonify({
-            'etapa': 'msal_result',
-            'erro': result.get('error'),
-            'descricao': result.get('error_description'),
-        }), 500
+        import logging
+        logging.getLogger(__name__).error(
+            'MSAL error: %s — %s', result.get('error'), result.get('error_description')
+        )
+        return redirect(f'{login_page}?ms_error=Falha+na+autenticacao+Microsoft.+Tente+novamente.')
 
     claims = result.get('id_token_claims', {})
     email  = claims.get('preferred_username') or claims.get('email') or claims.get('upn', '')
@@ -145,7 +139,7 @@ def microsoft_callback():
                 f'{login_page}?ms_error=Login+com+Microsoft+disponivel+apenas+para+administradores+do+sistema'
             )
         token = _gerar_token(usuario)
-        return redirect(f'{dash_page}?auth_token={token}')
+        return redirect(f'{login_page}?auth_token={token}')
 
     # ── 2. Verificar convite pendente para este email ─────────────────────────
     convite = (Invitation.query
@@ -199,7 +193,7 @@ def microsoft_callback():
         return redirect(f'{login_page}?ms_error=Erro+ao+criar+usuario')
 
     token = _gerar_token(usuario)
-    return redirect(f'{dash_page}?auth_token={token}')
+    return redirect(f'{login_page}?auth_token={token}')
 
 
 # ─── Rotas existentes (adaptadas para usar helper) ────────────────────────────
@@ -234,9 +228,11 @@ def register():
             'usuario': usuario.to_dict()
         }), 201
 
-    except Exception as e:
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro ao registrar usuário')
         db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        return jsonify({'erro': 'Não foi possível criar a conta. Tente novamente.'}), 500
 
 
 @bp.route('/login', methods=['POST'])
@@ -248,11 +244,10 @@ def login():
             return jsonify({'erro': 'Email e senha são obrigatórios'}), 400
 
         usuario = User.query.filter_by(email=data.get('email')).first()
-        if not usuario or not usuario.check_password(data.get('senha')):
+        # Verificar credenciais e status em dois passos, mas com MESMA mensagem/código
+        # para evitar enumeração de contas válidas via status code diferente
+        if not usuario or not usuario.check_password(data.get('senha')) or not usuario.ativo:
             return jsonify({'erro': 'Email ou senha inválidos'}), 401
-
-        if not usuario.ativo:
-            return jsonify({'erro': 'Usuário desativado'}), 403
 
         token = _gerar_token(usuario)
 
@@ -263,8 +258,10 @@ def login():
             'usuario': usuario.to_dict()
         }), 200
 
-    except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro no login')
+        return jsonify({'erro': 'Não foi possível processar. Tente novamente.'}), 500
 
 
 @bp.route('/logout', methods=['POST'])

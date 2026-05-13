@@ -45,13 +45,18 @@ def token_requerido(f):
             return jsonify({'erro': 'Token não fornecido'}), 401
         
         try:
-            # Decodificar token
-            data = jwt.decode(token, os.getenv('JWT_SECRET', 'secret'), algorithms=['HS256'])
+            # Decodificar token — fallback igual ao auth.py para evitar assimetria
+            _secret = os.getenv('JWT_SECRET', 'secret-dev-inseguro-troque-em-producao')
+            data = jwt.decode(token, _secret, algorithms=['HS256'])
             usuario = User.query.get(data['usuario_id'])
-            
+
             if not usuario:
-                return jsonify({'erro': 'Usuário não encontrado'}), 404
-            
+                return jsonify({'erro': 'Não autorizado'}), 401
+
+            # Conta desativada: nega acesso mesmo com token ainda válido
+            if not usuario.ativo:
+                return jsonify({'erro': 'Não autorizado'}), 401
+
             # Adicionar usuário ao contexto global Flask
             g.usuario = usuario
             
@@ -77,11 +82,10 @@ def requer_papel(papel_minimo: str):
         @wraps(f)
         def decorada(*args, **kwargs):
             if not hasattr(g, 'usuario'):
-                return jsonify({'erro': 'Token não autenticado'}), 401
+                return jsonify({'erro': 'Não autorizado'}), 401
             if not _role_gte(g.usuario.funcao, papel_minimo):
-                return jsonify({
-                    'erro': f'Acesso negado. Papel mínimo exigido: {papel_minimo}'
-                }), 403
+                # Não revelar o papel mínimo exigido — informação desnecessria ao atacante
+                return jsonify({'erro': 'Acesso negado'}), 403
             return f(*args, **kwargs)
         return decorada
     return decorator
@@ -98,7 +102,7 @@ def admin_requerido(f):
     @wraps(f)
     def decorada(*args, **kwargs):
         if not hasattr(g, 'usuario') or not _role_gte(g.usuario.funcao, 'admin'):
-            return jsonify({'erro': 'Acesso negado. Admin requerido'}), 403
+            return jsonify({'erro': 'Acesso negado'}), 403
         return f(*args, **kwargs)
     return decorada
 

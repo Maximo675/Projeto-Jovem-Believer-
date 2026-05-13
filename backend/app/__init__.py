@@ -18,8 +18,9 @@ db = SQLAlchemy()
 # async_mode=None: Flask-SocketIO auto-detecta o modo correto
 # Com gunicorn+eventlet worker: usa eventlet (já patchado pelo worker)
 # Com python run.py local: usa threading
+_socketio_cors = os.getenv('CORS_ORIGINS', '*') if os.getenv('FLASK_ENV') == 'production' else '*'
 socketio = SocketIO(
-    cors_allowed_origins="*",
+    cors_allowed_origins=_socketio_cors,
     async_mode=None,
     ping_timeout=60,
     ping_interval=25,
@@ -39,7 +40,7 @@ def create_app():
     db.init_app(app)
     socketio.init_app(
         app,
-        cors_allowed_origins="*",
+        cors_allowed_origins=_socketio_cors,
         async_mode=None,
         ping_timeout=60,
         ping_interval=25,
@@ -94,21 +95,45 @@ def create_app():
     
     @app.after_request
     def set_security_headers(response):
-        """Adicionar headers de segurança e CORS"""
-        # Headers CORS adicionais
+        """Adicionar headers de segurança HTTP."""
+
+        # ── Impede clickjacking (iframes maliciosos) ───────────────
+        response.headers['X-Frame-Options'] = 'DENY'
+
+        # ── Bloqueia MIME-type sniffing ────────────────────────────
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # ── Força HTTPS por 1 ano (ativo só em produção) ──────────
+        if os.getenv('FLASK_ENV') == 'production':
+            response.headers['Strict-Transport-Security'] = (
+                'max-age=31536000; includeSubDomains'
+            )
+
+        # ── Política de referência — não vaza URL completa ─────────
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+
+        # ── Desabilita APIs sensíveis desnecessárias ───────────────
+        response.headers['Permissions-Policy'] = (
+            'geolocation=(), microphone=(), payment=()'
+        )
+
+        # ── CSP básica para endpoints de API ──────────────────────
+        if request.path.startswith('/api/'):
+            response.headers['Content-Security-Policy'] = "default-src 'none'"
+
+        # ── Headers CORS adicionais ────────────────────────────────
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
         # Private Network Access: permite que páginas HTTPS no Render chamem este Flask local
-        # via http://localhost:5001/openbio/ sem bloqueio de PNA do Chrome
         response.headers['Access-Control-Allow-Private-Network'] = 'true'
-        
-        # Headers de cache para API
+
+        # ── Cache: sem armazenamento para respostas de API ─────────
         if request.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
-        
+
         return response
     
     # Registrar blueprints
