@@ -456,13 +456,13 @@
     const API = '';
 
     /* ── AUTH ── */
-    function getToken() { return localStorage.getItem('token'); }
+    function getToken() { return localStorage.getItem('authToken'); }
     function getUser()  {
         try { return JSON.parse(atob(getToken().split('.')[1])); } catch { return null; }
     }
 
     function logout() {
-        localStorage.removeItem('token');
+        localStorage.removeItem('authToken');
         window.location.href = '/pages/login.html';
     }
 
