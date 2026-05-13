@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app import db
 from app.models.hospital import Hospital
+from app.decorators import requer_auth, requer_funcao
 
 bp = Blueprint('hospitals', __name__, url_prefix='/api/hospitals')
 
@@ -35,8 +36,9 @@ def get_hospital(hospital_id):
 
 
 @bp.route('', methods=['POST'])
+@requer_funcao('super_admin')
 def create_hospital():
-    """Criar novo hospital (apenas admin)"""
+    """Criar novo hospital (apenas super_admin)"""
     try:
         data = request.get_json()
         

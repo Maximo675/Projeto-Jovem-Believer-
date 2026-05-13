@@ -112,7 +112,7 @@ def create_app():
         return response
     
     # Registrar blueprints
-    from app.routes import auth, courses, users, ai, hospitals, documents, activities, infant_proxy, invitations
+    from app.routes import auth, courses, users, ai, hospitals, documents, activities, infant_proxy, invitations, admin
     app.register_blueprint(auth.bp)
     app.register_blueprint(courses.bp)
     app.register_blueprint(users.bp)
@@ -122,6 +122,7 @@ def create_app():
     app.register_blueprint(activities.activities_bp)
     app.register_blueprint(infant_proxy.bp)
     app.register_blueprint(invitations.bp)
+    app.register_blueprint(admin.bp)
     
     # ====== SERVIR ARQUIVOS ESTÁTICOS ======
     # Caminho raiz do projeto (acima de backend)
