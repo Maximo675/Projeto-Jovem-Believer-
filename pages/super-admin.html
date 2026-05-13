@@ -148,6 +148,34 @@
         .btn-outline:hover { background:#e0f7fa; }
         .btn-danger { background:transparent; color:var(--danger-red); border:1px solid var(--danger-red); padding:7px 14px; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:500; transition:var(--transition); }
         .btn-danger:hover { background:#ffebee; }
+
+        /* ── RELATÓRIOS / IMPRESSÃO ── */
+        .rel-bar-row { display:flex; align-items:center; gap:12px; }
+        .rel-bar-label { min-width:180px; font-size:0.88rem; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .rel-bar-track { flex:1; height:16px; background:#e0e0e0; border-radius:8px; overflow:hidden; }
+        .rel-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--primary-blue),var(--success-green)); transition:width .4s; }
+        .rel-bar-val { min-width:42px; font-size:0.88rem; font-weight:700; color:var(--primary-blue); text-align:right; }
+
+        @media print {
+            .sidebar, .top-bar, .tabs, .btn, .logout-btn { display:none !important; }
+            .content-area { padding: 0 !important; }
+            #relatorios { display:block !important; }
+            .tab-content { display:block !important; }
+        }
+
+        /* ── RELATÓRIOS IMPRESSA ── */
+        .rel-bar-row { display:flex; align-items:center; gap:12px; }
+        .rel-bar-label { min-width:180px; font-size:0.88rem; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .rel-bar-track { flex:1; height:16px; background:#e0e0e0; border-radius:8px; overflow:hidden; }
+        .rel-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--primary-blue),var(--success-green)); transition:width .4s; }
+        .rel-bar-val { min-width:42px; font-size:0.88rem; font-weight:700; color:var(--primary-blue); text-align:right; }
+
+        @media print {
+            .sidebar, .top-bar, .tabs, .btn, .logout-btn { display:none !important; }
+            .content-area { padding: 0 !important; }
+            #relatorios { display:block !important; }
+            .tab-content { display:block !important; }
+        }
         .btn-sm { padding:5px 11px; font-size:0.78rem; }
         .actions-cell { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
         .toolbar { display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
@@ -189,6 +217,7 @@
             <li><a class="tab-link active" data-tab="visao-geral"><span class="icon">🌐</span> Visão Global</a></li>
             <li><a class="tab-link" data-tab="hospitais"><span class="icon">🏥</span> Hospitais</a></li>
             <li><a class="tab-link" data-tab="admins"><span class="icon">👥</span> Administradores</a></li>
+            <li><a class="tab-link" data-tab="relatorios"><span class="icon">📄</span> Relatórios</a></li>
             <hr class="sidebar-divider">
             <li><a href="/pages/admin.html"><span class="icon">🛡️</span> Painel Admin</a></li>
             <li><a href="/pages/dashboard.html"><span class="icon">←</span> Voltar ao Início</a></li>
@@ -217,6 +246,7 @@
                 <button class="tab-btn active" data-tab="visao-geral">Visão Global</button>
                 <button class="tab-btn" data-tab="hospitais">Hospitais</button>
                 <button class="tab-btn" data-tab="admins">Administradores</button>
+                <button class="tab-btn" data-tab="relatorios">📄 Relatórios</button>
             </div>
 
             <!-- ── VISÃO GLOBAL ── -->
@@ -291,6 +321,41 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- ── RELATÓRIOS ── -->
+            <div id="relatorios" class="tab-content">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h3 style="margin:0 0 4px; font-size:1.2rem; color:#1a1a1a;">Relatório da Plataforma</h3>
+                        <p style="margin:0; font-size:0.85rem; color:#999;">Visão consolidada de todos os hospitais · Gerado em <span id="relDataGeracao"></span></p>
+                    </div>
+                    <button class="btn" onclick="imprimirRelatorio()">🖨️ Imprimir / Exportar PDF</button>
+                </div>
+
+                <div id="relCardsGlobais" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px;"></div>
+
+                <div class="table-wrapper" style="margin-bottom:28px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hospital</th>
+                                <th>Cidade/UF</th>
+                                <th>Enfermeiras</th>
+                                <th>Progresso Médio</th>
+                                <th>Concluídos</th>
+                                <th>Certificados</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="relCorpo">
+                            <tr><td colspan="7" class="loading">Acesse a aba Visão Global primeiro para carregar os dados.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 style="margin:0 0 14px; color:#555;">Progresso Médio por Hospital</h4>
+                <div id="relGrafico" style="display:flex; flex-direction:column; gap:10px;"></div>
             </div>
         </div>
     </div>
@@ -405,8 +470,9 @@
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll(`[data-tab="${tab}"]`).forEach(b => b.classList.add('active'));
             document.getElementById(tab).classList.add('active');
-            if (tab === 'hospitais' && todosHospitais.length === 0) carregarTabelaHospitais();
-            if (tab === 'admins'   && todosAdmins.length === 0)    carregarAdmins();
+            if (tab === 'hospitais'  && todosHospitais.length === 0) carregarTabelaHospitais();
+            if (tab === 'admins'    && todosAdmins.length === 0)    carregarAdmins();
+            if (tab === 'relatorios') renderizarRelatorio();
         });
     });
 
@@ -550,6 +616,75 @@
             (a.hospital_nome || '').toLowerCase().includes(q) ||
             a.email.toLowerCase().includes(q)
         ));
+    }
+
+    /* ── RELATÓRIOS ── */
+    function renderizarRelatorio() {
+        const t        = (dadosGlobais && dadosGlobais.totais) || {};
+        const hospitais = todosHospitais || [];
+
+        // Data de geração
+        document.getElementById('relDataGeracao').textContent =
+            new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+        // Cards globais
+        const cards = [
+            { label: 'Hospitais Ativos',     valor: hospitais.filter(h => h.ativo).length },
+            { label: 'Enfermeiras',           valor: t.usuarios       ?? '–' },
+            { label: 'Certificados Emitidos', valor: t.certificados   ?? '–' },
+            { label: 'Progresso Médio Global',valor: t.progresso_medio != null ? t.progresso_medio + '%' : '–' },
+        ];
+        document.getElementById('relCardsGlobais').innerHTML = cards.map(c => `
+            <div class="stat-card">
+                <div class="stat-number" style="font-size:1.6rem;">${c.valor}</div>
+                <div class="stat-label">${c.label}</div>
+            </div>`).join('');
+
+        // Tabela
+        const tbody = document.getElementById('relCorpo');
+        if (!hospitais.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhum hospital cadastrado. Acesse a aba Visão Global para carregar.</td></tr>';
+            document.getElementById('relGrafico').innerHTML = '';
+            return;
+        }
+        tbody.innerHTML = hospitais.map(h => `
+            <tr>
+                <td><strong>${esc(h.nome)}</strong></td>
+                <td>${esc(h.cidade)} / ${esc(h.estado)}</td>
+                <td>${h.total_usuarios}</td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div class="progress-bar" style="width:80px;">
+                            <div class="progress-fill" style="width:${h.progresso_medio ?? 0}%"></div>
+                        </div>
+                        <small>${h.progresso_medio ?? 0}%</small>
+                    </div>
+                </td>
+                <td>${h.cursos_concluidos}</td>
+                <td>${h.total_certificados}</td>
+                <td><span class="badge ${h.ativo ? 'badge-active' : 'badge-inactive'}">${h.ativo ? 'Ativo' : 'Inativo'}</span></td>
+            </tr>`).join('');
+
+        // Gráfico de barras CSS
+        const sorted = [...hospitais].sort((a, b) => (b.progresso_medio ?? 0) - (a.progresso_medio ?? 0));
+        document.getElementById('relGrafico').innerHTML = sorted.map(h => `
+            <div class="rel-bar-row">
+                <div class="rel-bar-label" title="${esc(h.nome)}">${esc(h.nome)}</div>
+                <div class="rel-bar-track">
+                    <div class="rel-bar-fill" style="width:${h.progresso_medio ?? 0}%"></div>
+                </div>
+                <div class="rel-bar-val">${h.progresso_medio ?? 0}%</div>
+            </div>`).join('');
+    }
+
+    function imprimirRelatorio() {
+        // Garantir que a aba de relatórios está visível para o print CSS
+        document.querySelectorAll('.tab-btn, .tab-link').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('[data-tab="relatorios"]').forEach(b => b.classList.add('active'));
+        document.getElementById('relatorios').classList.add('active');
+        renderizarRelatorio();
+        setTimeout(() => window.print(), 200);
     }
 
     /* ── AÇÕES ── */

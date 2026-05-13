@@ -6,6 +6,7 @@ from app.models.progress import Progress
 from app.models.ia_conversation import IAConversation
 from app.models.certificate import Certificate
 from app.models.password_reset import PasswordReset
+from app.models.admin_note import AdminNote
 
 __all__ = [
     'User',
@@ -16,4 +17,5 @@ __all__ = [
     'IAConversation',
     'Certificate',
     'PasswordReset',
+    'AdminNote',
 ]

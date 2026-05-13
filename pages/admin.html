@@ -230,18 +230,55 @@
         .cert-info .cert-num { font-weight: 600; color: var(--primary-blue); }
         .cert-info .cert-date { font-size: 0.8rem; color: #999; }
 
+        /* ── APTIDÃO BADGE ── */
+        .aptidao-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 1rem;
+        }
+        .aptidao-alta   { background: #e8f5e9; color: #1b5e20; }
+        .aptidao-media  { background: #fff8e1; color: #e65100; }
+        .aptidao-baixa  { background: #ffebee; color: #b71c1c; }
+
+        /* ── NOTAS ── */
+        .nota-card {
+            border-radius: 8px; padding: 14px 16px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+        }
+        .nota-elogio     { background: #f1f8e9; border-left: 3px solid #7cb342; }
+        .nota-alerta     { background: #fff3e0; border-left: 3px solid #ef6c00; }
+        .nota-observacao { background: #e3f2fd; border-left: 3px solid #1976d2; }
+        .nota-texto { flex: 1; font-size: 0.9rem; color: #333; line-height: 1.5; }
+        .nota-meta  { font-size: 0.75rem; color: #999; margin-top: 4px; }
+        .nota-tipo  { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing:.04em; }
+
+        /* ── RESUMO CARDS ── */
+        .resumo-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px; margin-bottom: 24px;
+        }
+        .resumo-card {
+            background: #f5f7fa; border-radius: 10px; padding: 16px 12px; text-align: center;
+        }
+        .resumo-num { font-size: 1.8rem; font-weight: 700; color: var(--primary-blue); line-height: 1; }
+        .resumo-label { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+        /* ── ATIVIDADES TABLE ── */
+        .score-bar { display: flex; align-items: center; gap: 8px; }
+        .score-fill {
+            height: 6px; border-radius: 3px; flex: 1;
+            background: linear-gradient(90deg, var(--danger-red), var(--warning-orange), var(--success-green));
+        }
+
         /* ── LOADING ── */
         .loading { text-align: center; padding: 48px; color: #aaa; font-size: 1rem; }
         .empty { text-align: center; padding: 48px; color: #bbb; font-size: 0.95rem; }
-
-        /* ── INVITE TAB ── */
-        .invite-card {
             background: white; border-radius: 12px; box-shadow: var(--card-shadow);
             padding: 32px; max-width: 560px;
         }
         .invite-card h3 { margin: 0 0 24px 0; font-size: 1.2rem; color: #1a1a1a; }
 
-        @media (max-width: 768px) {
+        /* ── INVITE TAB ── */
+        .invite-card {
             .sidebar { width: 220px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -250,7 +287,7 @@
             .sidebar { width: 100%; height: auto; }
             .content-area { padding: 16px; }
         }
-    </style>
+        @media (max-width: 768px) {
 </head>
 <body>
 
@@ -614,63 +651,205 @@
 
     /* ── DETALHE ── */
     async function verDetalhe(usuarioId) {
+        // Mudar para a aba de usuários independente de onde foi chamado
+        document.querySelectorAll('.tab-btn, .tab-link').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('[data-tab="usuarios"]').forEach(b => b.classList.add('active'));
+        document.getElementById('usuarios').classList.add('active');
+
         document.getElementById('listaUsuarios').style.display = 'none';
         document.getElementById('detalheUsuario').style.display = 'block';
-        document.getElementById('detalheConteudo').innerHTML = '<div class="loading">Carregando...</div>';
+        document.getElementById('detalheConteudo').innerHTML = '<div class="loading">Carregando dados da enfermeira...</div>';
 
         const res = await apiFetch(`/api/admin/usuarios/${usuarioId}`);
         if (!res) return;
         const data = await res.json();
 
-        const u = data.usuario;
+        const u     = data.usuario;
         const certs = data.certificados || [];
-        const prog  = data.progresso || [];
+        const prog  = data.progresso   || [];
+        const atv   = data.atividades  || [];
+        const notas = data.notas       || [];
+        const r     = data.resumo      || {};
 
+        // ── Aptidão badge ────────────────────────────────────────────
+        const apt = r.aptidao ?? 0;
+        const aptClasse = apt >= 70 ? 'aptidao-alta' : apt >= 40 ? 'aptidao-media' : 'aptidao-baixa';
+        const aptTexto  = apt >= 70 ? '✓ Apta' : apt >= 40 ? '⚠ Em Desenvolvimento' : '✗ Atenção Necessária';
+
+        // ── Cards de resumo ──────────────────────────────────────────
+        const resumoHtml = `
+            <div class="resumo-grid">
+                <div class="resumo-card">
+                    <div class="resumo-num">${r.progresso_medio ?? 0}%</div>
+                    <div class="resumo-label">Progresso Médio</div>
+                </div>
+                <div class="resumo-card">
+                    <div class="resumo-num">${r.score_medio ?? '–'}</div>
+                    <div class="resumo-label">Score Médio</div>
+                </div>
+                <div class="resumo-card">
+                    <div class="resumo-num">${r.cursos_concluidos ?? 0}</div>
+                    <div class="resumo-label">Cursos Concluídos</div>
+                </div>
+                <div class="resumo-card">
+                    <div class="resumo-num">${r.total_atividades ?? 0}</div>
+                    <div class="resumo-label">Atividades Feitas</div>
+                </div>
+                <div class="resumo-card">
+                    <div class="resumo-num" style="color:${r.total_dificuldades > 0 ? 'var(--danger-red)' : 'var(--success-green)'}">
+                        ${r.total_dificuldades ?? 0}
+                    </div>
+                    <div class="resumo-label">Pontos de Dificuldade</div>
+                </div>
+                <div class="resumo-card">
+                    <div class="resumo-num">${r.tempo_total_min ?? 0}min</div>
+                    <div class="resumo-label">Tempo Total</div>
+                </div>
+            </div>`;
+
+        // ── Progresso por curso ──────────────────────────────────────
         const progressoHtml = prog.length
             ? prog.map(p => `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0;">
-                    <span>Curso ${p.curso_id}</span>
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="progress-bar" style="min-width:100px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #f0f0f0; gap:12px; flex-wrap:wrap;">
+                    <div style="min-width:140px;">
+                        <div style="font-weight:600; color:#1a1a1a;">${esc(p.curso_titulo)}</div>
+                        <div style="font-size:0.75rem; color:#aaa;">${esc(p.curso_nivel || '')}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:180px;">
+                        <div class="progress-bar" style="flex:1;">
                             <div class="progress-fill" style="width:${p.percentual}%"></div>
                         </div>
                         <small style="color:#888; min-width:36px;">${p.percentual}%</small>
-                        ${p.concluido ? '<span class="badge badge-active">Concluído</span>' : ''}
+                        ${p.concluido ? '<span class="badge badge-active">✓ Concluído</span>' : '<span class="badge badge-inactive">Em Andamento</span>'}
                     </div>
-                </div>
-            `).join('')
+                </div>`).join('')
             : '<p style="color:#aaa; margin:8px 0;">Nenhum progresso registrado.</p>';
 
+        // ── Atividades ───────────────────────────────────────────────
+        const statusColors = { completed: 'badge-active', failed: 'badge-inactive', ongoing: 'badge-role' };
+        const statusLabel  = { completed: 'Concluída', failed: 'Falhou', ongoing: 'Em Andamento' };
+        const atvHtml = atv.length
+            ? `<table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+                <thead>
+                    <tr style="background:#f5f7fa;">
+                        <th style="padding:10px 12px; text-align:left; color:#888; font-size:0.78rem; text-transform:uppercase;">Atividade</th>
+                        <th style="padding:10px 12px; text-align:center; color:#888; font-size:0.78rem; text-transform:uppercase;">Score</th>
+                        <th style="padding:10px 12px; text-align:center; color:#888; font-size:0.78rem; text-transform:uppercase;">Tentativas</th>
+                        <th style="padding:10px 12px; text-align:left; color:#888; font-size:0.78rem; text-transform:uppercase;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                ${atv.map(a => `
+                    <tr style="border-bottom:1px solid #f0f0f0;">
+                        <td style="padding:10px 12px;">
+                            <div style="font-weight:600;">${esc(a.tipo_label)}</div>
+                            <div style="font-size:0.78rem; color:#aaa;">${esc(a.curso_titulo || '')}</div>
+                        </td>
+                        <td style="padding:10px 12px; text-align:center;">
+                            <div style="font-weight:700; color:${a.score >= 70 ? 'var(--success-green)' : a.score >= 50 ? 'var(--warning-orange)' : 'var(--danger-red)'}">
+                                ${a.score ?? '–'}
+                            </div>
+                        </td>
+                        <td style="padding:10px 12px; text-align:center;">
+                            ${a.attempts > 2 ? `<span style="color:var(--warning-orange); font-weight:700;">${a.attempts}</span>` : a.attempts}
+                        </td>
+                        <td style="padding:10px 12px;">
+                            <span class="badge ${statusColors[a.status] || 'badge-role'}">${statusLabel[a.status] || a.status}</span>
+                        </td>
+                    </tr>`).join('')}
+                </tbody>
+               </table>`
+            : '<p style="color:#aaa; margin:8px 0;">Nenhuma atividade prática registrada.</p>';
+
+        // ── Certificados ─────────────────────────────────────────────
         const certsHtml = certs.length
             ? `<div class="certs-list">${certs.map(c => `
                 <div class="cert-card">
                     <div class="cert-info">
                         <p class="cert-num">Certificado #${esc(c.numero_certificado)}</p>
-                        <p class="cert-date">Curso ${c.curso_id} · Emitido em ${new Date(c.data_emissao).toLocaleDateString('pt-BR')}</p>
+                        <p class="cert-date">Curso ${c.curso_id} · ${new Date(c.data_emissao).toLocaleDateString('pt-BR')}</p>
                     </div>
-                    <button class="btn-danger btn-sm" onclick="revogarCertificado(${c.id}, ${usuarioId})">Revogar</button>
-                </div>
-            `).join('')}</div>`
+                    <button class="btn-danger btn-sm" onclick="revogarCertificado(${c.id}, ${u.id})">Revogar</button>
+                </div>`).join('')}</div>`
             : '<p style="color:#aaa; margin:8px 0;">Nenhum certificado emitido.</p>';
+
+        // ── Notas/Feedback ───────────────────────────────────────────
+        const tipoLabel = { elogio: '🌟 Elogio', alerta: '⚠️ Alerta', observacao: '📝 Observação' };
+        const notasHtml = notas.length
+            ? notas.map(n => `
+                <div class="nota-card nota-${n.tipo}" data-nota-id="${n.id}">
+                    <div>
+                        <div class="nota-tipo" style="color:${n.tipo === 'elogio' ? '#7cb342' : n.tipo === 'alerta' ? '#ef6c00' : '#1976d2'}">
+                            ${tipoLabel[n.tipo] || n.tipo}
+                        </div>
+                        <div class="nota-texto">${esc(n.conteudo)}</div>
+                        <div class="nota-meta">${esc(n.admin_nome || 'Admin')} · ${new Date(n.data_criacao).toLocaleDateString('pt-BR', {day:'2-digit',month:'short',year:'numeric'})}</div>
+                    </div>
+                    <button class="btn-danger btn-sm" style="flex-shrink:0;" onclick="deletarNota(${n.id}, ${u.id})">×</button>
+                </div>`).join('')
+            : '<p style="color:#aaa; margin:4px 0 12px;">Nenhuma nota ainda.</p>';
 
         document.getElementById('detalheConteudo').innerHTML = `
             <div class="detail-header">
                 <div class="detail-avatar">${iniciais(u.nome)}</div>
                 <div class="detail-info">
                     <h3>${esc(u.nome)}</h3>
-                    <p>${esc(u.email)} · <span class="badge badge-role">${esc(u.funcao)}</span> · <span class="badge ${u.ativo ? 'badge-active' : 'badge-inactive'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></p>
+                    <p style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        ${esc(u.email)} &nbsp;
+                        <span class="badge badge-role">${esc(u.funcao)}</span>
+                        <span class="badge ${u.ativo ? 'badge-active' : 'badge-inactive'}">${u.ativo ? 'Ativo' : 'Inativo'}</span>
+                        <span class="aptidao-badge ${aptClasse}">${apt}% — ${aptTexto}</span>
+                    </p>
                 </div>
-                <div style="margin-left:auto; display:flex; gap:10px;">
+                <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn btn-sm" onclick="abrirModalEmitirCert(${u.id})">+ Emitir Certificado</button>
                     <button class="btn-danger btn-sm" onclick="alterarStatus(${u.id}, ${!u.ativo})">${u.ativo ? 'Desativar' : 'Ativar'}</button>
                 </div>
             </div>
 
-            <h4 style="margin:0 0 12px 0; color:#555;">Progresso nos Cursos</h4>
+            <!-- Cards de resumo -->
+            ${resumoHtml}
+
+            <!-- Progresso -->
+            <h4 style="margin:0 0 12px 0; color:#555; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                📊 Progresso por Curso
+            </h4>
             <div style="margin-bottom:28px;">${progressoHtml}</div>
 
-            <h4 style="margin:0 0 12px 0; color:#555;">Certificados</h4>
-            ${certsHtml}
+            <!-- Atividades Práticas -->
+            <h4 style="margin:0 0 12px 0; color:#555; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                🎯 Desempenho em Atividades Práticas
+            </h4>
+            <div style="margin-bottom:28px; border-radius:8px; overflow:hidden; border:1px solid #f0f0f0;">${atvHtml}</div>
+
+            <!-- Certificados -->
+            <h4 style="margin:0 0 12px 0; color:#555; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                🏆 Certificados
+            </h4>
+            <div style="margin-bottom:28px;">${certsHtml}</div>
+
+            <!-- Notas do Admin -->
+            <h4 style="margin:0 0 14px 0; color:#555; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                💬 Notas e Feedback do Administrador
+            </h4>
+            <div id="notasLista" style="margin-bottom:16px;">${notasHtml}</div>
+
+            <!-- Formulário de nova nota -->
+            <div style="background:#f5f7fa; border-radius:10px; padding:18px 20px;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                    <select id="novaTipo" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem; background:white;">
+                        <option value="observacao">📝 Observação</option>
+                        <option value="elogio">🌟 Elogio</option>
+                        <option value="alerta">⚠️ Alerta</option>
+                    </select>
+                    <textarea id="novaConteudo" placeholder="Escreva sua observação sobre esta enfermeira..."
+                        style="flex:1; min-width:200px; padding:8px 12px; border:1px solid #ddd; border-radius:6px;
+                               font-size:0.88rem; resize:vertical; min-height:70px; font-family:inherit;"></textarea>
+                </div>
+                <button class="btn btn-sm" style="width:100%;" onclick="salvarNota(${u.id})">Salvar Nota</button>
+                <p id="notaMsg" style="margin:8px 0 0; font-size:0.85rem; display:none;"></p>
+            </div>
         `;
     }
 
@@ -736,6 +915,50 @@
             await verDetalhe(usuarioId);
         } else {
             alert('Erro: ' + data.erro);
+        }
+    }
+
+    /* ── NOTAS / FEEDBACK ── */
+    async function salvarNota(usuarioId) {
+        const conteudo = (document.getElementById('novaConteudo').value || '').trim();
+        const tipo     = document.getElementById('novaTipo').value;
+        const msgEl    = document.getElementById('notaMsg');
+        if (!conteudo) {
+            msgEl.style.color = 'var(--danger-red)';
+            msgEl.textContent = '⚠️ Escreva o conteúdo da nota.';
+            msgEl.style.display = 'block';
+            return;
+        }
+        const res = await apiFetch(`/api/admin/usuarios/${usuarioId}/notas`, {
+            method: 'POST',
+            body: JSON.stringify({ conteudo, tipo }),
+        });
+        if (!res) return;
+        const data = await res.json();
+        if (res.ok) {
+            document.getElementById('novaConteudo').value = '';
+            msgEl.style.color = 'var(--success-green)';
+            msgEl.textContent = '✓ Nota salva!';
+            msgEl.style.display = 'block';
+            setTimeout(() => { msgEl.style.display = 'none'; }, 3000);
+            // Recarregar o detalhe para mostrar a nova nota
+            await verDetalhe(usuarioId);
+        } else {
+            msgEl.style.color = 'var(--danger-red)';
+            msgEl.textContent = '⚠️ ' + (data.erro || 'Erro ao salvar.');
+            msgEl.style.display = 'block';
+        }
+    }
+
+    async function deletarNota(notaId, usuarioId) {
+        if (!confirm('Remover esta nota?')) return;
+        const res = await apiFetch(`/api/admin/notas/${notaId}`, { method: 'DELETE' });
+        if (!res) return;
+        const data = await res.json();
+        if (res.ok) {
+            await verDetalhe(usuarioId);
+        } else {
+            alert('Erro: ' + (data.erro || 'Não foi possível remover.'));
         }
     }
 

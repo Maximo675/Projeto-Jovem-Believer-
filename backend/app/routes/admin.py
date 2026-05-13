@@ -2,8 +2,11 @@ from flask import Blueprint, jsonify, request
 from app import db
 from app.models.user import User
 from app.models.hospital import Hospital
+from app.models.course import Course
 from app.models.progress import Progress
 from app.models.certificate import Certificate
+from app.models.activity import UserActivity
+from app.models.admin_note import AdminNote
 from app.decorators import requer_funcao, usuario_atual
 from datetime import datetime
 
@@ -105,7 +108,7 @@ def listar_usuarios_hospital():
 @bp.route('/usuarios/<int:usuario_id>', methods=['GET'])
 @requer_funcao('admin', 'super_admin')
 def detalhe_usuario(usuario_id):
-    """Retorna dados completos de um usuário com todo o progresso e certificados."""
+    """Retorna dados completos de um usuário com desempenho, atividades e notas."""
     try:
         eu = usuario_atual()
         usuario = User.query.get_or_404(usuario_id)
@@ -113,17 +116,94 @@ def detalhe_usuario(usuario_id):
         if eu.funcao == 'admin' and usuario.hospital_id != eu.hospital_id:
             return jsonify({'erro': 'Acesso negado'}), 403
 
+        # ── Progresso com nome dos cursos ─────────────────────────────────
         progressos = Progress.query.filter_by(usuario_id=usuario_id).all()
+        curso_ids  = [p.curso_id for p in progressos]
+        cursos_map = {c.id: c for c in Course.query.filter(Course.id.in_(curso_ids)).all()} if curso_ids else {}
+
+        progresso_enriquecido = []
+        for p in progressos:
+            curso = cursos_map.get(p.curso_id)
+            progresso_enriquecido.append({
+                **p.to_dict(),
+                'curso_titulo': curso.titulo if curso else f'Curso {p.curso_id}',
+                'curso_nivel':  curso.nivel  if curso else None,
+            })
+
+        # ── Atividades práticas ───────────────────────────────────────────
+        atividades = (UserActivity.query
+                      .filter_by(user_id=usuario_id)
+                      .order_by(UserActivity.started_at.desc())
+                      .all())
+
+        tipos_label = {
+            'protocol': 'Protocolo', 'cases': 'Casos Clínicos',
+            'troubleshooting': 'Resolução de Problemas', 'live': 'Simulação ao Vivo',
+        }
+        atividades_dicts = []
+        for a in atividades:
+            atividades_dicts.append({
+                **a.to_dict(),
+                'tipo_label': tipos_label.get(a.activity_type, a.activity_type),
+                'curso_titulo': cursos_map.get(a.course_id, None) and cursos_map[a.course_id].titulo,
+            })
+
+        # ── Score médio e dificuldades ────────────────────────────────────
+        scores = [a.score for a in atividades if a.score is not None]
+        score_medio = round(sum(scores) / len(scores), 1) if scores else None
+
+        # Dificuldades = atividades com score < 60 ou mais de 2 tentativas
+        dificuldades = [
+            a for a in atividades
+            if (a.score is not None and a.score < 60) or a.attempts > 2
+        ]
+
+        # ── Aptidão (0-100) ───────────────────────────────────────────────
+        progresso_medio = round(
+            sum(p.percentual for p in progressos) / len(progressos), 1
+        ) if progressos else 0
+        cursos_concluidos = sum(1 for p in progressos if p.concluido)
+        total_cursos = len(progressos) or 1
+
+        # Fórmula: 40% progresso + 40% score médio + 20% taxa de conclusão
+        taxa_conclusao = (cursos_concluidos / total_cursos) * 100
+        aptidao = round(
+            0.4 * progresso_medio +
+            0.4 * (score_medio or 0) +
+            0.2 * taxa_conclusao,
+            1
+        )
+
+        # ── Certificados ──────────────────────────────────────────────────
         certificados = Certificate.query.filter_by(usuario_id=usuario_id).all()
 
+        # ── Notas do admin ────────────────────────────────────────────────
+        notas = (AdminNote.query
+                 .filter_by(usuario_id=usuario_id)
+                 .order_by(AdminNote.data_criacao.desc())
+                 .all())
+
         return jsonify({
-            'usuario': usuario.to_dict(),
-            'progresso': [p.to_dict() for p in progressos],
+            'usuario':      usuario.to_dict(),
+            'progresso':    progresso_enriquecido,
+            'atividades':   atividades_dicts,
             'certificados': [c.to_dict() for c in certificados],
+            'notas':        [n.to_dict() for n in notas],
+            'resumo': {
+                'progresso_medio':   progresso_medio,
+                'score_medio':       score_medio,
+                'aptidao':           aptidao,
+                'cursos_concluidos': cursos_concluidos,
+                'total_atividades':  len(atividades),
+                'total_dificuldades': len(dificuldades),
+                'tempo_total_min':   round(sum(a.time_spent for a in atividades) / 60, 1),
+            },
         }), 200
 
     except Exception as e:
-        return jsonify({'erro': str(e)}), 500
+        import logging
+        logging.getLogger(__name__).exception('Erro em detalhe_usuario')
+        return jsonify({'erro': 'Não foi possível carregar os dados.'}), 500
 
 
 # ── Ativar / desativar usuário ────────────────────────────────────────────────
@@ -209,6 +289,77 @@ def revogar_certificado(cert_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'erro': str(e)}), 500
+
+
+# ── Notas / Feedback do admin sobre uma enfermeira ────────────────────────────
+
+@bp.route('/usuarios/<int:usuario_id>/notas', methods=['GET'])
+@requer_funcao('admin', 'super_admin')
+def listar_notas(usuario_id):
+    try:
+        eu = usuario_atual()
+        usuario = User.query.get_or_404(usuario_id)
+        if eu.funcao == 'admin' and usuario.hospital_id != eu.hospital_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        notas = (AdminNote.query
+                 .filter_by(usuario_id=usuario_id)
+                 .order_by(AdminNote.data_criacao.desc())
+                 .all())
+        return jsonify({'notas': [n.to_dict() for n in notas]}), 200
+    except Exception:
+        return jsonify({'erro': 'Não foi possível carregar as notas.'}), 500
+
+
+@bp.route('/usuarios/<int:usuario_id>/notas', methods=['POST'])
+@requer_funcao('admin', 'super_admin')
+def criar_nota(usuario_id):
+    try:
+        eu = usuario_atual()
+        usuario = User.query.get_or_404(usuario_id)
+        if eu.funcao == 'admin' and usuario.hospital_id != eu.hospital_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        dados = request.get_json(silent=True) or {}
+        conteudo = (dados.get('conteudo') or '').strip()
+        tipo     = dados.get('tipo', 'observacao')
+
+        if not conteudo:
+            return jsonify({'erro': 'Conteúdo da nota é obrigatório.'}), 400
+        if tipo not in ('elogio', 'alerta', 'observacao'):
+            tipo = 'observacao'
+
+        nota = AdminNote(
+            admin_id=eu.id,
+            usuario_id=usuario_id,
+            conteudo=conteudo,
+            tipo=tipo,
+        )
+        db.session.add(nota)
+        db.session.commit()
+        return jsonify({'mensagem': 'Nota adicionada.', 'nota': nota.to_dict()}), 201
+    except Exception:
+        db.session.rollback()
+        import logging; logging.getLogger(__name__).exception('criar_nota')
+        return jsonify({'erro': 'Não foi possível salvar a nota.'}), 500
+
+
+@bp.route('/notas/<int:nota_id>', methods=['DELETE'])
+@requer_funcao('admin', 'super_admin')
+def deletar_nota(nota_id):
+    try:
+        eu = usuario_atual()
+        nota = AdminNote.query.get_or_404(nota_id)
+        usuario = User.query.get(nota.usuario_id)
+        if eu.funcao == 'admin' and (not usuario or usuario.hospital_id != eu.hospital_id):
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        db.session.delete(nota)
+        db.session.commit()
+        return jsonify({'mensagem': 'Nota removida.'}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({'erro': 'Não foi possível remover a nota.'}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════════

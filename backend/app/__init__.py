@@ -148,7 +148,15 @@ def create_app():
     app.register_blueprint(infant_proxy.bp)
     app.register_blueprint(invitations.bp)
     app.register_blueprint(admin.bp)
-    
+
+    # Garantir que tabelas novas sejam criadas sem apagar as existentes
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning('db.create_all falhou: %s', _e)
+
     # ====== SERVIR ARQUIVOS ESTÁTICOS ======
     # Caminho raiz do projeto (acima de backend)
     root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
