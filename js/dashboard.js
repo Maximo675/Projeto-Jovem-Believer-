@@ -31,7 +31,10 @@ const Dashboard = {
         
         // Carregar dados do usuário
         this.loadUserInfo(token);
-        
+
+        // Banner de ação rápida por papel
+        this.injectRoleBanner();
+
         // Carregar cursos (com cache)
         await this.loadCourses();
         
@@ -51,6 +54,115 @@ const Dashboard = {
         console.log('[DASHBOARD] Inicializado com sucesso!');
     },
     
+    async injectRoleBanner() {
+        const funcao = this.user?.funcao;
+        const banner = document.getElementById('roleBanner');
+        if (!banner || !funcao || funcao === 'usuario') return;
+
+        const token = localStorage.getItem('authToken');
+        const h = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        if (funcao === 'instrutor') {
+            banner.className = 'role-banner instrutor-banner';
+            banner.innerHTML = `
+                <div class="banner-icon">🎓</div>
+                <div class="banner-info">
+                    <h3>Modo Instrutor</h3>
+                    <p>Você tem acesso ao conteúdo de treinamento. Acompanhe seu próprio progresso aqui.</p>
+                </div>`;
+            banner.style.display = 'flex';
+            return;
+        }
+
+        if (funcao === 'admin') {
+            try {
+                const res = await fetch('/api/admin/dashboard', { headers: h });
+                const data = res.ok ? await res.json() : {};
+                const hospital = data.hospital?.nome ?? 'Seu Hospital';
+                banner.className = 'role-banner admin-banner';
+                banner.innerHTML = `
+                    <div class="banner-icon">🛡️</div>
+                    <div class="banner-info">
+                        <h3>${_esc(hospital)}</h3>
+                        <p>Você é administrador. Gerencie sua equipe no Painel Admin.</p>
+                    </div>
+                    <div class="banner-stats">
+                        <div class="banner-stat">
+                            <div class="n">${data.total_usuarios ?? '–'}</div>
+                            <div class="l">Enfermeiras</div>
+                        </div>
+                        <div class="banner-stat">
+                            <div class="n">${data.progresso_medio ?? '–'}%</div>
+                            <div class="l">Progresso Médio</div>
+                        </div>
+                        <div class="banner-stat">
+                            <div class="n">${data.total_certificados ?? '–'}</div>
+                            <div class="l">Certificados</div>
+                        </div>
+                    </div>
+                    <div class="banner-actions">
+                        <a class="banner-btn banner-btn-primary" href="/pages/admin.html">Painel Admin →</a>
+                    </div>`;
+            } catch (e) {
+                banner.className = 'role-banner admin-banner';
+                banner.innerHTML = `
+                    <div class="banner-icon">🛡️</div>
+                    <div class="banner-info"><h3>Painel Admin</h3><p>Gerencie sua equipe.</p></div>
+                    <div class="banner-actions">
+                        <a class="banner-btn banner-btn-primary" href="/pages/admin.html">Abrir →</a>
+                    </div>`;
+            }
+            banner.style.display = 'flex';
+            return;
+        }
+
+        if (funcao === 'super_admin') {
+            try {
+                const res = await fetch('/api/admin/super/visao-geral', { headers: h });
+                const data = res.ok ? await res.json() : {};
+                const t = data.totais ?? {};
+                banner.className = 'role-banner super-banner';
+                banner.innerHTML = `
+                    <div class="banner-icon">🌐</div>
+                    <div class="banner-info">
+                        <h3>Super Admin — Visão Global</h3>
+                        <p>Você tem controle total da plataforma.</p>
+                    </div>
+                    <div class="banner-stats">
+                        <div class="banner-stat">
+                            <div class="n">${t.hospitais ?? '–'}</div>
+                            <div class="l">Hospitais</div>
+                        </div>
+                        <div class="banner-stat">
+                            <div class="n">${t.usuarios ?? '–'}</div>
+                            <div class="l">Enfermeiras</div>
+                        </div>
+                        <div class="banner-stat">
+                            <div class="n">${t.progresso_medio ?? '–'}%</div>
+                            <div class="l">Progresso Global</div>
+                        </div>
+                        <div class="banner-stat">
+                            <div class="n">${t.certificados ?? '–'}</div>
+                            <div class="l">Certificados</div>
+                        </div>
+                    </div>
+                    <div class="banner-actions">
+                        <a class="banner-btn banner-btn-purple" href="/pages/super-admin.html">Super Admin →</a>
+                        <a class="banner-btn banner-btn-outline" href="/pages/admin.html">Admin Panel</a>
+                    </div>`;
+            } catch (e) {
+                banner.className = 'role-banner super-banner';
+                banner.innerHTML = `
+                    <div class="banner-icon">🌐</div>
+                    <div class="banner-info"><h3>Super Admin</h3><p>Gestão global da plataforma.</p></div>
+                    <div class="banner-actions">
+                        <a class="banner-btn banner-btn-purple" href="/pages/super-admin.html">Abrir →</a>
+                    </div>`;
+            }
+            banner.style.display = 'flex';
+        }
+    },
+
     checkAuth() {
         const token = localStorage.getItem('authToken');
         if (!token) {
@@ -79,6 +191,33 @@ const Dashboard = {
             
             const userAvatar = document.getElementById('userAvatar');
             if (userAvatar) userAvatar.textContent = (this.user.email?.charAt(0) || 'U').toUpperCase();
+
+            // Mostrar badge de papel e menus por funcao
+            const funcao = this.user.funcao;
+            const badge = document.getElementById('userRoleBadge');
+            if (badge && funcao && funcao !== 'usuario') {
+                const labels = { admin: 'Admin', instrutor: 'Instrutor', super_admin: 'Super Admin' };
+                badge.textContent = labels[funcao] || funcao;
+                badge.style.display = 'inline-block';
+            }
+
+            // Saudação personalizada por papel
+            const titles = {
+                usuario:     'Bem-vindo!',
+                instrutor:   'Olá, Instrutor!',
+                admin:       'Painel do Administrador',
+                super_admin: 'Visão Global',
+            };
+            const topBarTitle = document.getElementById('topBarTitle');
+            if (topBarTitle) topBarTitle.textContent = titles[funcao] || 'Bem-vindo!';
+            if (['admin', 'super_admin'].includes(funcao)) {
+                const el = document.getElementById('menuAdmin');
+                if (el) el.style.display = 'block';
+            }
+            if (funcao === 'super_admin') {
+                const el = document.getElementById('menuSuperAdmin');
+                if (el) el.style.display = 'block';
+            }
             
             console.log('[DASHBOARD] Usuário carregado:', this.user);
         } catch (error) {
@@ -652,6 +791,11 @@ function logout() {
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
+
+function _esc(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('[DASHBOARD] DOM carregado, inicializando...');

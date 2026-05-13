@@ -9,8 +9,8 @@
     <script src="../js/theme.js"></script>
     <style>
         /* ── Spinner no botão de login ────────────────────────────── */
-        #btnLogin { position: relative; overflow: hidden; transition: opacity .2s; }
-        #btnLogin .btn-spinner {
+        .btn-cta { position: relative; overflow: hidden; transition: opacity .2s, background .3s, transform .1s; }
+        .btn-cta .btn-spinner {
             display: none;
             width: 18px; height: 18px;
             border: 2.5px solid rgba(255,255,255,.35);
@@ -20,6 +20,44 @@
             position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
         }
         @keyframes btn-spin { to { transform: translateY(-50%) rotate(360deg); } }
+
+        /* Estado: carregando */
+        .btn-cta.loading { opacity: .75; cursor: not-allowed; padding-right: 48px; pointer-events: none; }
+        .btn-cta.loading .btn-spinner { display: block; }
+
+        /* Estado: sucesso */
+        .btn-cta.success {
+            background: #1a7a3c !important;
+            pointer-events: none;
+        }
+
+        /* Estado: erro — shake */
+        @keyframes btn-shake {
+            0%, 100% { transform: translateX(0); }
+            20%       { transform: translateX(-6px); }
+            40%       { transform: translateX(6px); }
+            60%       { transform: translateX(-4px); }
+            80%       { transform: translateX(4px); }
+        }
+        .btn-cta.shake { animation: btn-shake .4s ease; }
+
+        /* Input vermelho no erro */
+        @keyframes input-flash {
+            0%, 100% { border-color: inherit; }
+            50%       { border-color: #e53935; box-shadow: 0 0 0 3px rgba(229,57,53,.15); }
+        }
+        .input-error { animation: input-flash .5s ease 2; border-color: #e53935 !important; }
+
+        #btnLogin  { position: relative; overflow: hidden; }
+        #btnLogin .btn-spinner {
+            display: none;
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btn-spin .7s linear infinite;
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+        }
         #btnLogin.loading { opacity: .75; cursor: not-allowed; padding-right: 48px; }
         #btnLogin.loading .btn-spinner { display: block; }
 
@@ -184,13 +222,9 @@
                 <label for="resetEmail">E-mail cadastrado</label>
                 <input type="email" id="resetEmail" placeholder="seu.email@hospital.com" autocomplete="email">
             </div>
-            <button class="btn btn-primary btn-large" id="btnEnviarReset" style="width:100%">
+            <button class="btn btn-primary btn-large btn-cta" id="btnEnviarReset" style="width:100%; position:relative; overflow:hidden;">
                 <span class="btn-text">Enviar link</span>
-                <span class="btn-spinner" aria-hidden="true"
-                      style="display:none;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);
-                             border-top-color:#fff;border-radius:50%;
-                             animation:btn-spin .7s linear infinite;
-                             position:absolute;right:18px;top:50%;transform:translateY(-50%)"></span>
+                <span class="btn-spinner" aria-hidden="true"></span>
             </button>
             <div id="resetFeedback" class="login-feedback" role="alert" style="margin-top:12px"></div>
         </div>
@@ -220,10 +254,47 @@
             el.className = 'login-feedback ' + (type === 'error' ? 'feedback-error' : 'feedback-success');
         }
 
-        function setLoading(on) {
-            const btn = document.getElementById('btnLogin');
+        /** Coloca botão em modo loading (spinner) */
+        function btnLoading(btn, on) {
             btn.disabled = on;
             btn.classList.toggle('loading', on);
+            if (!on) btn.classList.remove('success', 'shake');
+        }
+
+        /** Flash verde de sucesso — restaura após `delay` ms */
+        function btnSuccess(btn, text = '✓ Enviado!', delay = 3000) {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            const span = btn.querySelector('.btn-text');
+            const orig = span ? span.textContent : btn.textContent;
+            btn.classList.add('success');
+            if (span) span.textContent = text; else btn.textContent = text;
+            setTimeout(() => {
+                btn.classList.remove('success');
+                if (span) span.textContent = orig; else btn.textContent = orig;
+                btn.disabled = false;
+            }, delay);
+        }
+
+        /** Shake de erro no botão + flash nos inputs com erro */
+        function btnError(btn, ...inputs) {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+            btn.classList.remove('shake');
+            // force reflow para reiniciar a animação
+            void btn.offsetWidth;
+            btn.classList.add('shake');
+            btn.addEventListener('animationend', () => btn.classList.remove('shake'), { once: true });
+            inputs.forEach(inp => {
+                if (!inp) return;
+                inp.classList.add('input-error');
+                inp.addEventListener('animationend', () => inp.classList.remove('input-error'), { once: true });
+            });
+        }
+
+        function setLoading(on) {
+            const btn = document.getElementById('btnLogin');
+            btnLoading(btn, on);
         }
 
         // ── Submit do formulário ────────────────────────────────────────────────
@@ -251,16 +322,21 @@
 
                 if (response.ok) {
                     localStorage.setItem('authToken', data.token);
+                    const btn = document.getElementById('btnLogin');
+                    btnSuccess(btn, '✓ Entrando…', 1500);
                     showFeedback('success', '✓ Login realizado! Redirecionando…');
                     setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 1200);
                 } else {
                     const msg = data.erro || 'Credenciais inválidas. Tente novamente.';
                     showFeedback('error', '⚠️ ' + msg);
-                    setLoading(false);
+                    btnError(
+                        document.getElementById('btnLogin'),
+                        document.getElementById('password')
+                    );
                 }
             } catch (err) {
                 showFeedback('error', '⚠️ Sem resposta do servidor. Verifique sua conexão.');
-                setLoading(false);
+                btnError(document.getElementById('btnLogin'));
             }
         });
 
@@ -289,14 +365,19 @@
         });
 
         document.getElementById('btnEnviarReset').addEventListener('click', async () => {
-            const email = document.getElementById('resetEmail').value.trim();
+            const emailInp = document.getElementById('resetEmail');
+            const email = emailInp.value.trim();
             if (!email) {
                 resetFb.textContent = '⚠️ Informe seu e-mail.';
                 resetFb.className = 'login-feedback feedback-error';
+                emailInp.classList.add('input-error');
+                emailInp.addEventListener('animationend', () => emailInp.classList.remove('input-error'), { once: true });
                 return;
             }
             const btn = document.getElementById('btnEnviarReset');
-            btn.disabled = true;
+            btnLoading(btn, true);
+            resetFb.textContent = '';
+            resetFb.className = 'login-feedback';
             try {
                 const res = await fetch('/api/auth/esqueci-senha', {
                     method: 'POST',
@@ -304,12 +385,20 @@
                     body: JSON.stringify({ email }),
                 });
                 const data = await res.json();
-                resetFb.textContent = '✓ ' + (data.mensagem || 'Link enviado!');
-                resetFb.className = 'login-feedback feedback-success';
+                if (res.ok) {
+                    btnSuccess(btn, '✓ E-mail enviado!', 4000);
+                    resetFb.textContent = '✓ ' + (data.mensagem || 'Verifique sua caixa de entrada.');
+                    resetFb.className = 'login-feedback feedback-success';
+                } else {
+                    const msg = data.erro || 'Não foi possível processar. Tente novamente.';
+                    resetFb.textContent = '⚠️ ' + msg;
+                    resetFb.className = 'login-feedback feedback-error';
+                    btnError(btn, emailInp);
+                }
             } catch {
                 resetFb.textContent = '⚠️ Sem resposta do servidor. Tente novamente.';
                 resetFb.className = 'login-feedback feedback-error';
-                btn.disabled = false;
+                btnError(btn, emailInp);
             }
         });
     </script>

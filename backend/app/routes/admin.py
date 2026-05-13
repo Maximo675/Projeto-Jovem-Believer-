@@ -209,3 +209,125 @@ def revogar_certificado(cert_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'erro': str(e)}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ROTAS EXCLUSIVAS SUPER_ADMIN
+# ══════════════════════════════════════════════════════════════════════════════
+
+@bp.route('/super/visao-geral', methods=['GET'])
+@requer_funcao('super_admin')
+def super_visao_geral():
+    """Visão consolidada de toda a plataforma por hospital."""
+    try:
+        hospitais = Hospital.query.order_by(Hospital.nome).all()
+        resultado = []
+
+        for h in hospitais:
+            ids = [u.id for u in User.query.filter_by(hospital_id=h.id, funcao='usuario').all()]
+            total_usuarios = len(ids)
+            total_certs = 0
+            progresso_soma = 0
+            total_concluidos = 0
+            total_progressos = 0
+
+            if ids:
+                progressos = Progress.query.filter(Progress.usuario_id.in_(ids)).all()
+                total_progressos = len(progressos)
+                for p in progressos:
+                    progresso_soma += p.percentual
+                    if p.concluido:
+                        total_concluidos += 1
+                total_certs = Certificate.query.filter(Certificate.usuario_id.in_(ids)).count()
+
+            resultado.append({
+                **h.to_dict(),
+                'total_usuarios': total_usuarios,
+                'progresso_medio': round(progresso_soma / total_progressos, 1) if total_progressos else 0,
+                'cursos_concluidos': total_concluidos,
+                'total_certificados': total_certs,
+            })
+
+        total_plataforma = {
+            'hospitais': len(hospitais),
+            'usuarios': sum(r['total_usuarios'] for r in resultado),
+            'certificados': sum(r['total_certificados'] for r in resultado),
+            'progresso_medio': round(
+                sum(r['progresso_medio'] * r['total_usuarios'] for r in resultado if r['total_usuarios'])
+                / max(sum(r['total_usuarios'] for r in resultado), 1),
+                1
+            ),
+        }
+
+        return jsonify({'hospitais': resultado, 'totais': total_plataforma}), 200
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/super/admins', methods=['GET'])
+@requer_funcao('super_admin')
+def listar_admins():
+    """Lista todos os administradores de hospital."""
+    try:
+        admins = User.query.filter_by(funcao='admin').order_by(User.nome).all()
+        resultado = []
+        for a in admins:
+            h = Hospital.query.get(a.hospital_id) if a.hospital_id else None
+            resultado.append({
+                **a.to_dict(),
+                'hospital_nome': h.nome if h else None,
+            })
+        return jsonify({'admins': resultado}), 200
+
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/super/admins/<int:usuario_id>/funcao', methods=['PATCH'])
+@requer_funcao('super_admin')
+def alterar_funcao(usuario_id):
+    """Alterar função de um usuário (promover/rebaixar)."""
+    try:
+        usuario = User.query.get_or_404(usuario_id)
+        dados = request.get_json()
+        nova_funcao = dados.get('funcao')
+        funcoes_validas = ['usuario', 'instrutor', 'admin']
+        if nova_funcao not in funcoes_validas:
+            return jsonify({'erro': f'Função inválida. Opções: {funcoes_validas}'}), 400
+
+        usuario.funcao = nova_funcao
+        db.session.commit()
+        return jsonify({'mensagem': f'Função alterada para {nova_funcao}', 'usuario': usuario.to_dict()}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
+
+
+@bp.route('/super/hospitais', methods=['POST'])
+@requer_funcao('super_admin')
+def criar_hospital():
+    """Criar novo hospital (alias protegido)."""
+    from app.routes.hospitals import create_hospital
+    return create_hospital()
+
+
+@bp.route('/super/hospitais/<int:hospital_id>/status', methods=['PATCH'])
+@requer_funcao('super_admin')
+def alterar_status_hospital(hospital_id):
+    """Ativar / desativar hospital."""
+    try:
+        hospital = Hospital.query.get_or_404(hospital_id)
+        dados = request.get_json()
+        ativo = dados.get('ativo')
+        if ativo is None:
+            return jsonify({'erro': 'Campo "ativo" obrigatório'}), 400
+        hospital.ativo = bool(ativo)
+        db.session.commit()
+        return jsonify({'mensagem': f'Hospital {"ativado" if hospital.ativo else "desativado"}'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
+

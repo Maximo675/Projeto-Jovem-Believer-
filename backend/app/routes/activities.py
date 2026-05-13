@@ -4,10 +4,10 @@ Endpoints para iniciar, registrar tentativas e completar atividades
 """
 
 from flask import Blueprint, request, jsonify
-from flask_login import current_user
 from app import db
 from app.models.activity import UserActivity, ActivityAttempt, ActivityBadge
 from app.models.user import User
+from app.decorators import requer_auth, usuario_atual
 from datetime import datetime
 import json
 
@@ -15,11 +15,10 @@ activities_bp = Blueprint('activities', __name__, url_prefix='/api/activities')
 
 
 @activities_bp.route('/<int:lesson_id>/start', methods=['POST'])
+@requer_auth
 def start_activity(lesson_id):
     """Iniciar uma nova atividade para uma aula"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
         
         data = request.get_json()
         activity_type = data.get('activity_type', 'practice')  # 'practice', 'quiz', 'challenge'
@@ -27,7 +26,7 @@ def start_activity(lesson_id):
         
         # Criar nova atividade
         activity = UserActivity(
-            user_id=current_user.id,
+            user_id=usuario_atual().id,
             course_id=course_id,
             lesson_id=lesson_id,
             activity_type=activity_type,
@@ -51,14 +50,12 @@ def start_activity(lesson_id):
 
 
 @activities_bp.route('/<int:activity_id>/attempt', methods=['POST'])
+@requer_auth
 def record_attempt(activity_id):
     """Registrar uma tentativa em uma atividade"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
-        
         activity = UserActivity.query.get(activity_id)
-        if not activity or activity.user_id != current_user.id:
+        if not activity or activity.user_id != usuario_atual().id:
             return jsonify({'error': 'Atividade não encontrada'}), 404
         
         data = request.get_json()
@@ -74,7 +71,7 @@ def record_attempt(activity_id):
         # Criar registro de tentativa
         attempt = ActivityAttempt(
             activity_id=activity_id,
-            user_id=current_user.id,
+            user_id=usuario_atual().id,
             attempt_number=activity.attempts,
             score=score,
             time_taken=time_taken
@@ -103,14 +100,12 @@ def record_attempt(activity_id):
 
 
 @activities_bp.route('/<int:activity_id>/complete', methods=['POST'])
+@requer_auth
 def complete_activity(activity_id):
     """Completar uma atividade"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
-        
         activity = UserActivity.query.get(activity_id)
-        if not activity or activity.user_id != current_user.id:
+        if not activity or activity.user_id != usuario_atual().id:
             return jsonify({'error': 'Atividade não encontrada'}), 404
         
         data = request.get_json()
@@ -125,16 +120,17 @@ def complete_activity(activity_id):
         
         # Verificar e atribuir badges
         badges_earned = []
+        uid = usuario_atual().id
         if final_score >= 95:
-            badge = criar_ou_obter_badge(current_user.id, 'perfect_score', 'Pontuação Perfeita ✨', 'Conquistou 95+ em uma atividade', '🌟')
+            badge = criar_ou_obter_badge(uid, 'perfect_score', 'Pontuação Perfeita ✨', 'Conquistou 95+ em uma atividade', '🌟')
             badges_earned.append(badge.to_dict())
         
         if activity.attempts == 1:
-            badge = criar_ou_obter_badge(current_user.id, 'first_try', 'Acertou de Primeira! 💥', 'Completou com sucesso na primeira tentativa', '⚡')
+            badge = criar_ou_obter_badge(uid, 'first_try', 'Acertou de Primeira! 💥', 'Completou com sucesso na primeira tentativa', '⚡')
             badges_earned.append(badge.to_dict())
         
         if total_time < 600:  # Menos de 10 minutos
-            badge = criar_ou_obter_badge(current_user.id, 'speed_runner', 'Rápido 🚀', 'Completou em menos de 10 minutos', '🚀')
+            badge = criar_ou_obter_badge(uid, 'speed_runner', 'Rápido 🚀', 'Completou em menos de 10 minutos', '🚀')
             badges_earned.append(badge.to_dict())
         
         db.session.commit()
@@ -155,14 +151,13 @@ def complete_activity(activity_id):
 
 
 @activities_bp.route('/user/progress', methods=['GET'])
+@requer_auth
 def get_user_progress():
     """Obter progresso geral das atividades do usuário"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
-        
-        activities = UserActivity.query.filter_by(user_id=current_user.id).all()
-        badges = ActivityBadge.query.filter_by(user_id=current_user.id).all()
+        uid = usuario_atual().id
+        activities = UserActivity.query.filter_by(user_id=uid).all()
+        badges = ActivityBadge.query.filter_by(user_id=uid).all()
         
         completed = sum(1 for a in activities if a.status == 'completed')
         ongoing = sum(1 for a in activities if a.status == 'ongoing')
@@ -182,14 +177,12 @@ def get_user_progress():
 
 
 @activities_bp.route('/<int:activity_id>/details', methods=['GET'])
+@requer_auth
 def get_activity_details(activity_id):
     """Obter detalhes de uma atividade específica"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
-        
         activity = UserActivity.query.get(activity_id)
-        if not activity or activity.user_id != current_user.id:
+        if not activity or activity.user_id != usuario_atual().id:
             return jsonify({'error': 'Atividade não encontrada'}), 404
         
         attempts = ActivityAttempt.query.filter_by(activity_id=activity_id).all()
@@ -205,14 +198,12 @@ def get_activity_details(activity_id):
 
 
 @activities_bp.route('/lesson/<int:lesson_id>/status', methods=['GET'])
+@requer_auth
 def get_lesson_activity_status(lesson_id):
     """Obter status das atividades de uma aula"""
     try:
-        if not current_user:
-            return jsonify({'error': 'Não autenticado'}), 401
-        
         activities = UserActivity.query.filter_by(
-            user_id=current_user.id,
+            user_id=usuario_atual().id,
             lesson_id=lesson_id
         ).all()
         
