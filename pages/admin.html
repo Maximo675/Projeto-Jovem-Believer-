@@ -492,6 +492,11 @@
 <script>
     const API = '';
 
+    // hospital_id vindo da URL (quando super_admin navega de super-admin.html)
+    const _params    = new URLSearchParams(window.location.search);
+    const HOSPITAL_ID = _params.get('hospital_id') ? parseInt(_params.get('hospital_id'), 10) : null;
+    function hq(base) { return HOSPITAL_ID ? `${base}?hospital_id=${HOSPITAL_ID}` : base; }
+
     /* ── AUTH ── */
     function getToken() { return localStorage.getItem('authToken'); }
     function getUser()  {
@@ -526,6 +531,14 @@
         document.getElementById('adminNome').textContent = user.email;
         document.getElementById('adminAvatar').textContent = user.email[0].toUpperCase();
 
+        // Mostrar link "Voltar ao Super Admin" quando vier de super-admin.html
+        if (HOSPITAL_ID && user.funcao === 'super_admin') {
+            const backLink = document.createElement('li');
+            backLink.innerHTML = `<a href="/pages/super-admin.html" style="margin-top:8px; color:rgba(255,255,255,0.6); font-size:0.85rem;">
+                ← Voltar ao Super Admin</a>`;
+            document.querySelector('.sidebar-menu').prepend(backLink);
+        }
+
         await carregarDashboard();
     });
 
@@ -545,7 +558,7 @@
     let todosUsuarios = [];
 
     async function carregarDashboard() {
-        const res = await apiFetch('/api/admin/dashboard');
+        const res = await apiFetch(hq('/api/admin/dashboard'));
         if (!res) return;
         const data = await res.json();
 
@@ -561,7 +574,7 @@
     }
 
     async function carregarTabelaVisaoGeral() {
-        const res = await apiFetch('/api/admin/usuarios');
+        const res = await apiFetch(hq('/api/admin/usuarios'));
         if (!res) return;
         const data = await res.json();
         todosUsuarios = data.usuarios || [];
@@ -601,7 +614,7 @@
     /* ── USUÁRIOS ── */
     async function carregarUsuarios() {
         if (todosUsuarios.length === 0) {
-            const res = await apiFetch('/api/admin/usuarios');
+            const res = await apiFetch(hq('/api/admin/usuarios'));
             if (!res) return;
             const data = await res.json();
             todosUsuarios = data.usuarios || [];
