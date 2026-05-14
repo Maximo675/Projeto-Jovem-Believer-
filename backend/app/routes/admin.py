@@ -155,7 +155,7 @@ def detalhe_usuario(usuario_id):
         # Dificuldades = atividades com score < 60 ou mais de 2 tentativas
         dificuldades = [
             a for a in atividades
-            if (a.score is not None and a.score < 60) or a.attempts > 2
+            if (a.score is not None and a.score < 60) or (a.attempts or 0) > 2
         ]
 
         # ── Aptidão (0-100) ───────────────────────────────────────────────
@@ -196,7 +196,7 @@ def detalhe_usuario(usuario_id):
                 'cursos_concluidos': cursos_concluidos,
                 'total_atividades':  len(atividades),
                 'total_dificuldades': len(dificuldades),
-                'tempo_total_min':   round(sum(a.time_spent for a in atividades) / 60, 1),
+                'tempo_total_min':   round(sum((a.time_spent or 0) for a in atividades) / 60, 1),
             },
         }), 200
 
