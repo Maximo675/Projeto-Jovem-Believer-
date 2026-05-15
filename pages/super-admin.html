@@ -797,7 +797,7 @@
         setTimeout(() => window.print(), 250);
     }
 
-    function exportarPDF() {
+    async function exportarPDF() {
         fecharModalExport();
 
         const t         = (dadosGlobais && dadosGlobais.totais) || {};
@@ -900,11 +900,27 @@ ${insightsHtml ? '<div class="sec-title">Pontos de Atenção</div>' + insightsHt
 </div>
 </body></html>`;
 
-        const win = window.open('', '_blank');
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        setTimeout(() => win.print(), 500);
+        // Renderiza via html2pdf.js — download direto, sem diálogo de impressão
+        const parser  = new DOMParser();
+        const doc2    = parser.parseFromString(html, 'text/html');
+        const styleEl = document.createElement('style');
+        styleEl.textContent = doc2.head.querySelector('style')?.textContent || '';
+        document.head.appendChild(styleEl);
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:760px;padding:20px 24px;background:white;';
+        wrap.innerHTML = doc2.body.innerHTML;
+        document.body.appendChild(wrap);
+
+        await html2pdf().set({
+            margin      : [0, 0, 0, 0],
+            filename    : `relatorio-winged-mind-${new Date().toISOString().slice(0,10)}.pdf`,
+            image       : { type: 'jpeg', quality: 0.98 },
+            html2canvas : { scale: 2, useCORS: true, logging: false },
+            jsPDF       : { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(wrap).save();
+
+        document.head.removeChild(styleEl);
+        document.body.removeChild(wrap);
     }
 
     /* ── AÇÕES ── */
@@ -1038,5 +1054,6 @@ ${insightsHtml ? '<div class="sec-title">Pontos de Atenção</div>' + insightsHt
         return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </body>
 </html>
