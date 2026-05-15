@@ -900,38 +900,32 @@ ${insightsHtml ? '<div class="sec-title">Pontos de Atenção</div>' + insightsHt
 </div>
 </body></html>`;
 
-        // Renderiza via html2pdf.js — download direto, sem diálogo de impressão
-        const parser  = new DOMParser();
-        const doc2    = parser.parseFromString(html, 'text/html');
-        const styleEl = document.createElement('style');
-        styleEl.textContent = doc2.head.querySelector('style')?.textContent || '';
-        document.head.appendChild(styleEl);
+        // Extrai estilos + conteúdo do body e passa como STRING para html2pdf.js
+        // (passar elemento DOM com position:fixed causa PDF em branco no html2canvas)
+        const parser   = new DOMParser();
+        const doc2     = parser.parseFromString(html, 'text/html');
+        const cssText  = doc2.head.querySelector('style')?.textContent || '';
+        const bodyHTML = doc2.body.innerHTML;
+        // Conteúdo completo com estilos embutidos — html2pdf cria o container internamente
+        const content  = `<div style="width:794px;background:white;padding:20px 28px;font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;"><style>${cssText}</style>${bodyHTML}</div>`;
 
-        // Overlay de carregamento — cobre o relatório enquanto o html2canvas captura
+        // Overlay de carregamento
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:white;font-family:Arial,sans-serif;gap:14px;';
         overlay.innerHTML = '<div style="font-size:32px;">📄</div><div style="font-size:15px;font-weight:600;letter-spacing:.02em;">Gerando PDF, aguarde...</div>';
         document.body.appendChild(overlay);
 
-        // wrap precisa estar no viewport para o html2canvas capturar (não pode ser left:-9999px)
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'position:fixed;left:0;top:0;width:794px;padding:20px 28px;background:white;z-index:9998;font-family:Arial,sans-serif;color:#1a1a1a;overflow:hidden;';
-        wrap.innerHTML = doc2.body.innerHTML;
-        document.body.appendChild(wrap);
-
-        await new Promise(r => setTimeout(r, 150)); // aguarda o browser renderizar
-
-        await html2pdf().set({
-            margin      : [0, 0, 0, 0],
-            filename    : `relatorio-winged-mind-${new Date().toISOString().slice(0,10)}.pdf`,
-            image       : { type: 'jpeg', quality: 0.98 },
-            html2canvas : { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
-            jsPDF       : { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).from(wrap).save();
-
-        document.head.removeChild(styleEl);
-        document.body.removeChild(wrap);
-        document.body.removeChild(overlay);
+        try {
+            await html2pdf().set({
+                margin      : [14, 14, 14, 14],
+                filename    : `relatorio-winged-mind-${new Date().toISOString().slice(0,10)}.pdf`,
+                image       : { type: 'jpeg', quality: 0.98 },
+                html2canvas : { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
+                jsPDF       : { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(content).save();
+        } finally {
+            document.body.removeChild(overlay);
+        }
     }
 
     /* ── AÇÕES ── */
