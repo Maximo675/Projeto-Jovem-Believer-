@@ -917,7 +917,7 @@ ${insightsHtml ? '<div class="sec-title">Pontos de Atenção</div>' + insightsHt
 
         try {
             await html2pdf().set({
-                margin      : [14, 14, 14, 14],
+                margin      : [0, 0, 0, 0],
                 filename    : `relatorio-winged-mind-${new Date().toISOString().slice(0,10)}.pdf`,
                 image       : { type: 'jpeg', quality: 0.98 },
                 html2canvas : { scale: 2, useCORS: true, logging: false, windowWidth: 794 },
