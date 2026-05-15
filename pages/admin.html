@@ -271,14 +271,16 @@
 
         /* ── LOADING ── */
         .loading { text-align: center; padding: 48px; color: #aaa; font-size: 1rem; }
-        .empty { text-align: center; padding: 48px; color: #bbb; font-size: 0.95rem; }
+        .empty   { text-align: center; padding: 48px; color: #bbb; font-size: 0.95rem; }
+
+        /* ── INVITE TAB ── */
+        .invite-card {
             background: white; border-radius: 12px; box-shadow: var(--card-shadow);
             padding: 32px; max-width: 560px;
         }
         .invite-card h3 { margin: 0 0 24px 0; font-size: 1.2rem; color: #1a1a1a; }
 
-        /* ── INVITE TAB ── */
-        .invite-card {
+        @media (max-width: 768px) {
             .sidebar { width: 220px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -287,7 +289,7 @@
             .sidebar { width: 100%; height: auto; }
             .content-area { padding: 16px; }
         }
-        @media (max-width: 768px) {
+    </style>
 </head>
 <body>
 
