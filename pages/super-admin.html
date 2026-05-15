@@ -186,6 +186,13 @@
         .search-input { flex:1; min-width:200px; padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; }
         .search-input:focus { outline:none; border-color:var(--primary-blue); }
 
+        /* ── MODAL EXPORT ── */
+        .export-opts { display:grid; gap:12px; margin:4px 0 18px; }
+        .export-opt  { display:flex; align-items:flex-start; gap:14px; border:2px solid #e8e8e8; border-radius:10px; padding:16px 18px; cursor:pointer; background:white; width:100%; text-align:left; transition:border-color .15s, box-shadow .15s; }
+        .export-opt:hover { border-color:var(--primary-blue); box-shadow:0 0 0 4px rgba(0,119,204,.07); }
+        .export-opt-icon  { font-size:1.8rem; flex-shrink:0; line-height:1; margin-top:2px; }
+        .export-opt-title { font-size:0.97rem; font-weight:700; color:#1a1a1a; margin-bottom:4px; }
+        .export-opt-desc  { font-size:0.8rem; color:#888; line-height:1.4; }
         /* ── MODAL ── */
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
         .modal-overlay.open { display:flex; }
@@ -771,13 +778,133 @@
     }
 
     function imprimirRelatorio() {
-        // Garantir que a aba de relatórios está visível para o print CSS
+        // Garantir que o relatório está renderizado
         document.querySelectorAll('.tab-btn, .tab-link').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('[data-tab="relatorios"]').forEach(b => b.classList.add('active'));
         document.getElementById('relatorios').classList.add('active');
         renderizarRelatorio();
-        setTimeout(() => window.print(), 200);
+        // Abrir modal de escolha
+        document.getElementById('modalExportRelatorio').classList.add('open');
+    }
+
+    function fecharModalExport() {
+        document.getElementById('modalExportRelatorio').classList.remove('open');
+    }
+
+    function imprimirDiretamente() {
+        fecharModalExport();
+        setTimeout(() => window.print(), 250);
+    }
+
+    function exportarPDF() {
+        fecharModalExport();
+
+        const t         = (dadosGlobais && dadosGlobais.totais) || {};
+        const hospitais = todosHospitais || [];
+        const ativos    = hospitais.filter(h => h.ativo);
+        const emDia     = ativos.filter(h => (h.progresso_medio ?? 0) >= 70);
+        const atencao   = ativos.filter(h => (h.progresso_medio ?? 0) >= 40 && (h.progresso_medio ?? 0) < 70);
+        const criticos  = ativos.filter(h => (h.progresso_medio ?? 0) < 40);
+        const semEnf    = ativos.filter(h => h.total_usuarios === 0);
+        const sorted    = [...hospitais].sort((a, b) => (b.progresso_medio ?? 0) - (a.progresso_medio ?? 0));
+        const agora     = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
+
+        const e = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        // ── Insights
+        const insightsCfg = [
+            emDia.length    && { bg:'#f1f8e9', brd:'#7cb342', txt:`<strong>${emDia.length} hospital${emDia.length>1?'is':''} com progresso saudável (≥70%)</strong>: ${emDia.map(h=>e(h.nome)).slice(0,4).join(', ')}${emDia.length>4?' e outros '+(emDia.length-4):''}. Nenhuma ação necessária.` },
+            criticos.length && { bg:'#ffebee', brd:'#c62828', txt:`<strong>⚠ ${criticos.length} hospital${criticos.length>1?'is':''} com desempenho crítico</strong> (&lt;40%): ${criticos.map(h=>e(h.nome)).join(', ')}. Recomenda-se contato imediato com os administradores.` },
+            atencao.length  && { bg:'#fff8e1', brd:'#ef6c00', txt:`<strong>${atencao.length} hospital${atencao.length>1?'is':''} em zona de atenção</strong> (40–69%). Monitorar evolução nas próximas semanas.` },
+            semEnf.length   && { bg:'#e3f2fd', brd:'#1976d2', txt:`<strong>${semEnf.length} hospital${semEnf.length>1?'is':''} sem nenhuma enfermeira cadastrada</strong>: ${semEnf.map(h=>e(h.nome)).slice(0,3).join(', ')}.` },
+        ].filter(Boolean);
+
+        const insightsHtml = insightsCfg.map(i =>
+            `<div style="border-radius:7px;padding:10px 14px;margin-bottom:7px;font-size:12px;color:#333;background:${i.bg};border-left:3px solid ${i.brd};">${i.txt}</div>`
+        ).join('');
+
+        // ── Tabela
+        const saudeText = h => { const p = h.progresso_medio??0; if (!h.ativo) return 'Inativo'; if (p>=70) return '🟢 Em Dia'; if (p>=40) return '🟡 Atenção'; return '🔴 Crítico'; };
+        const acaoText  = h => { if (!h.ativo) return '—'; if (!h.total_usuarios) return 'Cadastrar enfermeiras'; const p=h.progresso_medio??0; if (p<40) return 'Contatar admin urgente'; if (p<70) return 'Monitorar progresso'; return '✓ Nenhuma'; };
+
+        const rowsHtml = sorted.map((h, i) => `
+            <tr style="${i%2===1?'background:#f9f9f9':''}">
+                <td style="text-align:center;color:#bbb;font-weight:700;">${i+1}</td>
+                <td style="font-weight:600;">${e(h.nome)}${!h.ativo?'<br><span style="font-size:10px;color:#bbb;">inativo</span>':''}</td>
+                <td style="color:#666;">${e(h.cidade||'–')} / ${e(h.estado||'–')}</td>
+                <td style="text-align:center;">${h.total_usuarios}</td>
+                <td style="text-align:center;font-weight:700;">${h.progresso_medio??0}%</td>
+                <td style="text-align:center;">${h.total_certificados}</td>
+                <td style="text-align:center;">${saudeText(h)}</td>
+                <td style="font-size:11px;">${acaoText(h)}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><title>Relatório Executivo — Winged Mind</title>
+<style>
+  @page { margin: 18mm 14mm; }
+  * { box-sizing: border-box; font-family: Arial, sans-serif; margin: 0; padding: 0; }
+  body { background: white; color: #1a1a1a; font-size: 13px; padding: 0; }
+  .ph { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #0077cc; padding-bottom:14px; margin-bottom:20px; }
+  .ph h1 { font-size:17px; color:#0077cc; margin-bottom:4px; }
+  .ph .sub { font-size:11px; color:#999; }
+  .ph .logo { font-size:13px; font-weight:700; color:#333; text-align:right; line-height:1.5; }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .kpi { border:1px solid #e8e8e8; border-radius:8px; padding:12px; text-align:center; }
+  .kpi-num { font-size:22px; font-weight:800; color:#0077cc; }
+  .kpi-lbl { font-size:11px; color:#777; margin-top:3px; }
+  .sem { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+  .sc { border:1px solid #e8e8e8; border-radius:8px; padding:10px; text-align:center; }
+  .sc.v { border-top:3px solid #2e7d32; } .sc.a { border-top:3px solid #e65100; } .sc.r { border-top:3px solid #c62828; }
+  .sc-num { font-size:22px; font-weight:800; margin:4px 0 2px; }
+  .sc.v .sc-num{color:#2e7d32;} .sc.a .sc-num{color:#e65100;} .sc.r .sc-num{color:#c62828;}
+  .sc-lbl { font-size:10px; color:#555; }
+  .sec-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#888; margin:16px 0 8px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { background:#f5f5f5; padding:7px 10px; text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:#666; }
+  td { padding:7px 10px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
+  .footer { margin-top:24px; border-top:1px solid #e8e8e8; padding-top:10px; font-size:10px; color:#bbb; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+<div class="ph">
+  <div><h1>Relatório Executivo · Plataforma Winged Mind</h1><div class="sub">Akiyama · Gerado em ${agora}</div></div>
+  <div class="logo">Winged Mind<br><span style="font-weight:400;font-size:11px;color:#aaa;">Akiyama</span></div>
+</div>
+<div class="kpi-grid">
+  <div class="kpi"><div class="kpi-num">${ativos.length}</div><div class="kpi-lbl">Hospitais Ativos</div></div>
+  <div class="kpi"><div class="kpi-num">${t.usuarios||0}</div><div class="kpi-lbl">Enfermeiras Cadastradas</div></div>
+  <div class="kpi"><div class="kpi-num">${t.certificados||0}</div><div class="kpi-lbl">Certificados Emitidos</div></div>
+  <div class="kpi"><div class="kpi-num">${t.progresso_medio!=null?t.progresso_medio+'%':'–'}</div><div class="kpi-lbl">Progresso Médio Global</div></div>
+</div>
+<div class="sem">
+  <div class="sc v"><div>🟢</div><div class="sc-num">${emDia.length}</div><div class="sc-lbl"><strong>Em Dia</strong> — progresso ≥70%</div></div>
+  <div class="sc a"><div>🟡</div><div class="sc-num">${atencao.length}</div><div class="sc-lbl"><strong>Atenção</strong> — 40–69%</div></div>
+  <div class="sc r"><div>🔴</div><div class="sc-num">${criticos.length}</div><div class="sc-lbl"><strong>Crítico</strong> — abaixo de 40%</div></div>
+</div>
+${insightsHtml ? '<div class="sec-title">Pontos de Atenção</div>' + insightsHtml : ''}
+<div class="sec-title">Ranking de Hospitais</div>
+<table>
+  <thead><tr>
+    <th style="width:28px">#</th><th>Hospital</th><th>Cidade / UF</th>
+    <th style="text-align:center">Enf.</th><th style="text-align:center">Progresso</th>
+    <th style="text-align:center">Certs.</th><th style="text-align:center">Saúde</th><th>Ação Recomendada</th>
+  </tr></thead>
+  <tbody>${rowsHtml}</tbody>
+</table>
+<div class="footer">
+  <span>Gerado automaticamente · Plataforma Winged Mind — Akiyama</span>
+  <span>${agora}</span>
+</div>
+</body></html>`;
+
+        const win = window.open('', '_blank');
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(() => win.print(), 500);
     }
 
     /* ── AÇÕES ── */
@@ -874,6 +1001,37 @@
     /* ── HELPERS ── */
     function abrirModal(id)  { document.getElementById(id).classList.add('open'); }
     function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+</script>
+
+<!-- ── Modal Exportar Relatório ────────────────────────────────── -->
+<div id="modalExportRelatorio" class="modal-overlay" onclick="if(event.target===this)fecharModalExport()">
+    <div class="modal" style="max-width:460px;">
+        <button class="modal-close" onclick="fecharModalExport()">×</button>
+        <h2 style="margin-bottom:5px;">Exportar Relatório</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:22px;">Relatório Executivo · Plataforma Winged Mind</p>
+        <div class="export-opts">
+            <button class="export-opt" onclick="exportarPDF()">
+                <span class="export-opt-icon">📥</span>
+                <div>
+                    <div class="export-opt-title">Exportar como PDF</div>
+                    <div class="export-opt-desc">Abre uma versão limpa e profissional do relatório em uma nova aba. Use o diálogo de impressão do navegador e selecione <strong>"Salvar como PDF"</strong> como destino.</div>
+                </div>
+            </button>
+            <button class="export-opt" onclick="imprimirDiretamente()">
+                <span class="export-opt-icon">🖨️</span>
+                <div>
+                    <div class="export-opt-title">Imprimir</div>
+                    <div class="export-opt-desc">Envia a página atual diretamente para uma impressora física. Utilize se tiver uma impressora disponível.</div>
+                </div>
+            </button>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+            <button class="btn" style="background:#f0f0f0;color:#555;" onclick="fecharModalExport()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
     function iniciais(nome)  { if (!nome) return '?'; return nome.split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase(); }
     function esc(str) {
         if (str == null) return '';
