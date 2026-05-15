@@ -9,6 +9,8 @@ from app.models.activity import UserActivity
 from app.models.admin_note import AdminNote
 from app.decorators import requer_funcao, usuario_atual
 from datetime import datetime
+import json
+import os
 
 bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
@@ -360,6 +362,198 @@ def deletar_nota(nota_id):
     except Exception:
         db.session.rollback()
         return jsonify({'erro': 'Não foi possível remover a nota.'}), 500
+
+
+# ── Avaliação IA da enfermeira ────────────────────────────────────────────────
+
+def _avaliar_com_openai(usuario, prog_medio, score_medio, taxa_conclusao,
+                        aptidao, dificuldades, atividades, tempo_min):
+    """Chama OpenAI e retorna dict de avaliação estruturada, ou None se falhar."""
+    try:
+        from openai import OpenAI
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return None
+
+        client = OpenAI(api_key=api_key)
+
+        dif_texto = '; '.join(
+            f"{a.activity_type} (score:{a.score}, tentativas:{a.attempts})"
+            for a in dificuldades[:5]
+        ) if dificuldades else 'nenhuma'
+
+        prompt = (
+            f"Você é um avaliador pedagógico especializado em treinamento de enfermagem hospitalar. "
+            f"Analise os dados de desempenho de {usuario.nome} e retorne SOMENTE um JSON válido (sem markdown).\n\n"
+            f"Dados:\n"
+            f"- Progresso médio nos cursos: {prog_medio}%\n"
+            f"- Score médio nas atividades: {score_medio}/100\n"
+            f"- Taxa de conclusão de cursos: {taxa_conclusao}%\n"
+            f"- Aptidão calculada: {aptidao}/100\n"
+            f"- Total de atividades realizadas: {len(atividades)}\n"
+            f"- Atividades com dificuldade: {len(dificuldades)}\n"
+            f"- Tempo total de estudo: {tempo_min} minutos\n"
+            f"- Detalhes das dificuldades: {dif_texto}\n\n"
+            f"Retorne exatamente este JSON:\n"
+            '{{\n'
+            '  "nota_final": <inteiro 0-100>,\n'
+            '  "nivel": "<aprovada|em_desenvolvimento|em_recuperacao|critica>",\n'
+            '  "recomenda_certificado": <true|false>,\n'
+            '  "parecer": "<2-3 frases objetivas>",\n'
+            '  "pontos_fortes": ["<1>","<2>"],\n'
+            '  "pontos_fracos": ["<1>","<2>"],\n'
+            '  "plano_recuperacao": {{\n'
+            '    "necessario": <true|false>,\n'
+            '    "prazo_dias": <30|60|90>,\n'
+            '    "acoes": ["<ação 1>","<ação 2>","<ação 3>"],\n'
+            '    "meta_aptidao": <inteiro 0-100>\n'
+            '  }}\n'
+            '}}'
+        )
+
+        resp = client.chat.completions.create(
+            model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
+            messages=[{'role': 'user', 'content': prompt}],
+            temperature=0.3,
+            max_tokens=700,
+        )
+        text = resp.choices[0].message.content.strip()
+        # Remover cercas de markdown se presentes
+        if '```' in text:
+            text = text.split('```')[1]
+            if text.startswith('json'):
+                text = text[4:]
+        avaliacao = json.loads(text.strip())
+        avaliacao['fonte'] = 'openai'
+        return avaliacao
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning('OpenAI avaliação falhou: %s', e)
+        return None
+
+
+def _avaliar_algoritmico(aptidao, prog_medio, score_medio, taxa_conclusao,
+                         n_dific, n_atv):
+    """Avaliação determinística como fallback quando OpenAI não está disponível."""
+    nota = int(round(aptidao))
+
+    if nota >= 80:
+        nivel, recomenda = 'aprovada', True
+    elif nota >= 60:
+        nivel, recomenda = 'em_desenvolvimento', False
+    elif nota >= 40:
+        nivel, recomenda = 'em_recuperacao', False
+    else:
+        nivel, recomenda = 'critica', False
+
+    pareceres = {
+        'aprovada': (
+            f'Excelente desempenho: {prog_medio}% de progresso médio e score de {score_medio}/100. '
+            f'Demonstra domínio consistente do conteúdo e está apta a receber o certificado.'
+        ),
+        'em_desenvolvimento': (
+            f'Progresso de {prog_medio}% com score médio de {score_medio}/100. '
+            f'Demonstra compreensão sólida, mas ainda há espaço para melhoria antes da certificação.'
+        ),
+        'em_recuperacao': (
+            f'Progresso de {prog_medio}% abaixo do esperado, score médio {score_medio}/100. '
+            f'Indicam dificuldades significativas — recomenda-se plano de recuperação focado nas áreas problemáticas.'
+        ),
+        'critica': (
+            f'Desempenho crítico: {prog_medio}% de progresso e score {score_medio}/100. '
+            f'Necessária reavaliação completa e acompanhamento intensivo pelo instrutor responsável.'
+        ),
+    }
+
+    fortes, fracos = [], []
+    if prog_medio >= 70:   fortes.append(f'Alto progresso nos cursos ({prog_medio}%)')
+    elif prog_medio < 40:  fracos.append(f'Baixo progresso nos cursos ({prog_medio}%)')
+    if score_medio and score_medio >= 70: fortes.append(f'Bom score nas atividades ({score_medio}/100)')
+    elif score_medio and score_medio < 50: fracos.append(f'Score abaixo da média nas atividades ({score_medio}/100)')
+    if taxa_conclusao >= 80:  fortes.append(f'Alta taxa de conclusão ({taxa_conclusao:.0f}%)')
+    elif taxa_conclusao < 30: fracos.append(f'Poucos cursos concluídos ({taxa_conclusao:.0f}%)')
+    if n_atv >= 5:   fortes.append(f'Boa participação em atividades práticas ({n_atv} realizadas)')
+    if n_dific <= 1: fortes.append('Poucas dificuldades registradas')
+    elif n_dific >= 3: fracos.append(f'{n_dific} atividades com score baixo ou múltiplas tentativas')
+    if not fortes: fortes = ['Está com cadastro ativo e acessa a plataforma']
+    if not fracos: fracos = ['Nenhuma dificuldade crítica identificada']
+
+    if nivel in ('em_recuperacao', 'critica'):
+        prazo = 30 if nivel == 'em_recuperacao' else 60
+        acoes = [
+            'Revisão dos módulos com score abaixo de 60%',
+            'Refazer as atividades práticas com dificuldades registradas',
+            'Assistir aos vídeos de cada módulo problemático antes de nova tentativa',
+        ]
+        if nivel == 'critica':
+            acoes.append('Agendar orientação presencial com o instrutor responsável')
+        meta = 70 if nivel == 'em_recuperacao' else 60
+        plano = {'necessario': True, 'prazo_dias': prazo, 'acoes': acoes, 'meta_aptidao': meta}
+    else:
+        plano = {'necessario': False, 'prazo_dias': 0, 'acoes': [], 'meta_aptidao': 80}
+
+    return {
+        'nota_final': nota,
+        'nivel': nivel,
+        'recomenda_certificado': recomenda,
+        'parecer': pareceres[nivel],
+        'pontos_fortes': fortes[:3],
+        'pontos_fracos': fracos[:3],
+        'plano_recuperacao': plano,
+        'fonte': 'algoritmo',
+    }
+
+
+@bp.route('/usuarios/<int:usuario_id>/avaliar', methods=['POST'])
+@requer_funcao('admin', 'super_admin')
+def avaliar_enfermeira(usuario_id):
+    """Avalia uma enfermeira com IA (OpenAI) ou algoritmo, gera nota + plano de recuperação."""
+    try:
+        eu      = usuario_atual()
+        usuario = User.query.get_or_404(usuario_id)
+
+        if eu.funcao == 'admin' and usuario.hospital_id != eu.hospital_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+
+        progressos  = Progress.query.filter_by(usuario_id=usuario_id).all()
+        atividades  = UserActivity.query.filter_by(user_id=usuario_id).all()
+
+        prog_medio     = round(sum(p.percentual for p in progressos) / len(progressos), 1) if progressos else 0
+        cursos_conc    = sum(1 for p in progressos if p.concluido)
+        total_cursos   = len(progressos) or 1
+        taxa_conclusao = round((cursos_conc / total_cursos) * 100, 1)
+        scores         = [a.score for a in atividades if a.score is not None]
+        score_medio    = round(sum(scores) / len(scores), 1) if scores else 0
+        dificuldades   = [a for a in atividades if (a.score is not None and a.score < 60) or (a.attempts or 0) > 2]
+        aptidao        = round(0.4 * prog_medio + 0.4 * score_medio + 0.2 * taxa_conclusao, 1)
+        tempo_min      = round(sum((a.time_spent or 0) for a in atividades) / 60, 1)
+
+        avaliacao = _avaliar_com_openai(
+            usuario, prog_medio, score_medio, taxa_conclusao,
+            aptidao, dificuldades, atividades, tempo_min
+        ) or _avaliar_algoritmico(
+            aptidao, prog_medio, score_medio, taxa_conclusao,
+            len(dificuldades), len(atividades)
+        )
+
+        # Substituir avaliação IA anterior (se existir)
+        AdminNote.query.filter_by(usuario_id=usuario_id, tipo='avaliacao_ia').delete()
+        nota_ia = AdminNote(
+            admin_id=eu.id,
+            usuario_id=usuario_id,
+            conteudo=json.dumps(avaliacao, ensure_ascii=False),
+            tipo='avaliacao_ia',
+        )
+        db.session.add(nota_ia)
+        db.session.commit()
+
+        return jsonify({'avaliacao': avaliacao}), 200
+
+    except Exception:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).exception('avaliar_enfermeira')
+        return jsonify({'erro': 'Não foi possível realizar a avaliação.'}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════════

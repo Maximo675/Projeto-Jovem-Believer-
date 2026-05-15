@@ -156,25 +156,29 @@
         .rel-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--primary-blue),var(--success-green)); transition:width .4s; }
         .rel-bar-val { min-width:42px; font-size:0.88rem; font-weight:700; color:var(--primary-blue); text-align:right; }
 
-        @media print {
-            .sidebar, .top-bar, .tabs, .btn, .logout-btn { display:none !important; }
-            .content-area { padding: 0 !important; }
-            #relatorios { display:block !important; }
-            .tab-content { display:block !important; }
-        }
-
-        /* ── RELATÓRIOS IMPRESSA ── */
-        .rel-bar-row { display:flex; align-items:center; gap:12px; }
+        /* ── RELATÓRIO EXECUTIVO ── */
+        .rel-status-card { background:white; border-radius:12px; box-shadow:var(--card-shadow); padding:20px 16px; text-align:center; }
+        .rel-status-num  { font-size:2.2rem; font-weight:700; margin:6px 0 4px; }
+        .rel-status-label{ font-size:0.85rem; color:#555; }
+        .rel-verde   .rel-status-num { color:#2e7d32; }
+        .rel-amarelo .rel-status-num { color:#e65100; }
+        .rel-vermelho .rel-status-num{ color:#c62828; }
+        .rel-print-header{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+        .rel-insight { display:flex; gap:10px; border-radius:8px; padding:12px 16px; margin-bottom:8px; font-size:0.9rem; color:#333; }
+        .rel-bar-row   { display:flex; align-items:center; gap:12px; }
         .rel-bar-label { min-width:180px; font-size:0.88rem; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .rel-bar-track { flex:1; height:16px; background:#e0e0e0; border-radius:8px; overflow:hidden; }
-        .rel-bar-fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--primary-blue),var(--success-green)); transition:width .4s; }
-        .rel-bar-val { min-width:42px; font-size:0.88rem; font-weight:700; color:var(--primary-blue); text-align:right; }
+        .rel-bar-track { flex:1; height:14px; background:#e0e0e0; border-radius:7px; overflow:hidden; }
+        .rel-bar-fill  { height:100%; border-radius:7px; background:linear-gradient(90deg,var(--primary-blue),var(--success-green)); transition:width .4s; }
+        .rel-bar-val   { min-width:42px; font-size:0.88rem; font-weight:700; color:var(--primary-blue); text-align:right; }
 
         @media print {
-            .sidebar, .top-bar, .tabs, .btn, .logout-btn { display:none !important; }
-            .content-area { padding: 0 !important; }
+            .sidebar, .top-bar, .tabs, .logout-btn, .rel-print-header .btn { display:none !important; }
+            .content-area { padding:0 !important; margin:0 !important; }
             #relatorios { display:block !important; }
-            .tab-content { display:block !important; }
+            .tab-content { display:block !important; overflow:visible !important; }
+            .rel-print-header { display:flex !important; }
+            .table-wrapper { box-shadow:none !important; border:1px solid #ddd; }
+            body { background:white !important; }
         }
         .btn-sm { padding:5px 11px; font-size:0.78rem; }
         .actions-cell { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
@@ -325,37 +329,64 @@
 
             <!-- ── RELATÓRIOS ── -->
             <div id="relatorios" class="tab-content">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+
+                <!-- Cabeçalho imprimível -->
+                <div class="rel-print-header">
                     <div>
-                        <h3 style="margin:0 0 4px; font-size:1.2rem; color:#1a1a1a;">Relatório da Plataforma</h3>
-                        <p style="margin:0; font-size:0.85rem; color:#999;">Visão consolidada de todos os hospitais · Gerado em <span id="relDataGeracao"></span></p>
+                        <div style="font-size:1.25rem; font-weight:700; color:#1a1a1a;">Relatório Executivo · Plataforma Winged Mind</div>
+                        <div style="font-size:0.85rem; color:#999; margin-top:3px;">
+                            Akiyama · Gerado em <span id="relDataGeracao"></span>
+                        </div>
                     </div>
                     <button class="btn" onclick="imprimirRelatorio()">🖨️ Imprimir / Exportar PDF</button>
                 </div>
 
-                <div id="relCardsGlobais" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:28px;"></div>
+                <!-- KPIs globais -->
+                <div id="relCardsGlobais" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px;"></div>
 
-                <div class="table-wrapper" style="margin-bottom:28px;">
+                <!-- Semáforo de saúde -->
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:24px;">
+                    <div id="relStatusVerde"    class="rel-status-card rel-verde"></div>
+                    <div id="relStatusAmarelo"  class="rel-status-card rel-amarelo"></div>
+                    <div id="relStatusVermelho" class="rel-status-card rel-vermelho"></div>
+                </div>
+
+                <!-- Pontos de atenção automáticos -->
+                <div id="relInsights" style="margin-bottom:24px;"></div>
+
+                <!-- Ranking de hospitais -->
+                <div class="table-wrapper" style="margin-bottom:24px;">
+                    <div style="padding:16px 20px 10px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="color:#1a1a1a;">Ranking por Desempenho</strong>
+                        <small style="color:#aaa;">Ordenado por progresso médio ↓</small>
+                    </div>
                     <table>
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>Hospital</th>
-                                <th>Cidade/UF</th>
+                                <th>Cidade / UF</th>
                                 <th>Enfermeiras</th>
-                                <th>Progresso Médio</th>
-                                <th>Concluídos</th>
+                                <th>Progresso</th>
                                 <th>Certificados</th>
-                                <th>Status</th>
+                                <th>Saúde</th>
+                                <th>Ação Recomendada</th>
                             </tr>
                         </thead>
                         <tbody id="relCorpo">
-                            <tr><td colspan="7" class="loading">Acesse a aba Visão Global primeiro para carregar os dados.</td></tr>
+                            <tr><td colspan="8" class="loading">Acesse a aba Visão Global para carregar os dados.</td></tr>
                         </tbody>
                     </table>
                 </div>
 
-                <h4 style="margin:0 0 14px; color:#555;">Progresso Médio por Hospital</h4>
-                <div id="relGrafico" style="display:flex; flex-direction:column; gap:10px;"></div>
+                <!-- Gráfico de barras -->
+                <div style="background:white; border-radius:12px; box-shadow:var(--card-shadow); padding:20px 24px;">
+                    <div style="font-weight:600; color:#555; font-size:0.85rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:16px;">
+                        Progresso Médio por Hospital
+                    </div>
+                    <div id="relGrafico" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -620,60 +651,122 @@
 
     /* ── RELATÓRIOS ── */
     function renderizarRelatorio() {
-        const t        = (dadosGlobais && dadosGlobais.totais) || {};
+        const t         = (dadosGlobais && dadosGlobais.totais) || {};
         const hospitais = todosHospitais || [];
 
-        // Data de geração
         document.getElementById('relDataGeracao').textContent =
             new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
-        // Cards globais
-        const cards = [
-            { label: 'Hospitais Ativos',     valor: hospitais.filter(h => h.ativo).length },
-            { label: 'Enfermeiras',           valor: t.usuarios       ?? '–' },
-            { label: 'Certificados Emitidos', valor: t.certificados   ?? '–' },
-            { label: 'Progresso Médio Global',valor: t.progresso_medio != null ? t.progresso_medio + '%' : '–' },
-        ];
-        document.getElementById('relCardsGlobais').innerHTML = cards.map(c => `
-            <div class="stat-card">
-                <div class="stat-number" style="font-size:1.6rem;">${c.valor}</div>
+        // KPI cards globais
+        const ativos = hospitais.filter(h => h.ativo);
+        document.getElementById('relCardsGlobais').innerHTML = [
+            { icon:'🏥', valor: ativos.length,                                       label:'Hospitais Ativos'          },
+            { icon:'👩‍⚕️', valor: t.usuarios       ?? '–',                              label:'Enfermeiras Cadastradas'   },
+            { icon:'🏆', valor: t.certificados   ?? '–',                              label:'Certificados Emitidos'     },
+            { icon:'📈', valor: t.progresso_medio != null ? t.progresso_medio+'%':'–', label:'Progresso Médio Global'    },
+        ].map(c => `
+            <div class="stat-card" style="display:flex;flex-direction:column;align-items:center;">
+                <div style="font-size:1.6rem;margin-bottom:4px;">${c.icon}</div>
+                <div class="stat-number" style="font-size:1.5rem;">${c.valor}</div>
                 <div class="stat-label">${c.label}</div>
             </div>`).join('');
 
-        // Tabela
-        const tbody = document.getElementById('relCorpo');
         if (!hospitais.length) {
-            tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhum hospital cadastrado. Acesse a aba Visão Global para carregar.</td></tr>';
+            ['relStatusVerde','relStatusAmarelo','relStatusVermelho'].forEach(id =>
+                document.getElementById(id).innerHTML = '<div class="rel-status-num">–</div>');
+            document.getElementById('relInsights').innerHTML = '';
+            document.getElementById('relCorpo').innerHTML =
+                '<tr><td colspan="8" class="empty">Acesse a aba Visão Global primeiro.</td></tr>';
             document.getElementById('relGrafico').innerHTML = '';
             return;
         }
-        tbody.innerHTML = hospitais.map(h => `
+
+        // Semáforo de saúde (considera só hospitais ativos)
+        const emDia    = ativos.filter(h => (h.progresso_medio ?? 0) >= 70);
+        const atencao  = ativos.filter(h => (h.progresso_medio ?? 0) >= 40 && (h.progresso_medio ?? 0) < 70);
+        const criticos = ativos.filter(h => (h.progresso_medio ?? 0) < 40);
+
+        document.getElementById('relStatusVerde').innerHTML = `
+            <div style="font-size:1.5rem;">🟢</div>
+            <div class="rel-status-num">${emDia.length}</div>
+            <div class="rel-status-label"><strong>Em Dia</strong><br><span style="font-size:0.78rem;font-weight:400;">progresso ≥ 70%</span></div>`;
+        document.getElementById('relStatusAmarelo').innerHTML = `
+            <div style="font-size:1.5rem;">🟡</div>
+            <div class="rel-status-num">${atencao.length}</div>
+            <div class="rel-status-label"><strong>Atenção</strong><br><span style="font-size:0.78rem;font-weight:400;">40 – 69%</span></div>`;
+        document.getElementById('relStatusVermelho').innerHTML = `
+            <div style="font-size:1.5rem;">🔴</div>
+            <div class="rel-status-num">${criticos.length}</div>
+            <div class="rel-status-label"><strong>Crítico</strong><br><span style="font-size:0.78rem;font-weight:400;">abaixo de 40%</span></div>`;
+
+        // Pontos de atenção automáticos
+        const semEnf = ativos.filter(h => h.total_usuarios === 0);
+        const insights = [];
+
+        if (emDia.length)
+            insights.push({ tipo:'ok', txt:`<strong>${emDia.length} hospital${emDia.length>1?'is':''}</strong> ${emDia.length>1?'estão':'está'} com progresso saudável (≥70%): ${emDia.map(h=>esc(h.nome)).slice(0,3).join(', ')}${emDia.length>3?' e outros '+(emDia.length-3):''}. Nenhuma ação necessária.` });
+        if (criticos.length)
+            insights.push({ tipo:'alert', txt:`<strong>⚠️ ${criticos.length} hospital${criticos.length>1?'is':''} com desempenho crítico</strong> (<40%): ${criticos.map(h=>esc(h.nome)).join(', ')}. Recomenda-se contato imediato com os administradores responsáveis.` });
+        if (atencao.length)
+            insights.push({ tipo:'warn', txt:`<strong>${atencao.length} hospital${atencao.length>1?'is':''}</strong> em zona de atenção (40–69%). Monitorar evolução nas próximas semanas.` });
+        if (semEnf.length)
+            insights.push({ tipo:'info', txt:`<strong>${semEnf.length} hospital${semEnf.length>1?'is':''} ativo${semEnf.length>1?'s':''} sem nenhuma enfermeira cadastrada</strong>: ${semEnf.map(h=>esc(h.nome)).slice(0,3).join(', ')}. Verificar onboarding.` });
+        if (!t.certificados)
+            insights.push({ tipo:'info', txt:'Nenhum certificado emitido na plataforma até o momento.' });
+
+        const cfg = {
+            ok:    { bg:'#f1f8e9', brd:'#7cb342'  },
+            alert: { bg:'#ffebee', brd:'#c62828'  },
+            warn:  { bg:'#fff8e1', brd:'#ef6c00'  },
+            info:  { bg:'#e3f2fd', brd:'#1976d2'  },
+        };
+        document.getElementById('relInsights').innerHTML = insights.length
+            ? `<div style="margin-bottom:8px;"><strong style="color:#555;font-size:0.8rem;text-transform:uppercase;letter-spacing:.06em;">Pontos de Atenção</strong></div>`
+              + insights.map(i => `<div class="rel-insight" style="background:${cfg[i.tipo].bg};border-left:3px solid ${cfg[i.tipo].brd};">${i.txt}</div>`).join('')
+            : '';
+
+        // Tabela ranking
+        const sorted = [...hospitais].sort((a, b) => (b.progresso_medio??0)-(a.progresso_medio??0));
+
+        const saudeChip = h => {
+            if (!h.ativo) return '<span class="badge badge-inactive">Inativo</span>';
+            const p = h.progresso_medio ?? 0;
+            if (p >= 70) return '<span style="background:#e8f5e9;color:#2e7d32;display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">🟢 Em Dia</span>';
+            if (p >= 40) return '<span style="background:#fff8e1;color:#e65100;display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">🟡 Atenção</span>';
+            return '<span style="background:#ffebee;color:#c62828;display:inline-block;padding:2px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">🔴 Crítico</span>';
+        };
+        const acaoChip = h => {
+            if (!h.ativo) return '<span style="color:#bbb;font-size:0.82rem;">—</span>';
+            if (h.total_usuarios === 0) return '<span style="color:#ef6c00;font-size:0.82rem;">Cadastrar enfermeiras</span>';
+            const p = h.progresso_medio ?? 0;
+            if (p < 40)  return '<span style="color:#c62828;font-size:0.82rem;font-weight:600;">Contatar admin urgente</span>';
+            if (p < 70)  return '<span style="color:#e65100;font-size:0.82rem;">Monitorar progresso</span>';
+            return '<span style="color:#2e7d32;font-size:0.82rem;">✓ Nenhuma</span>';
+        };
+
+        document.getElementById('relCorpo').innerHTML = sorted.map((h, i) => `
             <tr>
-                <td><strong>${esc(h.nome)}</strong></td>
-                <td>${esc(h.cidade)} / ${esc(h.estado)}</td>
-                <td>${h.total_usuarios}</td>
+                <td style="color:#bbb;font-weight:700;">${i+1}</td>
+                <td><strong>${esc(h.nome)}</strong>${!h.ativo?'<br><span style="font-size:0.75rem;color:#bbb;">inativo</span>':''}</td>
+                <td style="color:#888;">${esc(h.cidade||'–')} / ${esc(h.estado||'–')}</td>
+                <td style="font-weight:600;color:${h.total_usuarios===0?'#bbb':'#1a1a1a'}">${h.total_usuarios}</td>
                 <td>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div class="progress-bar" style="width:80px;">
-                            <div class="progress-fill" style="width:${h.progresso_medio ?? 0}%"></div>
-                        </div>
-                        <small>${h.progresso_medio ?? 0}%</small>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${h.progresso_medio??0}%"></div></div>
+                        <strong style="font-size:0.9rem;">${h.progresso_medio??0}%</strong>
                     </div>
                 </td>
-                <td>${h.cursos_concluidos}</td>
                 <td>${h.total_certificados}</td>
-                <td><span class="badge ${h.ativo ? 'badge-active' : 'badge-inactive'}">${h.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${saudeChip(h)}</td>
+                <td>${acaoChip(h)}</td>
             </tr>`).join('');
 
-        // Gráfico de barras CSS
-        const sorted = [...hospitais].sort((a, b) => (b.progresso_medio ?? 0) - (a.progresso_medio ?? 0));
+        // Gráfico de barras
         document.getElementById('relGrafico').innerHTML = sorted.map(h => `
             <div class="rel-bar-row">
                 <div class="rel-bar-label" title="${esc(h.nome)}">${esc(h.nome)}</div>
-                <div class="rel-bar-track">
-                    <div class="rel-bar-fill" style="width:${h.progresso_medio ?? 0}%"></div>
-                </div>
-                <div class="rel-bar-val">${h.progresso_medio ?? 0}%</div>
+                <div class="rel-bar-track"><div class="rel-bar-fill" style="width:${h.progresso_medio??0}%"></div></div>
+                <div class="rel-bar-val">${h.progresso_medio??0}%</div>
             </div>`).join('');
     }
 

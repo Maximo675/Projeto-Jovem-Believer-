@@ -280,9 +280,37 @@
         }
         .invite-card h3 { margin: 0 0 24px 0; font-size: 1.2rem; color: #1a1a1a; }
 
+        /* ── AVALIAÇÃO IA ── */
+        .avaliacao-panel {
+            background: white; border-radius: 12px; box-shadow: var(--card-shadow);
+            padding: 24px; margin-bottom: 24px; border-top: 4px solid var(--primary-blue);
+        }
+        .avaliacao-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+        .avaliacao-nota { font-size: 2.8rem; font-weight: 800; color: var(--primary-blue); line-height: 1; }
+        .avaliacao-nota small { font-size: 0.9rem; font-weight: 400; color: #aaa; }
+        .nivel-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 0.88rem; }
+        .nivel-aprovada        { background: #e8f5e9; color: #1b5e20; }
+        .nivel-em_desenvolvimento { background: #e3f2fd; color: #0d47a1; }
+        .nivel-em_recuperacao  { background: #fff8e1; color: #e65100; }
+        .nivel-critica         { background: #ffebee; color: #b71c1c; }
+        .avaliacao-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+        .avaliacao-col h5 { margin: 0 0 8px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: .06em; color: #aaa; }
+        .avaliacao-col ul { margin: 0; padding: 0; list-style: none; }
+        .avaliacao-col ul li { font-size: 0.88rem; color: #333; padding: 3px 0; }
+        .avaliacao-col ul li::before { content: '• '; color: var(--primary-blue); }
+        .recuperacao-box { background: #fff3e0; border-left: 4px solid #ef6c00; border-radius: 8px; padding: 16px 18px; margin-top: 16px; }
+        .recuperacao-box h5 { margin: 0 0 10px; font-size: 0.85rem; color: #e65100; text-transform: uppercase; letter-spacing: .04em; }
+        .recuperacao-box ul { margin: 0; padding-left: 18px; }
+        .recuperacao-box ul li { font-size: 0.88rem; color: #333; margin-bottom: 4px; }
+        .avaliacao-fonte { font-size: 0.72rem; color: #bbb; margin-top: 12px; text-align: right; }
+        .btn-ia { background: linear-gradient(135deg, #6a11cb, #2575fc); color: white; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: opacity .2s; }
+        .btn-ia:hover { opacity: .88; }
+        .btn-ia:disabled { opacity: .5; cursor: not-allowed; }
+
         @media (max-width: 768px) {
             .sidebar { width: 220px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .avaliacao-cols { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
             .dashboard-container { flex-direction: column; }
@@ -687,6 +715,10 @@
         const notas = data.notas       || [];
         const r     = data.resumo      || {};
 
+        // Separar avaliação IA das notas manuais
+        const avaliacaoIA   = notas.find(n => n.tipo === 'avaliacao_ia');
+        const notasManuais  = notas.filter(n => n.tipo !== 'avaliacao_ia');
+
         // ── Aptidão badge ────────────────────────────────────────────
         const apt = r.aptidao ?? 0;
         const aptClasse = apt >= 70 ? 'aptidao-alta' : apt >= 40 ? 'aptidao-media' : 'aptidao-baixa';
@@ -791,8 +823,8 @@
 
         // ── Notas/Feedback ───────────────────────────────────────────
         const tipoLabel = { elogio: '🌟 Elogio', alerta: '⚠️ Alerta', observacao: '📝 Observação' };
-        const notasHtml = notas.length
-            ? notas.map(n => `
+        const notasHtml = notasManuais.length
+            ? notasManuais.map(n => `
                 <div class="nota-card nota-${n.tipo}" data-nota-id="${n.id}">
                     <div>
                         <div class="nota-tipo" style="color:${n.tipo === 'elogio' ? '#7cb342' : n.tipo === 'alerta' ? '#ef6c00' : '#1976d2'}">
@@ -804,6 +836,61 @@
                     <button class="btn-danger btn-sm" style="flex-shrink:0;" onclick="deletarNota(${n.id}, ${u.id})">×</button>
                 </div>`).join('')
             : '<p style="color:#aaa; margin:4px 0 12px;">Nenhuma nota ainda.</p>';
+
+        // ── Painel de Avaliação IA ────────────────────────────────────
+        const niveisLabel = {
+            aprovada: '✅ Aprovada', em_desenvolvimento: '📘 Em Desenvolvimento',
+            em_recuperacao: '⚠️ Em Recuperação', critica: '🔴 Crítica',
+        };
+        let avaliacaoHtml = '';
+        if (avaliacaoIA) {
+            let av = {};
+            try { av = JSON.parse(avaliacaoIA.conteudo); } catch { av = {}; }
+            const nivel   = av.nivel || 'em_desenvolvimento';
+            const rec     = av.plano_recuperacao || {};
+            avaliacaoHtml = `
+            <div class="avaliacao-panel" id="avaliacaoPanel">
+                <div class="avaliacao-header">
+                    <div>
+                        <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:.06em;color:#aaa;margin-bottom:6px;">Avaliação IA</div>
+                        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                            <span class="avaliacao-nota">${av.nota_final ?? '–'}<small>/100</small></span>
+                            <span class="nivel-chip nivel-${nivel}">${niveisLabel[nivel] || nivel}</span>
+                            ${av.recomenda_certificado
+                                ? '<span style="background:#e8f5e9;color:#2e7d32;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">🏆 Recomenda Certificado</span>'
+                                : '<span style="background:#ffebee;color:#c62828;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:600;">✗ Sem recomendação ainda</span>'}
+                        </div>
+                    </div>
+                    <button class="btn-ia" onclick="avaliarComIA(${u.id})" id="btnAvaliarIA">🤖 Reavaliar</button>
+                </div>
+                <p style="font-size:0.9rem;color:#444;line-height:1.6;margin:0 0 12px;">${esc(av.parecer || '')}</p>
+                <div class="avaliacao-cols">
+                    <div class="avaliacao-col">
+                        <h5>Pontos Fortes</h5>
+                        <ul>${(av.pontos_fortes || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+                    </div>
+                    <div class="avaliacao-col">
+                        <h5>Pontos a Melhorar</h5>
+                        <ul>${(av.pontos_fracos || []).map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+                    </div>
+                </div>
+                ${rec.necessario ? `
+                <div class="recuperacao-box">
+                    <h5>📋 Plano de Recuperação — prazo: ${rec.prazo_dias} dias · meta: ${rec.meta_aptidao}/100</h5>
+                    <ul>${(rec.acoes || []).map(a => `<li>${esc(a)}</li>`).join('')}</ul>
+                </div>` : ''}
+                <div class="avaliacao-fonte">Gerado por ${av.fonte === 'openai' ? 'OpenAI GPT' : 'análise algorítmica'} · ${new Date(avaliacaoIA.data_criacao).toLocaleDateString('pt-BR')}</div>
+            </div>`;
+        } else {
+            avaliacaoHtml = `
+            <div style="background:#f5f7fa;border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div>
+                    <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px;">🤖 Avaliação IA</div>
+                    <div style="font-size:0.85rem;color:#999;">Esta enfermeira ainda não foi avaliada pela IA. Clique para gerar nota, pontos fortes/fracos e plano de recuperação.</div>
+                </div>
+                <button class="btn-ia" onclick="avaliarComIA(${u.id})" id="btnAvaliarIA">🤖 Avaliar com IA</button>
+            </div>`;
+        }
 
         document.getElementById('detalheConteudo').innerHTML = `
             <div class="detail-header">
@@ -825,6 +912,9 @@
 
             <!-- Cards de resumo -->
             ${resumoHtml}
+
+            <!-- Avaliação IA -->
+            ${avaliacaoHtml}
 
             <!-- Progresso -->
             <h4 style="margin:0 0 12px 0; color:#555; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
@@ -871,6 +961,24 @@
     function fecharDetalhe() {
         document.getElementById('detalheUsuario').style.display = 'none';
         document.getElementById('listaUsuarios').style.display = 'block';
+    }
+
+    async function avaliarComIA(usuarioId) {
+        const btn = document.getElementById('btnAvaliarIA');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Avaliando...'; }
+
+        const res = await apiFetch(`/api/admin/usuarios/${usuarioId}/avaliar`, { method: 'POST' });
+        if (!res) { if (btn) { btn.disabled = false; btn.textContent = '🤖 Avaliar com IA'; } return; }
+
+        const data = await res.json();
+        if (!res.ok) {
+            alert('Erro na avaliação: ' + (data.erro || 'tente novamente'));
+            if (btn) { btn.disabled = false; btn.textContent = '🤖 Avaliar com IA'; }
+            return;
+        }
+
+        // Recarregar o painel completo para exibir a avaliação
+        await verDetalhe(usuarioId);
     }
 
     /* ── AÇÕES ── */
