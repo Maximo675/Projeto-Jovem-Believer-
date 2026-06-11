@@ -409,3 +409,5 @@ Se conseguiu TODOS acima: **🎉 SUCESSO TOTAL!**
 Data: 11 de Fevereiro de 2025
 Status: ✅ COMPLETO E FUNCIONAL
 Versão: 1.0.0
+
+<!-- Teste N8N: PR #1 - automacao webhook -->
