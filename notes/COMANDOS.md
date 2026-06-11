@@ -598,3 +598,5 @@ Se algo não funcionou:
 **Status:** Pronto para usar!
 **Data:** 11 de Fevereiro de 2025
 **Próximo:** `QUICKSTART.md` (Database Setup)
+
+<!-- Teste N8N: PR #2 - validando trigger de pull request -->
