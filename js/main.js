@@ -89,6 +89,8 @@ const ApiClient = {
 // AUTENTICAÇÃO
 // ==========================================
 
+//Teste de login: email:
+
 const Auth = {
     async login(email, password) {
         try {
