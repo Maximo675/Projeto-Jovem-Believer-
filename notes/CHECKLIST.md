@@ -411,3 +411,5 @@ Status: ✅ COMPLETO E FUNCIONAL
 Versão: 1.0.0
 
 <!-- Teste N8N: PR #1 - automacao webhook -->
+
+<!-- N8N test branch #5 -->
