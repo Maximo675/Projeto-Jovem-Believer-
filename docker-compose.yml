@@ -1,0 +1,47 @@
+# ─────────────────────────────────────────────────────────────────────────
+# Ambiente local completo do Winged Mind — sobe o site + um Postgres real,
+# sem precisar instalar Python, criar venv nem lembrar comandos.
+#
+# Primeira vez:
+#   1. cp .env.docker.example .env.docker
+#   2. docker compose up --build
+#   3. Abra http://localhost:5001
+#
+# Próximas vezes: só "docker compose up".
+# Para apagar os dados do banco local e recomeçar do zero: "docker compose down -v".
+# ─────────────────────────────────────────────────────────────────────────
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wingedmind
+      POSTGRES_PASSWORD: wingedmind_local_dev
+      POSTGRES_DB: wingedmind_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"   # opcional — permite conectar pelo DBeaver em localhost:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wingedmind -d wingedmind_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5002:5001"   # acesse em http://localhost:5002 (5001 já estava ocupada no seu Windows)
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    # Descomente para usar os vídeos locais dos cursos dentro do container
+    # (a pasta videos/ não vai pra imagem porque é grande e não fica no git):
+    # volumes:
+    #   - ./videos:/app/videos:ro
+
+volumes:
+  pgdata:

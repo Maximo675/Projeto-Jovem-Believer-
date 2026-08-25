@@ -3,6 +3,7 @@ Knowledge Base INFANT.ID — Protocolo ETAN de Coleta Biométrica
 Conteúdo específico para enfermeiras e profissionais de saúde.
 """
 
+import re
 from typing import Optional
 
 # Base de Conhecimento — Protocolo ETAN (Enfermagem)
@@ -879,6 +880,19 @@ Enquanto aguarda o chamado, **evite usar esse ETAN** se possível — as digitai
 }
 
 
+def _contem_termo(termo: str, texto_lower: str) -> bool:
+    """
+    Verifica se `termo` aparece em `texto_lower` de forma segura.
+    Termos com espaço (frases) usam substring normal. Termos de uma palavra só
+    usam borda de palavra (\\b) — sem isso, sinônimos curtos como "mae", "nfiq"
+    ou "vpn" batiam dentro de qualquer frase que só citasse a palavra de
+    passagem, roubando a resposta certa com um tema sem relação nenhuma.
+    """
+    if ' ' in termo:
+        return termo in texto_lower
+    return re.search(r'\b' + re.escape(termo) + r'\b', texto_lower) is not None
+
+
 def buscar_resposta(pergunta: str, atual_curso_id: Optional[int] = None) -> dict:
     """
     Busca a melhor resposta na knowledge base.
@@ -888,19 +902,27 @@ def buscar_resposta(pergunta: str, atual_curso_id: Optional[int] = None) -> dict
 
     melhor_resultado = None
     melhor_score = 0
+    melhor_tamanho = 0
 
     for chave, info in KNOWLEDGE_BASE.items():
         score = 0
-        if chave in pergunta_lower:
+        tamanho_match = 0
+        chave_legivel = chave.replace('_', ' ')
+        if _contem_termo(chave_legivel, pergunta_lower) or _contem_termo(chave, pergunta_lower):
             score = 1.0
+            tamanho_match = len(chave_legivel)
         elif "sinonimos" in info:
             for sinonimo in info["sinonimos"]:
-                if sinonimo in pergunta_lower:
+                if _contem_termo(sinonimo, pergunta_lower) and len(sinonimo) > tamanho_match:
                     score = 0.9
-                    break
+                    tamanho_match = len(sinonimo)
 
-        if score > melhor_score:
+        # Em empate de score, prioriza o termo mais longo/específico que bateu
+        # — evita que um sinônimo genérico de um tópico cadastrado antes vença
+        # por acaso um sinônimo mais preciso de outro tópico cadastrado depois.
+        if score > melhor_score or (score == melhor_score and tamanho_match > melhor_tamanho):
             melhor_score = score
+            melhor_tamanho = tamanho_match
             melhor_resultado = (chave, info)
 
     if melhor_resultado:

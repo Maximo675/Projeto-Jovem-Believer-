@@ -59,7 +59,12 @@ class AiService:
                 print("[FALLBACK] Sem configuracao de IA. Usando mock.")
                 self.mode = 'mock'
         
-        self.model = os.getenv('OPENAI_MODEL', 'llama2')
+        # 'llama2' só existe como modelo no Ollama — se o modo é OpenAI real e
+        # ninguém configurou OPENAI_MODEL, cair nesse default faz toda chamada
+        # falhar (a OpenAI não tem um modelo chamado "llama2"). Escolhe o
+        # default certo conforme o modo em vez de usar sempre o mesmo.
+        _default_model = 'llama2' if self.mode == 'ollama' else 'gpt-4o-mini'
+        self.model = os.getenv('OPENAI_MODEL', _default_model)
     
     def responder_pergunta(self, pergunta, contexto_curso=None):
         """
@@ -116,8 +121,14 @@ class AiService:
             return resposta, tokens_usados
             
         except Exception as e:
-            if self.mode == 'ollama':
-                print(f"[FALLBACK] Ollama indisponivel. Usando mock...")
+            # Antes, uma falha no modo 'openai' (ex.: OPENAI_MODEL/API key
+            # inválidos) subia como erro 500 puro pro chat — a enfermeira via
+            # uma mensagem de erro genérica em vez de qualquer resposta útil.
+            # Agora qualquer falha na camada de IA real cai pro mock (que
+            # sempre funciona), igual já acontecia com o Ollama. Fica
+            # registrado no log pra investigar a causa depois.
+            if self.mode in ('ollama', 'openai'):
+                print(f"[FALLBACK] IA real ({self.mode}) indisponível: {e}. Usando mock...")
                 self.mode = 'mock'
                 return self._responder_mock(pergunta, contexto_curso), 0
             raise Exception(f"Erro ao consultar IA: {str(e)}")
@@ -1053,6 +1064,18 @@ Emergência (instabilidade, cianose, risco de vida):
 
 Primeira vez / visão geral:
 - Apresente as 5 etapas com brevidade e convide para aprofundar
+
+Abertura de chamado técnico (quando não resolver por aqui):
+- Oriente a abrir chamado em akiyama.com.br/suporte
+- Peça o que agiliza o atendimento: modelo do computador, S/N do ETAN, print da tela
+
+Treinamento / onboarding de quem está começando agora:
+- Apresente as 5 etapas do protocolo com brevidade
+- Ofereça os vídeos de cada etapa (veja lista abaixo)
+- Convide a pessoa a perguntar qualquer dúvida específica depois
+
+Conversa informal (saudação, despedida, agradecimento):
+- Responda breve e natural, sem forçar assunto técnico onde não foi pedido
 
 VÍDEOS DAS ETAPAS (inclua quando pertinente):
 - Seleção: https://drive.google.com/file/d/1uOILNO0clQYeP9PFpuvkaP1h4570kaRA/view?usp=sharing

@@ -58,9 +58,12 @@ class ProductionConfig(Config):
         # internos do QueuePool, causando RuntimeError: cannot notify on un-acquired lock.
         # NullPool abre/fecha a conexão por request, sem pool, sem locks.
         from sqlalchemy.pool import NullPool as _NullPool
+        # DB_SSLMODE permite desligar a exigência de SSL localmente (Docker Compose)
+        # sem afetar o Render, que nunca define essa variável e continua exigindo 'require'.
+        _sslmode = os.getenv('DB_SSLMODE', 'require')
         SQLALCHEMY_ENGINE_OPTIONS = {
             'poolclass': _NullPool,
-            'connect_args': {'connect_timeout': 10, 'sslmode': 'require'},
+            'connect_args': {'connect_timeout': 10, 'sslmode': _sslmode},
         }
     else:
         import tempfile as _tmp

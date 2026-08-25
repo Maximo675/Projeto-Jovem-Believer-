@@ -1,0 +1,42 @@
+# Ambientes Python locais — a imagem instala tudo do zero via requirements.txt
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Node (bridge openbio, não usado dentro do container)
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Segredos locais — NUNCA devem entrar na imagem
+.env
+.env.docker
+backend/.env
+backend/.env.bak
+
+# Certificados — não devem ser embutidos na imagem
+*.pem
+*.key
+*.crt
+
+# Bancos locais / logs / cache
+*.db
+*.sqlite
+*.sqlite3
+backend/instance/
+*.log
+backend/flask.log
+backend/server.log
+
+# Vídeos (grandes, não versionados no git também)
+videos/
+
+# IDE
+.vscode/
+.idea/

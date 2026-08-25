@@ -31,6 +31,12 @@ services:
       # (o SDK cria proxies lazy que falham se não houver nenhuma key definida)
       - key: OPENAI_API_KEY
         value: "dummy-not-used-mock-mode"
+      # Modelo real da OpenAI a usar quando USE_MOCK_AI="false". Precisa estar
+      # definido explicitamente — sem essa variável o código caía num default
+      # de nome de modelo do Ollama, que não existe na OpenAI, e toda chamada
+      # de IA real falhava.
+      - key: OPENAI_MODEL
+        value: "gpt-4o-mini"
       # Para habilitar IA real: troque USE_MOCK_AI para "false" e OPENAI_API_KEY pela chave real
 
 databases:
