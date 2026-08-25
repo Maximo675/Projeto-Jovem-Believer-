@@ -7,7 +7,7 @@ import os
 import sys
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BLOQUEAR OPENAI ANTES DE QUALQUER IMPORT DA APP
+# BLOQUEAR OPENAI ANTES DE QUALQUER IMPORT DA APP — SÓ SOB GUNICORN (RENDER)
 #
 # Problema: openai>=1.x registra proxy objects lazy (chat, beta, etc.) no
 # escopo do módulo ao ser importado. O worker eventlet do gunicorn chama
@@ -16,13 +16,20 @@ import sys
 # criar OpenAI() → crash fatal com httpx>=0.28 (TypeError: proxies) ou sem
 # OPENAI_API_KEY (OpenAIError). O crash acontece fora de qualquer try/except.
 #
+# Esse monkey_patch só acontece no boot do worker gunicorn. Rodando direto via
+# "python run.py" (uso local e dentro do Docker), __name__ é "__main__" —
+# nunca "run" — e esse monkey_patch nunca é acionado nesse fluxo. Por isso o
+# bloqueio só entra quando o módulo é importado (gunicorn faz "run:app"),
+# liberando o import real da openai para testar a IA de verdade sem risco
+# no ambiente local/Docker.
+#
 # Solução: sys.modules['openai'] = None faz qualquer `import openai` lançar
 # ImportError ANTES dos proxies serem criados. O try/except em ai_service.py
 # captura isso e ativa o modo mock automaticamente.
 # ─────────────────────────────────────────────────────────────────────────────
-if 'openai' not in sys.modules:
+if __name__ != '__main__' and 'openai' not in sys.modules:
     sys.modules['openai'] = None  # type: ignore[assignment]
-    print("[BOOT] openai bloqueado via sys.modules — modo mock ativo")
+    print("[BOOT] openai bloqueado via sys.modules — modo mock ativo (produção/gunicorn)")
 
 # Adicionar diretório do app ao path
 sys.path.insert(0, os.path.dirname(__file__))

@@ -26,10 +26,16 @@ msal==1.28.0
 resend==2.10.0
 
 # IA & Machine Learning
-# openai desabilitado no Render: modo mock não usa o SDK e os proxy objects
-# do openai>=1.x são incompatíveis com eventlet.monkey_patch() (crash no boot).
-# Para reativar IA real: descomente a linha abaixo E configure OPENAI_API_KEY + USE_MOCK_AI=false
-# openai==1.11.0
+# openai instalado normalmente — o pacote em si não é o problema. O que
+# quebra o boot no Render é o worker gunicorn rodando eventlet.monkey_patch()
+# em cima dos proxy objects lazy do SDK. run.py bloqueia o import real da
+# openai só nesse cenário (gunicorn); rodando local/Docker via "python run.py"
+# o import é liberado normalmente. Ver comentário no topo de run.py.
+# Versão atual da SDK (não precisa mais travar em 1.11.0: a partir da v2 a
+# openai isolou sua própria dependência interna de HTTP, então não conflita
+# mais com o resto do projeto — por isso o pin de httpx que existia aqui
+# embaixo também não é mais necessário e foi removido).
+openai==3.3.1
 numpy==1.24.3
 pandas==2.1.3
 
@@ -41,9 +47,6 @@ pydantic==2.5.0
 requests==2.31.0
 Pillow==10.1.0
 pytesseract==0.3.10
-# httpx pinnado: openai<=1.x passa `proxies` para httpx, removido no httpx>=0.28
-# necessário enquanto openai estiver instalado (ex: cache do Render)
-httpx==0.27.2
 
 # WSGI Server
 gunicorn==21.2.0
