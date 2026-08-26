@@ -38,8 +38,10 @@ def download_document(nome_arquivo):
     """Download de um documento específico"""
     try:
         from pathlib import Path
-        
-        knowledge_base_dir = Path(__file__).parent.parent.parent / 'assets' / 'documents'
+
+        # Mesmo ajuste do document_service.py: os documentos ficam em
+        # assets/documents/ na raiz do projeto, um nível acima de backend/.
+        knowledge_base_dir = Path(__file__).parent.parent.parent.parent / 'assets' / 'documents'
         caminho = knowledge_base_dir / f"{nome_arquivo}.docx"
         
         if not caminho.exists():

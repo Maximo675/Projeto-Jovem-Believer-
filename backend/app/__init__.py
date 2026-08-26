@@ -15,13 +15,18 @@ load_dotenv()
 
 # Inicializar banco de dados e SocketIO
 db = SQLAlchemy()
-# async_mode=None: Flask-SocketIO auto-detecta o modo correto
-# Com gunicorn+eventlet worker: usa eventlet (já patchado pelo worker)
-# Com python run.py local: usa threading
+# async_mode='threading' forçado (era None/auto-detecção). O auto-detect
+# escolhia 'eventlet' sempre que o pacote eventlet estivesse instalado —
+# mesmo rodando sob o worker gthread do gunicorn, onde ninguém nunca chama
+# eventlet.monkey_patch() e portanto isso nunca fazia diferença na prática,
+# mas deixava o comportamento real dependente de quais pacotes estarem
+# instalados, o que é frágil e difícil de raciocinar sobre. 'threading' é
+# explícito, corresponde ao que gthread já faz de verdade, e evita qualquer
+# cenário futuro em que o auto-detect decida usar eventlet de fato.
 _socketio_cors = os.getenv('CORS_ORIGINS', '*') if os.getenv('FLASK_ENV') == 'production' else '*'
 socketio = SocketIO(
     cors_allowed_origins=_socketio_cors,
-    async_mode=None,
+    async_mode='threading',
     ping_timeout=60,
     ping_interval=25,
     engineio_logger=False,
@@ -41,7 +46,7 @@ def create_app():
     socketio.init_app(
         app,
         cors_allowed_origins=_socketio_cors,
-        async_mode=None,
+        async_mode='threading',
         ping_timeout=60,
         ping_interval=25,
         transports=['websocket', 'polling']
@@ -935,7 +940,7 @@ def _patch_video_urls():
     mapa = {
         'Equipamentos e Dispositivos ETAN':              'https://youtu.be/TI42JZHkA20',
         'Segurança, Higiene e Aspectos Legais':          'https://youtu.be/0GOkU_0QpKU',
-        'Prática com o Sistema AKIYAMA — Simulação Completa': 'https://youtu.be/UNKHidgcbo4',
+        'Prática com o Sistema INFANT.ID — Simulação Completa': 'https://youtu.be/UNKHidgcbo4',
         'Certificação e Boas Práticas — Próximos Passos': 'https://youtu.be/oQjQRJzIzno',
     }
 
@@ -1007,11 +1012,11 @@ def _seed_courses():
                 ),
                 dict(
                     titulo='Equipamentos e Dispositivos ETAN',
-                    descricao='Conheça o dispositivo ETAN AKIYAMA: componentes, manutenção e calibração.',
+                    descricao='Conheça o dispositivo ETAN INFANT.ID: componentes, manutenção e calibração.',
                     ordem=2, duracao=25,
                     video_url='https://youtu.be/TI42JZHkA20',
                     conteudo=(
-                        '<h2>O Dispositivo ETAN AKIYAMA</h2>'
+                        '<h2>O Dispositivo ETAN INFANT.ID</h2>'
                         '<p>O ETAN (Equipment for Touch and Analysis of Neonates) é um sensor biométrico '
                         'desenvolvido especificamente para a captura de impressões digitais em bebês. '
                         'Utiliza tecnologia óptica de alta resolução com iluminação LED infravermelha.</p>'
@@ -1026,10 +1031,13 @@ def _seed_courses():
                         '<p>Antes de cada turno, o dispositivo deve ser calibrado com o cartão de referência '
                         'que acompanha o equipamento. O score de referência deve estar entre 85 e 100. '
                         'Limpeza do sensor com pano de microfibra seco é obrigatória.</p>'
-                        '<h3>Indicadores de status</h3>'
+                        '<h3>Indicadores de status (na tela do sistema)</h3>'
+                        '<p>O ETAN não possui uma luz física de status no próprio dispositivo — '
+                        'o status da captura é mostrado por um indicador colorido na tela do '
+                        'software INFANT.ID:</p>'
                         '<ul>'
-                        '<li>🟢 <strong>Verde pulsando:</strong> pronto para captura</li>'
-                        '<li>🟡 <strong>Amarelo fixo:</strong> aquecendo (aguarde 30s)</li>'
+                        '<li>🟢 <strong>Verde:</strong> pronto para captura</li>'
+                        '<li>🟡 <strong>Amarelo:</strong> aquecendo (aguarde 30s)</li>'
                         '<li>🔴 <strong>Vermelho:</strong> erro — recalibrar ou reiniciar</li>'
                         '</ul>'
                     ),
@@ -1100,7 +1108,7 @@ def _seed_courses():
                 titulo='Protocolo ETAN — Técnicas Avançadas',
                 descricao=(
                     'Aprofundamento no Protocolo ETAN com suas 5 fases, casos especiais, '
-                    'troubleshooting e prática real com o sistema AKIYAMA. '
+                    'troubleshooting e prática real com o sistema INFANT.ID. '
                     'Para profissionais que já concluíram o curso Fundamentos.'
                 ),
                 autor='Equipe Winged Mind',
@@ -1213,18 +1221,18 @@ def _seed_courses():
                     ),
                 ),
                 dict(
-                    titulo='Prática com o Sistema AKIYAMA — Simulação Completa',
+                    titulo='Prática com o Sistema INFANT.ID — Simulação Completa',
                     descricao='Exercício prático simulando uma captura real completa do início ao fim.',
                     ordem=4, duracao=45,
                     video_url='https://youtu.be/UNKHidgcbo4',
                     conteudo=(
-                        '<h2>Prática Real com o Sistema AKIYAMA</h2>'
+                        '<h2>Prática Real com o Sistema INFANT.ID</h2>'
                         '<p>Esta aula é prática. Você vai simular um procedimento completo de captura biométrica '
-                        'utilizando o simulador do sistema AKIYAMA, que replica fielmente o equipamento real.</p>'
+                        'utilizando o simulador do sistema INFANT.ID, que replica fielmente o equipamento real.</p>'
                         '<h3>Checklist pré-captura</h3>'
                         '<ol>'
-                        '<li>✅ Dispositivo ETAN conectado e LED verde pulsando</li>'
-                        '<li>✅ Software AKIYAMA aberto e logado</li>'
+                        '<li>✅ Dispositivo ETAN conectado e indicador verde ativo na tela do sistema</li>'
+                        '<li>✅ Software INFANT.ID aberto e logado</li>'
                         '<li>✅ Prontuário do paciente aberto no sistema</li>'
                         '<li>✅ Mãos higienizadas com álcool gel</li>'
                         '<li>✅ Sensor limpo e calibrado (score de referência ≥ 85)</li>'
@@ -1278,7 +1286,7 @@ def _seed_courses():
                         '<li><strong>Capturas sem nenhum dígito registrado:</strong> meta = 0</li>'
                         '</ul>'
                         '<h3>Relatórios mensais obrigatórios</h3>'
-                        '<p>O sistema AKIYAMA gera automaticamente o Relatório Mensal de Qualidade Biométrica. '
+                        '<p>O sistema INFANT.ID gera automaticamente o Relatório Mensal de Qualidade Biométrica. '
                         'Este relatório deve ser revisado pelo coordenador e arquivado por 5 anos. '
                         'Desvios acima de 20% da meta devem gerar um Plano de Ação Corretiva (PAC).</p>'
                         '<h3>Auditoria de capturas</h3>'
@@ -1360,7 +1368,7 @@ def _seed_courses():
                         '<h3>Boas práticas para manter a excelência</h3>'
                         '<ul>'
                         '<li>Revisar os materiais dos cursos a cada 6 meses</li>'
-                        '<li>Participar das atualizações de protocolo emitidas pela AKIYAMA</li>'
+                        '<li>Participar das atualizações de protocolo emitidas pela INFANT.ID</li>'
                         '<li>Compartilhar aprendizados com a equipe — treinamentos internos mensais</li>'
                         '<li>Acompanhar os indicadores de qualidade do seu setor semanalmente</li>'
                         '</ul>'

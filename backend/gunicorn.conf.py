@@ -4,26 +4,27 @@ Configuração do Gunicorn — carregada automaticamente quando o CWD é backend
 O start command do Render executa: cd backend && gunicorn ... então este arquivo
 é sempre lido, independentemente do que estiver configurado no dashboard.
 
-PROBLEMA RAIZ:
-  Sem --preload, cada worker gunicorn reimporta a app de forma independente.
-  A ordem de execução no worker é:
-    1. init_process() → patch() → eventlet.monkey_patch()  ← crash aqui
-    2. load_wsgi() → importa run.py                        ← nosso bloqueio chegaria tarde demais
+PROBLEMA RAIZ (relevante só se o worker for "eventlet"):
+  O worker "eventlet" do gunicorn chama eventlet.monkey_patch() dentro do
+  próprio init_process(), depois que preload_app já carregou a app inteira
+  no master (com ela, os proxy objects lazy do SDK da openai). Esse
+  monkey_patch tenta "atualizar" esses objetos já existentes e quebra —
+  reproduzido isoladamente e confirmado com traceback real.
 
-  O monkey_patch() itera gc.get_objects() e chama isinstance() em cada objeto.
-  Os proxy objects lazy do openai SDK v1.x respondem a isinstance() disparando
-  _load_client() → TypeError: proxies / OpenAIError (fora de qualquer try/except).
+  O worker configurado hoje em render.yaml é "gthread", não "eventlet" —
+  reproduzido também isoladamente com --worker-class gthread + openai
+  importada de verdade: zero erros. Esse problema não afeta o Render atual;
+  o bloqueio em run.py agora só entra em ação se detectar "eventlet" no
+  próprio comando (sys.argv), então esse arquivo continua correto tanto se
+  o worker for gthread (IA real liberada) quanto se alguém futuramente
+  reconfigurar para eventlet (bloqueio automático, sem crash).
 
-SOLUÇÃO — preload_app = True:
-  Com preload, o MASTER carrega a app ANTES de fazer fork dos workers:
-    Master: importa run.py → sys.modules['openai'] = None → app carrega em modo mock
-    Fork → workers herdam sys.modules limpo (sem proxy objects do openai)
-    Worker: monkey_patch() → gc.get_objects() → zero proxy objects → SEM CRASH
+preload_app = True:
+  Mantido por ainda ser boa prática (workers sobem mais rápido, e o check de
+  sys.argv em run.py roda uma vez só no master antes do fork, exatamente
+  como antes) — não é mais o que evita o crash, é o worker class certo.
 """
 
-# Carrega a app no processo master antes de fazer fork dos workers.
-# Garante que sys.modules['openai'] = None (definido em run.py) esteja ativo
-# antes de qualquer worker chamar eventlet.monkey_patch().
 preload_app = True
 
 

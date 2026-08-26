@@ -579,8 +579,12 @@ const Dashboard = {
         const totalCourses = this.courses.length;
         const completedCourses = this.courses.filter(c => this.isCourseCompleted(c.id)).length;
         const enrolledCourses = this.courses.filter(c => {
+            // "Em Andamento" precisa excluir os já concluídos — antes usava só
+            // "progress > 0", que também é verdadeiro para cursos 100% completos,
+            // fazendo o mesmo curso contar como "Em Andamento" E "Concluído" ao
+            // mesmo tempo (por isso os 3 cards apareciam sempre com o mesmo número).
             const progress = this.getProgressForCourse(c.id);
-            return progress > 0; // Iniciado mas não concluído
+            return progress > 0 && !this.isCourseCompleted(c.id); // Iniciado mas não concluído
         }).length;
         
         document.getElementById('totalCourses').textContent = totalCourses;

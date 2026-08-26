@@ -7,29 +7,34 @@ import os
 import sys
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BLOQUEAR OPENAI ANTES DE QUALQUER IMPORT DA APP — SÓ SOB GUNICORN (RENDER)
+# BLOQUEAR OPENAI SÓ SE O WORKER DO GUNICORN FOR "eventlet"
 #
-# Problema: openai>=1.x registra proxy objects lazy (chat, beta, etc.) no
-# escopo do módulo ao ser importado. O worker eventlet do gunicorn chama
-# eventlet.monkey_patch() DEPOIS do fork, que itera gc.get_objects() e executa
-# isinstance() em cada objeto — isso dispara __class__ nos proxies, que tentam
-# criar OpenAI() → crash fatal com httpx>=0.28 (TypeError: proxies) ou sem
-# OPENAI_API_KEY (OpenAIError). O crash acontece fora de qualquer try/except.
+# Problema real (reproduzido isoladamente antes de mexer aqui): o worker
+# "eventlet" do gunicorn chama eventlet.monkey_patch() dentro do próprio
+# init_process(), DEPOIS que preload_app já importou a app (e com ela os
+# proxy objects lazy do SDK da openai). Esse monkey_patch tenta "atualizar"
+# esses objetos já existentes e quebra — confirmado com traceback real ao
+# reproduzir gunicorn --worker-class eventlet + openai importada.
 #
-# Esse monkey_patch só acontece no boot do worker gunicorn. Rodando direto via
-# "python run.py" (uso local e dentro do Docker), __name__ é "__main__" —
-# nunca "run" — e esse monkey_patch nunca é acionado nesse fluxo. Por isso o
-# bloqueio só entra quando o módulo é importado (gunicorn faz "run:app"),
-# liberando o import real da openai para testar a IA de verdade sem risco
-# no ambiente local/Docker.
+# A versão anterior deste bloqueio desconfiava de QUALQUER execução via
+# gunicorn (checando __name__ != '__main__'), o que também bloqueava sem
+# necessidade o worker "gthread" — que é o que o render.yaml realmente usa
+# em produção. Reproduzi gunicorn --worker-class gthread (com --preload,
+# igual ao gunicorn.conf.py) com a openai importada e instanciada de
+# verdade: zero erros. O problema é do worker eventlet especificamente, não
+# de rodar sob gunicorn em si.
 #
-# Solução: sys.modules['openai'] = None faz qualquer `import openai` lançar
-# ImportError ANTES dos proxies serem criados. O try/except em ai_service.py
-# captura isso e ativa o modo mock automaticamente.
-# ─────────────────────────────────────────────────────────────────────────────
-if __name__ != '__main__' and 'openai' not in sys.modules:
+# Por isso agora o bloqueio olha o próprio comando com que o processo foi
+# iniciado (sys.argv) e só entra em ação se detectar "eventlet" como worker
+# class — o que cobre o Render de hoje (gthread, sem bloqueio, IA real
+# liberada) e continua protegendo contra alguém reconfigurar para eventlet
+# no futuro sem saber do motivo.
+_argv_str = ' '.join(sys.argv).lower()
+_worker_eventlet = 'gunicorn' in sys.argv[0].lower() and 'eventlet' in _argv_str
+
+if _worker_eventlet and 'openai' not in sys.modules:
     sys.modules['openai'] = None  # type: ignore[assignment]
-    print("[BOOT] openai bloqueado via sys.modules — modo mock ativo (produção/gunicorn)")
+    print("[BOOT] openai bloqueado — worker eventlet detectado (risco de crash confirmado em teste)")
 
 # Adicionar diretório do app ao path
 sys.path.insert(0, os.path.dirname(__file__))

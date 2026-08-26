@@ -13,7 +13,13 @@ from app.models.lesson import Lesson
 class DocumentService:
     """Serviço para processar documentos Word como base de conhecimento"""
     
-    KNOWLEDGE_BASE_DIR = Path(__file__).parent.parent.parent / 'assets' / 'documents'
+    # Este arquivo fica em backend/app/services/. Os documentos de verdade
+    # ficam em assets/documents/ na RAIZ do projeto (um nível acima de
+    # backend/, não dentro dele) — por isso são 4 ".parent" e não 3. Com 3,
+    # esse caminho apontava pra backend/assets/documents/, uma pasta
+    # diferente que nunca teve nenhum arquivo, e a lista de documentos
+    # sempre voltava vazia mesmo com os .docx reais existindo no projeto.
+    KNOWLEDGE_BASE_DIR = Path(__file__).parent.parent.parent.parent / 'assets' / 'documents'
     
     @staticmethod
     def listar_documentos():

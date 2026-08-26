@@ -674,8 +674,14 @@
                 </div>
 
                 <h3 style="color: #374151; margin: 30px 0 15px 0; font-size: 16px;">
-                    ✍️ Pergunta Reflexiva:
+                    ✍️ Pergunta Reflexiva
                 </h3>
+
+                <p style="color: #6b7280; font-size: 13px; margin: -8px 0 12px 0;">
+                    Não existe resposta certa ou errada aqui — é um espaço para você consolidar,
+                    com suas próprias palavras, o porquê da prática. É obrigatório escrever algo
+                    para concluir a atividade, mas o texto não é avaliado como acerto/erro.
+                </p>
 
                 <p class="fase-descricao">
                     Por que você acha que <strong>Qualidade > Velocidade</strong> é importante na coleta biométrica?
@@ -949,7 +955,7 @@
 
             if (resposta === 'correto') {
                 respostasUser[5] = { score: true, reflexao: reflexao };
-                mostrarFeedback(feedbackEl, true, '✅ Excelente reflexão! Você entendeu a filosofia correta.');
+                mostrarFeedback(feedbackEl, true, '✅ Resposta registrada — e você também acertou a pontuação NFIQ ideal!');
                 setTimeout(() => {
                     finalizarAtividade();
                 }, 1500);
@@ -1038,9 +1044,13 @@
         }
 
         function proximaAula() {
-            // Aqui você redirecionaria para a próxima aula
-            alert('Próxima aula: Casos Especiais - Bebês Desafiadores');
-            // window.location.href = '/dashboard/curso/4/aula/3';
+            // Antes só mostrava um alert() e nunca navegava de verdade (a
+            // linha de redirecionamento estava comentada, com uma URL de
+            // placeholder que nem existe no app). A atividade "Casos
+            // Especiais" é servida em /activities/etan_special_cases.html
+            // (ver rota @app.route('/activities/<filename>') em
+            // backend/app/__init__.py).
+            window.location.href = '/activities/etan_special_cases.html';
         }
 
         function enviarParaBackend(dados) {

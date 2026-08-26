@@ -97,6 +97,53 @@
             transform: translateX(4px);
         }
 
+        /* DOCUMENTOS DA BASE DE CONHECIMENTO */
+        .document-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .document-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.88rem;
+            line-height: 1.35;
+        }
+
+        .document-item .doc-name {
+            overflow-wrap: anywhere;
+        }
+
+        .document-item .doc-download {
+            flex-shrink: 0;
+            color: white;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            padding: 4px 9px;
+            font-size: 0.8rem;
+            transition: var(--transition);
+        }
+
+        .document-item .doc-download:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .document-empty {
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
         /* MAIN CONTENT */
         .course-main {
             flex: 1;
@@ -986,6 +1033,11 @@
             <ul class="lesson-list" id="lessonList">
                 <li class="lesson-item loading">Carregando aulas...</li>
             </ul>
+
+            <h3>📄 Documentos</h3>
+            <ul class="document-list" id="documentsList">
+                <li class="document-empty">Carregando documentos...</li>
+            </ul>
         </div>
 
         <!-- CONTEÚDO PRINCIPAL -->
@@ -1119,8 +1171,49 @@
                 }
                 
                 this.loadCourse();
+                this.loadDocuments();
             },
-            
+
+            async loadDocuments() {
+                // Documentos da base de conhecimento (não são específicos de um
+                // curso — a mesma listagem aparece em qualquer curso).
+                const list = document.getElementById('documentsList');
+                if (!list) return;
+
+                try {
+                    const response = await fetch('/api/documents', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const documentos = data.documentos || [];
+
+                    if (documentos.length === 0) {
+                        list.innerHTML = '<li class="document-empty">Nenhum documento disponível no momento.</li>';
+                        return;
+                    }
+
+                    list.innerHTML = documentos.map(doc => `
+                        <li class="document-item">
+                            <span class="doc-name">${doc.nome}</span>
+                            <a class="doc-download"
+                               href="/api/documents/${encodeURIComponent(doc.nome)}/download"
+                               target="_blank"
+                               rel="noopener">⬇ Baixar</a>
+                        </li>
+                    `).join('');
+                } catch (error) {
+                    console.warn('[COURSE] Erro ao carregar documentos:', error);
+                    list.innerHTML = '<li class="document-empty">Não foi possível carregar os documentos agora.</li>';
+                }
+            },
+
             showReviewBanner() {
                 // Criar banner de revisão
                 const courseContainer = document.querySelector('.course-container');
