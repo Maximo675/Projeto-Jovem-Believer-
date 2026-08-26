@@ -468,6 +468,14 @@
                     </div>
                     <button class="btn" onclick="enviarConvite()" style="width:100%;">Enviar Convite por E-mail</button>
                     <p id="conviteMsg" style="margin-top:14px; font-size:0.9rem; color:var(--success-green); display:none;"></p>
+                    <div id="conviteLinkBox" style="display:none; margin-top:10px; gap:8px; align-items:center;">
+                        <input type="text" id="conviteLinkInput" readonly
+                               style="flex:1; padding:8px 10px; font-size:0.8rem; border:1px solid #ddd; border-radius:6px; background:#f9f9f9; color:#555;">
+                        <button class="btn-outline" onclick="copiarConviteLink('conviteLinkInput', this)" style="white-space:nowrap;">📋 Copiar link</button>
+                    </div>
+                    <p style="margin-top:6px; font-size:0.78rem; color:#888;">
+                        Se o e-mail não chegar, copie o link acima e envie por WhatsApp ou outro canal — o convite funciona do mesmo jeito.
+                    </p>
                 </div>
             </div>
         </div><!-- /content-area -->
@@ -512,6 +520,11 @@
             </select>
         </div>
         <p id="modalConviteMsg" style="font-size:0.85rem; color:var(--success-green); display:none;"></p>
+        <div id="modalConviteLinkBox" style="display:none; gap:8px; align-items:center; margin-top:6px;">
+            <input type="text" id="modalConviteLinkInput" readonly
+                   style="flex:1; padding:8px 10px; font-size:0.8rem; border:1px solid #ddd; border-radius:6px; background:#f9f9f9; color:#555;">
+            <button class="btn-outline" onclick="copiarConviteLink('modalConviteLinkInput', this)" style="white-space:nowrap;">📋 Copiar link</button>
+        </div>
         <div class="modal-actions">
             <button class="btn-outline" onclick="fecharModal('modalConvite')">Cancelar</button>
             <button class="btn" onclick="enviarConviteModal()">Enviar</button>
@@ -1086,7 +1099,7 @@
     }
 
     /* ── CONVITES ── */
-    async function _enviarConvite(nome, email, funcao, msgEl) {
+    async function _enviarConvite(nome, email, funcao, msgEl, linkBoxEl, linkInputEl) {
         const user = getUser();
         const res = await apiFetch('/api/invitations', {
             method: 'POST',
@@ -1098,9 +1111,39 @@
         if (res.ok) {
             msgEl.style.color = 'var(--success-green)';
             msgEl.textContent = 'Convite enviado para ' + email + '!';
+            // Sempre mostra o link também — o e-mail pode não chegar (provedor
+            // fora do ar, caiu em spam, endereço digitado errado etc.), e sem
+            // o link visível o admin não tinha como confirmar nem repassar
+            // manualmente. Com o link à mão, dá pra mandar por WhatsApp/outro
+            // canal como plano B, sem depender do e-mail funcionar.
+            if (data.link && linkBoxEl && linkInputEl) {
+                linkInputEl.value = data.link;
+                linkBoxEl.style.display = 'flex';
+            }
         } else {
             msgEl.style.color = 'var(--danger-red)';
             msgEl.textContent = 'Erro: ' + (data.erro || data.mensagem);
+            if (linkBoxEl) linkBoxEl.style.display = 'none';
+        }
+    }
+
+    function copiarConviteLink(inputId, btnEl) {
+        const input = document.getElementById(inputId);
+        input.select();
+        input.setSelectionRange(0, 99999);
+        const textoOriginal = btnEl.textContent;
+        const marcarCopiado = () => {
+            btnEl.textContent = '✅ Copiado!';
+            setTimeout(() => { btnEl.textContent = textoOriginal; }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(input.value).then(marcarCopiado).catch(() => {
+                document.execCommand('copy');
+                marcarCopiado();
+            });
+        } else {
+            document.execCommand('copy');
+            marcarCopiado();
         }
     }
 
@@ -1109,14 +1152,17 @@
         const email  = document.getElementById('inviteEmail').value.trim();
         const funcao = document.getElementById('inviteFuncao').value;
         const msg    = document.getElementById('conviteMsg');
+        const linkBox   = document.getElementById('conviteLinkBox');
+        const linkInput = document.getElementById('conviteLinkInput');
         if (!nome || !email) { alert('Preencha nome e e-mail.'); return; }
-        await _enviarConvite(nome, email, funcao, msg);
+        await _enviarConvite(nome, email, funcao, msg, linkBox, linkInput);
     }
 
     function abrirModalConvite() {
         document.getElementById('mInviteNome').value = '';
         document.getElementById('mInviteEmail').value = '';
         document.getElementById('modalConviteMsg').style.display = 'none';
+        document.getElementById('modalConviteLinkBox').style.display = 'none';
         abrirModal('modalConvite');
     }
 
@@ -1125,8 +1171,10 @@
         const email  = document.getElementById('mInviteEmail').value.trim();
         const funcao = document.getElementById('mInviteFuncao').value;
         const msg    = document.getElementById('modalConviteMsg');
+        const linkBox   = document.getElementById('modalConviteLinkBox');
+        const linkInput = document.getElementById('modalConviteLinkInput');
         if (!nome || !email) { alert('Preencha nome e e-mail.'); return; }
-        await _enviarConvite(nome, email, funcao, msg);
+        await _enviarConvite(nome, email, funcao, msg, linkBox, linkInput);
     }
 
     /* ── HELPERS ── */
