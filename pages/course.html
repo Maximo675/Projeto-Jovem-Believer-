@@ -1135,6 +1135,8 @@
             lessons: [],
             currentLessonIndex: 0,
             isReview: false,
+            maiorAulaVista: -1,
+            _ultimoPercentualEnviado: null,
             
             init() {
                 console.log('[COURSE] Iniciando visualizador de curso...');
@@ -1357,8 +1359,10 @@
                 
                 this.currentLessonIndex = index;
                 const lesson = this.lessons[index];
-                
+
                 console.log('[COURSE] Exibindo aula:', lesson.titulo);
+
+                this._registrarProgressoParcial(index);
                 
                 // Atualizar lista lateral
                 document.querySelectorAll('.lesson-item').forEach((el, i) => {
@@ -1459,7 +1463,62 @@
                 // Scroll to top
                 document.querySelector('.course-content').scrollTop = 0;
             },
-            
+
+            // Registra progresso PARCIAL enquanto o curso está em andamento — antes
+            // disso, o único lugar que gravava Progress era submitFeedback() lá no
+            // final do curso (sempre com percentual:100, concluido:true). Ou seja,
+            // não existia NENHUM registro entre "não comecei" e "terminei tudo":
+            // o dashboard nunca tinha como mostrar "Em Andamento" porque essa
+            // linha no banco simplesmente não existia até o curso ser concluído.
+            _registrarProgressoParcial(index) {
+                if (this.isReview) return; // curso já concluído, não sobrescrever
+
+                // Só avança com base na aula mais distante já vista, pra não
+                // retroceder o progresso se o usuário volta pra revisar uma aula anterior
+                this.maiorAulaVista = Math.max(this.maiorAulaVista, index);
+                const percentual = Math.round(((this.maiorAulaVista + 1) / this.lessons.length) * 100);
+
+                if (percentual === this._ultimoPercentualEnviado) return; // evita chamada repetida
+                this._ultimoPercentualEnviado = percentual;
+
+                const token = localStorage.getItem('authToken');
+                if (!token) return;
+
+                let userId = null;
+                try {
+                    const parts = token.split('.');
+                    if (parts.length === 3) {
+                        const decoded = JSON.parse(atob(parts[1]));
+                        userId = decoded.sub || decoded.user_id || decoded.id;
+                    }
+                } catch (e) { /* segue sem userId — o backend também extrai do token */ }
+
+                console.log('[PROGRESS] Registrando progresso parcial:', percentual + '%', '(aula ' + (this.maiorAulaVista + 1) + '/' + this.lessons.length + ')');
+                fetch(`/api/courses/${this.courseId}/progress`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        usuario_id: userId || 1,
+                        percentual,
+                        concluido: false,
+                    })
+                })
+                .then(res => {
+                    if (!res.ok) {
+                        // fetch() só rejeita em erro de rede — status HTTP de erro (401/400/500)
+                        // passa direto e fica invisível se não checarmos res.ok explicitamente
+                        return res.text().then(txt => {
+                            console.error('[PROGRESS] Servidor recusou o progresso parcial:', res.status, txt);
+                        });
+                    }
+                    console.log('[PROGRESS] Progresso parcial salvo com sucesso:', percentual + '%');
+                })
+                .catch(err => console.error('[PROGRESS] Erro de rede ao registrar progresso parcial:', err));
+            },
+
             showError(message) {
                 document.getElementById('contentArea').innerHTML = `
                     <div style="padding: 40px; text-align: center; color: #d32f2f;">

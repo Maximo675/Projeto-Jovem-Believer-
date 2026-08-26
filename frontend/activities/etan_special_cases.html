@@ -294,6 +294,30 @@
             margin-top: 20px;
         }
 
+        .btn-dashboard {
+            background: #fff;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 14px 32px;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-dashboard:hover {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .resultado-acoes {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
         .hidden {
             display: none;
         }
@@ -406,7 +430,10 @@
                     </div>
                 </div>
 
-                <button class="btn-reiniciar" onclick="reiniciarAtividade()">↻ Tentar Novamente</button>
+                <div class="resultado-acoes">
+                    <a href="/pages/dashboard.html" class="btn-dashboard">⬅ Voltar ao Dashboard</a>
+                    <button class="btn-reiniciar" onclick="reiniciarAtividade()">↻ Tentar Novamente</button>
+                </div>
             </div>
         </div>
     </div>
@@ -608,18 +635,12 @@
                     <div class="opcoes-container">
                         ${caso.opcoes.map((opt, optIdx) => `
                             <label class="opcao-label">
-                                <input type="radio" name="caso-${idx}" value="${optIdx}">
+                                <input type="radio" name="caso-${idx}" value="${optIdx}" onchange="responderCaso(${idx})">
                                 <span class="opcao-text">
                                     ${opt.texto}
                                 </span>
                             </label>
                         `).join('')}
-                    </div>
-                    <div class="botoes">
-                        <button class="btn-verificar" onclick="verificarResposta(${idx})">✓ VERIFICAR</button>
-                        ${idx < casos.length - 1 ? `
-                            <button class="btn-proximo" onclick="proximoCaso(${idx})" style="display:none;" id="proximo-${idx}">PRÓXIMO →</button>
-                        ` : ''}
                     </div>
                     <div id="feedback-${idx}"></div>
                 `;
@@ -628,15 +649,14 @@
             });
         }
 
-        // Verificar resposta
-        function verificarResposta(casoIdx) {
+        // Auto-avaliar assim que a pessoa seleciona uma opção — a tela inteira já
+        // é rolável (todos os casos ficam visíveis, um abaixo do outro), então não
+        // fazia sentido exigir clicar em "Verificar" e depois em "Próximo" só pra
+        // revelar um caso que já estava ali embaixo. Selecionou = avaliado na hora.
+        function responderCaso(casoIdx) {
             const caso = casos[casoIdx];
             const respostaSelecionada = document.querySelector(`input[name="caso-${casoIdx}"]:checked`);
-
-            if (!respostaSelecionada) {
-                alert('Selecione uma resposta!');
-                return;
-            }
+            if (!respostaSelecionada) return;
 
             const opcaoIdx = parseInt(respostaSelecionada.value);
             const opcaoCorreta = caso.opcoes[opcaoIdx].correto;
@@ -663,28 +683,18 @@
                 <p style="margin-top: 10px;">${caso.explicacao}</p>
             `;
 
-            // Mostrar botão próximo
-            if (casoIdx < casos.length - 1) {
-                document.getElementById(`proximo-${casoIdx}`).style.display = 'inline-block';
-            } else {
+            if (casoIdx === casos.length - 1) {
                 setTimeout(finalizarAtividade, 2000);
             }
 
-            // Desabilitar inputs
+            // Desabilitar inputs (resposta já dada, não dá pra trocar depois de avaliada)
             document.querySelectorAll(`input[name="caso-${casoIdx}"]`).forEach(inp => inp.disabled = true);
-            document.querySelector(`[onclick="verificarResposta(${casoIdx})"]`).disabled = true;
 
             // Notificar tentativa
             const score = Math.round((acertosTotal / (casoIdx + 1)) * 100);
             internalHandler?.notifyAttemptRecorded?.({}, score, (Date.now() - tempoInicio) / 1000);
 
             // Atualizar progress
-            atualizarProgresso();
-        }
-
-        // Próximo caso
-        function proximoCaso(casoIdx) {
-            casoAtual = casoIdx + 1;
             atualizarProgresso();
         }
 

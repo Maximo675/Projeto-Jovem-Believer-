@@ -938,10 +938,10 @@ def _patch_video_urls():
     from app import db
 
     mapa = {
-        'Equipamentos e Dispositivos ETAN':              'https://youtu.be/TI42JZHkA20',
+        'Equipamentos e Dispositivos ETAN':              'https://youtu.be/TDH2gdrRukk',
         'Segurança, Higiene e Aspectos Legais':          'https://youtu.be/0GOkU_0QpKU',
         'Prática com o Sistema INFANT.ID — Simulação Completa': 'https://youtu.be/UNKHidgcbo4',
-        'Certificação e Boas Práticas — Próximos Passos': 'https://youtu.be/oQjQRJzIzno',
+        'Certificação e Boas Práticas — Próximos Passos': 'https://youtu.be/-mBNVoN8QT8',
     }
 
     atualizadas = 0
@@ -1014,7 +1014,7 @@ def _seed_courses():
                     titulo='Equipamentos e Dispositivos ETAN',
                     descricao='Conheça o dispositivo ETAN INFANT.ID: componentes, manutenção e calibração.',
                     ordem=2, duracao=25,
-                    video_url='https://youtu.be/TI42JZHkA20',
+                    video_url='https://youtu.be/TDH2gdrRukk',
                     conteudo=(
                         '<h2>O Dispositivo ETAN INFANT.ID</h2>'
                         '<p>O ETAN (Equipment for Touch and Analysis of Neonates) é um sensor biométrico '
@@ -1353,7 +1353,7 @@ def _seed_courses():
                     titulo='Certificação e Boas Práticas — Próximos Passos',
                     descricao='Caminhos de certificação profissional e boas práticas para manter a excelência.',
                     ordem=4, duracao=40,
-                    video_url='https://youtu.be/oQjQRJzIzno',
+                    video_url='https://youtu.be/-mBNVoN8QT8',
                     conteudo=(
                         '<h2>Certificação e Desenvolvimento Profissional</h2>'
                         '<p>Concluir os três cursos da plataforma Winged Mind é o primeiro passo '
