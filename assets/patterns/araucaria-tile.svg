@@ -1,35 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="220" height="300" viewBox="0 0 220 300">
-  <!-- Textura tom-sobre-tom com a araucaria (pinheiro-do-Parana), inspirada no jacquard
-       da camisa 3 do Coritiba (tributo a Poty Lazzarotto). Tile grande e com poucas
-       arvores, em posicoes/escalas/rotacoes irregulares, para nao parecer um padrao
-       repetido em grade -- e para ficar textura discreta, nao ilustracao. Usar como
-       background-image repetido sobre um fundo escuro/colorido. -->
-  <g transform="translate(38,268) scale(0.30) rotate(-4)" fill="#FFFFFF" opacity="0.055">
-    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
-    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
-    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
-    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
-    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
-  </g>
-  <g transform="translate(150,210) scale(0.20) rotate(7)" fill="#FFFFFF" opacity="0.05">
-    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
-    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
-    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
-    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
-    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
-  </g>
-  <g transform="translate(185,90) scale(0.16) rotate(-9)" fill="#FFFFFF" opacity="0.045">
-    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
-    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
-    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
-    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
-    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
-  </g>
-  <g transform="translate(20,120) scale(0.135) rotate(5)" fill="#FFFFFF" opacity="0.04">
-    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
-    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
-    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
-    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
-    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="230" viewBox="0 0 300 230">
+  <!-- Araucaria (pinheiro-do-Parana), traco organico/entalhado (inspirado na
+       linguagem de xilogravura do Poty Lazzarotto, sem reproduzir a obra dele,
+       apenas o espirito do traco, como fez a camisa 3 do Coritiba). Composicao
+       unica, sem repeticao em grade, fica no rodape da sidebar como um
+       horizonte de mata, nao como papel de parede. -->
+  <g transform="translate(46,224) rotate(-3) scale(0.66)" fill="#FFFFFF" opacity="0.11">
+      <path d="M -3.2,0 C -3,-40 -0.9101905532246359,-70 -2.4,-98 L 2.6,-98 C 5.089809446775364,-70 3,-40 3.2,0 Z"/>
+      <path d="M -11.0,8.5 L -7.0,-2.1 L -3.9,8.6 L 0.0,-3.0 L 3.8,8.4 L 7.7,-2.4 L 10.3,8.4 Z" />
+      <path d="M -15.2,-9.7 L -10.1,-25.7 L -5.7,-9.1 L 0.0,-24.3 L 5.8,-9.1 L 11.1,-23.6 L 17.1,-9.5 Z" />
+      <path d="M -24.8,-39.6 L -17.0,-58.9 L -12.3,-41.6 L -5.9,-58.0 L 0.0,-40.1 L 6.1,-59.1 L 11.5,-39.5 L 17.3,-58.9 L 21.8,-41.2 Z" />
+      <path d="M -34.9,-69.1 L -27.7,-88.1 L -20.5,-69.1 L -13.4,-88.2 L -6.6,-69.5 L 0.0,-90.2 L 6.7,-70.3 L 13.2,-86.6 L 18.2,-68.1 L 25.2,-90.0 L 32.0,-69.6 Z" />
+      <line x1="-2" y1="-12" x2="2.3" y2="-16" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+      <line x1="-2" y1="-25" x2="2.3" y2="-29" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+      <line x1="-2" y1="-38" x2="2.3" y2="-42" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+      <line x1="-2" y1="-51" x2="1.9" y2="-55" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+      <line x1="-2" y1="-64" x2="1.9" y2="-68" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+      <line x1="-2" y1="-77" x2="1.7" y2="-81" stroke="#FFFFFF" stroke-width="1" opacity="0.16"/>
+    </g>
+  <g transform="translate(150,210) rotate(5) scale(0.48)" fill="#FFFFFF" opacity="0.085">
+      <path d="M -3.2,0 C -3,-40 -4.142621250303236,-70 -2.4,-98 L 2.6,-98 C 1.8573787496967642,-70 3,-40 3.2,0 Z"/>
+      <path d="M -11.5,12.3 L -7.1,0.8 L -3.7,12.2 L 0.0,1.3 L 3.6,12.4 L 8.0,-0.2 L 11.1,11.9 Z" />
+      <path d="M -15.9,-10.4 L -10.1,-23.5 L -5.3,-9.7 L 0.0,-23.7 L 5.6,-10.0 L 10.1,-22.9 L 15.5,-9.4 Z" />
+      <path d="M -25.0,-41.5 L -16.3,-60.1 L -12.1,-41.4 L -6.2,-59.5 L 0.0,-42.3 L 6.2,-60.4 L 10.8,-41.4 L 17.9,-58.1 L 23.1,-42.0 Z" />
+      <path d="M -34.6,-70.1 L -25.5,-89.0 L -17.2,-69.0 L -8.0,-90.1 L 0.0,-69.5 L 8.0,-88.3 L 15.6,-69.6 L 22.7,-92.0 L 30.9,-69.0 Z" />
+      <line x1="-2" y1="-12" x2="2.7" y2="-16" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+      <line x1="-2" y1="-25" x2="2.4" y2="-29" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+      <line x1="-2" y1="-38" x2="2.2" y2="-42" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+      <line x1="-2" y1="-51" x2="2.2" y2="-55" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+      <line x1="-2" y1="-64" x2="2.4" y2="-68" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+      <line x1="-2" y1="-77" x2="2.3" y2="-81" stroke="#FFFFFF" stroke-width="1" opacity="0.13"/>
+    </g>
+  <g transform="translate(240,226) rotate(-6) scale(0.58)" fill="#FFFFFF" opacity="0.1">
+      <path d="M -3.2,0 C -3,-40 -3.5088161733999694,-70 -2.4,-98 L 2.6,-98 C 2.4911838266000306,-70 3,-40 3.2,0 Z"/>
+      <path d="M -11.2,9.8 L -7.3,-1.9 L -3.5,9.5 L 0.0,-1.9 L 3.6,9.7 L 7.0,-0.7 L 11.9,9.0 Z" />
+      <path d="M -15.2,-11.3 L -11.7,-27.8 L -7.6,-11.3 L -4.4,-25.1 L 0.0,-11.0 L 4.1,-27.2 L 8.2,-11.4 L 12.6,-27.9 L 15.5,-12.2 Z" />
+      <path d="M -21.1,-35.4 L -16.5,-52.5 L -12.1,-34.5 L -5.7,-53.2 L 0.0,-35.3 L 5.7,-50.5 L 11.2,-34.4 L 15.8,-50.7 L 23.4,-34.9 Z" />
+      <path d="M -33.3,-69.7 L -24.3,-89.3 L -15.0,-68.8 L -8.2,-91.5 L 0.0,-70.3 L 8.0,-89.6 L 16.1,-69.7 L 22.3,-91.0 L 29.5,-69.5 Z" />
+      <line x1="-2" y1="-12" x2="1.8" y2="-16" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+      <line x1="-2" y1="-25" x2="2.3" y2="-29" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+      <line x1="-2" y1="-38" x2="2.5" y2="-42" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+      <line x1="-2" y1="-51" x2="2.1" y2="-55" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+      <line x1="-2" y1="-64" x2="2.3" y2="-68" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+      <line x1="-2" y1="-77" x2="2.3" y2="-81" stroke="#FFFFFF" stroke-width="1" opacity="0.15"/>
+    </g>
+  <g transform="translate(268,190) rotate(9) scale(0.3)" fill="#FFFFFF" opacity="0.06">
+      <path d="M -3.2,0 C -3,-40 -3.245887486978945,-70 -2.4,-98 L 2.6,-98 C 2.754112513021055,-70 3,-40 3.2,0 Z"/>
+      <path d="M -10.9,9.8 L -7.7,-2.6 L -3.5,9.2 L 0.0,-0.8 L 3.4,8.7 L 7.9,-2.7 L 11.6,9.6 Z" />
+      <path d="M -15.7,-14.9 L -12.7,-29.6 L -8.8,-13.7 L -3.8,-29.1 L 0.0,-14.5 L 3.9,-28.6 L 7.7,-13.6 L 13.2,-28.9 L 16.0,-13.7 Z" />
+      <path d="M -23.3,-38.0 L -18.3,-55.3 L -11.3,-38.6 L -5.7,-53.7 L 0.0,-38.1 L 5.3,-53.2 L 11.8,-39.4 L 17.4,-55.1 L 22.4,-37.7 Z" />
+      <path d="M -30.5,-72.6 L -22.9,-92.7 L -15.5,-72.7 L -8.4,-91.0 L 0.0,-71.2 L 7.5,-89.6 L 15.3,-71.6 L 24.6,-90.5 L 31.3,-73.2 Z" />
+      <line x1="-2" y1="-12" x2="1.7" y2="-16" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+      <line x1="-2" y1="-25" x2="2.4" y2="-29" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+      <line x1="-2" y1="-38" x2="2.6" y2="-42" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+      <line x1="-2" y1="-51" x2="2.7" y2="-55" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+      <line x1="-2" y1="-64" x2="2.4" y2="-68" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+      <line x1="-2" y1="-77" x2="2.7" y2="-81" stroke="#FFFFFF" stroke-width="1" opacity="0.1"/>
+    </g>
 </svg>
