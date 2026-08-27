@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="300" viewBox="0 0 220 300">
+  <!-- Textura tom-sobre-tom com a araucaria (pinheiro-do-Parana), inspirada no jacquard
+       da camisa 3 do Coritiba (tributo a Poty Lazzarotto). Tile grande e com poucas
+       arvores, em posicoes/escalas/rotacoes irregulares, para nao parecer um padrao
+       repetido em grade -- e para ficar textura discreta, nao ilustracao. Usar como
+       background-image repetido sobre um fundo escuro/colorido. -->
+  <g transform="translate(38,268) scale(0.30) rotate(-4)" fill="#FFFFFF" opacity="0.055">
+    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
+    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
+    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
+    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
+    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
+  </g>
+  <g transform="translate(150,210) scale(0.20) rotate(7)" fill="#FFFFFF" opacity="0.05">
+    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
+    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
+    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
+    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
+    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
+  </g>
+  <g transform="translate(185,90) scale(0.16) rotate(-9)" fill="#FFFFFF" opacity="0.045">
+    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
+    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
+    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
+    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
+    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
+  </g>
+  <g transform="translate(20,120) scale(0.135) rotate(5)" fill="#FFFFFF" opacity="0.04">
+    <rect x="-2.5" y="0" width="5" height="96" rx="1"/>
+    <ellipse cx="0" cy="8" rx="9" ry="3.2"/>
+    <ellipse cx="0" cy="-16" rx="14" ry="3.8"/>
+    <ellipse cx="0" cy="-40" rx="19.5" ry="4.4"/>
+    <ellipse cx="0" cy="-66" rx="27" ry="5.4"/>
+  </g>
+</svg>

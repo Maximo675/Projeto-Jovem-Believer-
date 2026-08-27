@@ -24,7 +24,9 @@
         /* ── SIDEBAR ── */
         .sidebar {
             width: 280px; flex-shrink: 0;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background:
+                url('/assets/patterns/araucaria-tile.svg') repeat,
+                linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white; padding: 30px 20px; overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.2);
         }
@@ -48,7 +50,21 @@
         .sidebar-divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 16px 0; }
 
         /* ── MAIN ── */
-        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .main-content { position: relative; z-index: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .main-content::before {
+            content: '';
+            position: absolute;
+            right: -50px;
+            bottom: -60px;
+            width: 320px;
+            height: 440px;
+            background-image: url('/assets/logo/bird-watermark.png');
+            background-repeat: no-repeat;
+            background-size: contain;
+            opacity: 0.07;
+            pointer-events: none;
+            z-index: -1;
+        }
         .top-bar {
             background: white; padding: 16px 30px;
             border-bottom: 1px solid #e0e0e0;
@@ -173,6 +189,7 @@
 
         @media print {
             .sidebar, .top-bar, .tabs, .logout-btn, .rel-print-header .btn { display:none !important; }
+            .main-content::before { display:none !important; }
             .content-area { padding:0 !important; margin:0 !important; }
             #relatorios { display:block !important; }
             .tab-content { display:block !important; overflow:visible !important; }
@@ -224,6 +241,13 @@
             <img src="/assets/logo/winged_mind_branco.png" alt="Logo">
         </div>
         <div class="sidebar-label">Super Admin</div>
+        <svg width="70" height="10" viewBox="0 0 70 10" aria-hidden="true" style="display:block; margin:-16px 0 22px 0; position:relative; z-index:2;">
+            <circle cx="3" cy="5" r="2" fill="rgba(255,255,255,0.45)"/>
+            <rect x="10" y="4" width="14" height="2" fill="rgba(255,255,255,0.35)"/>
+            <circle cx="30" cy="5" r="2" fill="rgba(255,255,255,0.45)"/>
+            <rect x="37" y="4" width="14" height="2" fill="rgba(255,255,255,0.35)"/>
+            <circle cx="57" cy="5" r="2" fill="rgba(255,255,255,0.45)"/>
+        </svg>
         <ul class="sidebar-menu">
             <li><a class="tab-link active" data-tab="visao-geral"><span class="icon">🌐</span> Visão Global</a></li>
             <li><a class="tab-link" data-tab="hospitais"><span class="icon">🏥</span> Hospitais</a></li>
