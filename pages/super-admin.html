@@ -229,6 +229,7 @@
             <li><a class="tab-link" data-tab="hospitais"><span class="icon">🏥</span> Hospitais</a></li>
             <li><a class="tab-link" data-tab="admins"><span class="icon">👥</span> Administradores</a></li>
             <li><a class="tab-link" data-tab="relatorios"><span class="icon">📄</span> Relatórios</a></li>
+            <li><a class="tab-link" data-tab="feedback"><span class="icon">💬</span> Feedback</a></li>
             <hr class="sidebar-divider">
             <li><a href="/pages/admin.html"><span class="icon">🛡️</span> Painel Admin</a></li>
             <li><a href="/pages/dashboard.html"><span class="icon">←</span> Voltar ao Início</a></li>
@@ -258,6 +259,7 @@
                 <button class="tab-btn" data-tab="hospitais">Hospitais</button>
                 <button class="tab-btn" data-tab="admins">Administradores</button>
                 <button class="tab-btn" data-tab="relatorios">📄 Relatórios</button>
+                <button class="tab-btn" data-tab="feedback">💬 Feedback</button>
             </div>
 
             <!-- ── VISÃO GLOBAL ── -->
@@ -395,6 +397,20 @@
                 </div>
 
             </div>
+
+            <!-- ── FEEDBACK ── -->
+            <div id="feedback" class="tab-content">
+                <div class="toolbar">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem; color:#555;">
+                        <input type="checkbox" id="feedbackApenasPendentes" onchange="carregarFeedbacks()">
+                        Mostrar só os ainda não respondidos
+                    </label>
+                </div>
+                <div id="feedbackLista">
+                    <div class="loading">Carregando...</div>
+                </div>
+            </div>
+
         </div>
     </div>
 </div>
@@ -511,8 +527,83 @@
             if (tab === 'hospitais'  && todosHospitais.length === 0) carregarTabelaHospitais();
             if (tab === 'admins'    && todosAdmins.length === 0)    carregarAdmins();
             if (tab === 'relatorios') renderizarRelatorio();
+            if (tab === 'feedback') carregarFeedbacks();
         });
     });
+
+    /* ── FEEDBACK ── */
+    async function carregarFeedbacks() {
+        const lista = document.getElementById('feedbackLista');
+        lista.innerHTML = '<div class="loading">Carregando...</div>';
+
+        const apenasPendentes = document.getElementById('feedbackApenasPendentes')?.checked;
+        const url = '/api/admin/feedback' + (apenasPendentes ? '?pendentes=true' : '');
+        const res = await apiFetch(url);
+        if (!res) return;
+        const data = await res.json();
+        renderizarFeedbacks(data.feedbacks || []);
+    }
+
+    function renderizarFeedbacks(feedbacks) {
+        const lista = document.getElementById('feedbackLista');
+
+        if (feedbacks.length === 0) {
+            lista.innerHTML = '<div class="loading">Nenhum feedback por aqui ainda.</div>';
+            return;
+        }
+
+        const rotuloConteudo = { sim: '👍 Conteúdo útil', parcial: '👌 Parcialmente útil', nao: '👎 Pouco útil' };
+        const rotuloDificuldade = { facil: '😊 Fácil', medio: '😐 Médio', dificil: '😰 Difícil' };
+
+        lista.innerHTML = feedbacks.map(f => `
+            <div style="background:white; border-radius:12px; box-shadow:var(--card-shadow); padding:20px 24px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                    <div>
+                        <strong style="color:#1a1a1a;">${esc(f.usuario_nome || 'Enfermeira')}</strong>
+                        <span style="color:#999; font-size:0.85rem;"> · ${esc(f.hospital_nome || 'Hospital não identificado')}</span>
+                        ${f.curso_titulo ? `<span style="color:#999; font-size:0.85rem;"> · ${esc(f.curso_titulo)}</span>` : ''}
+                    </div>
+                    <small style="color:#bbb;">${new Date(f.data_criacao).toLocaleDateString('pt-BR')}</small>
+                </div>
+                <div style="display:flex; gap:16px; margin-bottom:10px; font-size:0.85rem; color:#555;">
+                    ${f.avaliacao_conteudo ? `<span>${rotuloConteudo[f.avaliacao_conteudo] || f.avaliacao_conteudo}</span>` : ''}
+                    ${f.avaliacao_dificuldade ? `<span>${rotuloDificuldade[f.avaliacao_dificuldade] || f.avaliacao_dificuldade}</span>` : ''}
+                </div>
+                ${f.comentario ? `<p style="color:#333; margin:0 0 14px 0;">"${esc(f.comentario)}"</p>` : ''}
+
+                ${f.resposta ? `
+                    <div style="background:#f5f9ff; border-left:3px solid var(--primary-blue); border-radius:8px; padding:10px 14px; margin-top:10px;">
+                        <small style="color:#888;">Resposta de ${esc(f.respondido_por_nome || 'Infant.ID')}:</small>
+                        <p style="margin:4px 0 0 0; color:#1a1a1a;">${esc(f.resposta)}</p>
+                    </div>
+                ` : `
+                    <div style="display:flex; gap:8px; margin-top:10px;">
+                        <input type="text" id="respostaInput-${f.id}" placeholder="Escreva uma resposta..."
+                               style="flex:1; padding:8px 10px; font-size:0.85rem; border:1px solid #ddd; border-radius:6px;">
+                        <button class="btn-outline" onclick="responderFeedback(${f.id})" style="white-space:nowrap;">Responder</button>
+                    </div>
+                `}
+            </div>
+        `).join('');
+    }
+
+    async function responderFeedback(id) {
+        const input = document.getElementById(`respostaInput-${id}`);
+        const resposta = input.value.trim();
+        if (!resposta) { alert('Escreva uma resposta antes de enviar.'); return; }
+
+        const res = await apiFetch(`/api/admin/feedback/${id}/responder`, {
+            method: 'POST',
+            body: JSON.stringify({ resposta }),
+        });
+        if (!res) return;
+        if (!res.ok) {
+            const data = await res.json();
+            alert('Erro: ' + (data.erro || 'Não foi possível enviar a resposta.'));
+            return;
+        }
+        await carregarFeedbacks();
+    }
 
     /* ── VISÃO GERAL ── */
     async function carregarVisaoGeral() {

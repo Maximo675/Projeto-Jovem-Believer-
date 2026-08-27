@@ -7,11 +7,17 @@ class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    # nullable=True: contas anônimas (enfermeiras identificadas por nome+hospital, sem
+    # login) recebem um e-mail sintético só para satisfazer o unique index — mas o campo
+    # em si deixou de ser obrigatório com a remoção do login do lado do hospital.
+    email = db.Column(db.String(120), unique=True, nullable=True, index=True)
     nome = db.Column(db.String(120), nullable=False)
     senha_hash = db.Column(db.String(255), nullable=False)
     hospital_id = db.Column(db.Integer, db.ForeignKey('hospitals.id'), nullable=True)
     funcao = db.Column(db.String(50), nullable=False, default='usuario')  # admin, instrutor, usuario
+    # 'manual' | 'anonimo' | 'convite' | 'microsoft' — origem do cadastro, usado pelo
+    # admin/super-admin para saber que o e-mail é sintético e esconder esse campo na UI.
+    origem = db.Column(db.String(20), nullable=False, default='manual')
     ativo = db.Column(db.Boolean, default=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -22,12 +28,13 @@ class User(db.Model):
     conversas_ia = db.relationship('IAConversation', backref='usuario', cascade='all, delete-orphan')
     certificados = db.relationship('Certificate', backref='usuario', cascade='all, delete-orphan')
     
-    def __init__(self, email, nome, senha, hospital_id=None, funcao='usuario', ativo=True):
+    def __init__(self, email, nome, senha, hospital_id=None, funcao='usuario', ativo=True, origem='manual'):
         self.email = email
         self.nome = nome
         self.hospital_id = hospital_id
         self.funcao = funcao
         self.ativo = ativo
+        self.origem = origem
         self.set_password(senha)
     
     def set_password(self, senha):
@@ -42,10 +49,12 @@ class User(db.Model):
         """Converter para dicionário"""
         return {
             'id': self.id,
-            'email': self.email,
+            # e-mail sintético (origem='anonimo') não é mostrado para não confundir a UI
+            'email': self.email if self.origem != 'anonimo' else None,
             'nome': self.nome,
             'hospital_id': self.hospital_id,
             'funcao': self.funcao,
+            'origem': self.origem,
             'ativo': self.ativo,
             'data_criacao': self.data_criacao.isoformat()
         }

@@ -142,7 +142,7 @@ def create_app():
         return response
     
     # Registrar blueprints
-    from app.routes import auth, courses, users, ai, hospitals, documents, activities, infant_proxy, invitations, admin
+    from app.routes import auth, courses, users, ai, hospitals, documents, activities, infant_proxy, invitations, admin, quizzes, feedback
     app.register_blueprint(auth.bp)
     app.register_blueprint(courses.bp)
     app.register_blueprint(users.bp)
@@ -153,6 +153,8 @@ def create_app():
     app.register_blueprint(infant_proxy.bp)
     app.register_blueprint(invitations.bp)
     app.register_blueprint(admin.bp)
+    app.register_blueprint(quizzes.bp)
+    app.register_blueprint(feedback.bp)
 
     # Garantir que tabelas novas sejam criadas sem apagar as existentes
     with app.app_context():
@@ -815,12 +817,181 @@ def create_app():
         try:
             db.create_all()
             print('[INFO] db.create_all() executado com sucesso')
+            _ensure_schema_upgrades()
             _seed_hospitals()
             _seed_courses()
+            _ensure_course_ordem()
+            _seed_quizzes()
         except Exception as e:
             print(f"[WARNING] Erro ao criar/popular tabelas: {e}")
 
     return app
+
+
+def _ensure_schema_upgrades():
+    """
+    Adiciona colunas novas em tabelas que já existiam antes desta atualização
+    (onboarding sem login + trilha com prova). Não há Alembic configurado
+    neste projeto — db.create_all() só cria tabelas que ainda não existem,
+    nunca adiciona coluna em tabela já existente. Cada ALTER roda isolado,
+    numa transação própria, e falhas (coluna já existe, etc) são ignoradas —
+    seguro rodar em todo boot.
+    """
+    from sqlalchemy import text
+
+    statements = [
+        "ALTER TABLE users ADD COLUMN origem VARCHAR(20) DEFAULT 'manual'",
+        "ALTER TABLE users ALTER COLUMN email DROP NOT NULL",
+        "ALTER TABLE progress ADD COLUMN nota INTEGER",
+        "ALTER TABLE progress ADD COLUMN aprovado BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE courses ADD COLUMN ordem INTEGER DEFAULT 0",
+    ]
+    for stmt in statements:
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text(stmt))
+            print(f'[SCHEMA] OK: {stmt}')
+        except Exception as e:
+            print(f'[SCHEMA] Ignorado (provavelmente já existe): {stmt} — {e}')
+
+
+def _ensure_course_ordem():
+    """
+    Garante que Course.ordem esteja preenchido (1, 2, 3, ...) — necessário
+    mesmo em bancos que já tinham os 3 cursos antes desta atualização, já
+    que _seed_courses() só roda em banco vazio e não define ordem sozinho
+    nesse caso.
+    """
+    from app.models.course import Course
+
+    cursos = Course.query.order_by(Course.id).all()
+    if not cursos:
+        return
+
+    ordens = [c.ordem for c in cursos]
+    if all(o not in (None, 0) for o in ordens) and len(set(ordens)) == len(ordens):
+        return  # já está tudo preenchido e sem duplicata
+
+    for idx, curso in enumerate(cursos, start=1):
+        curso.ordem = idx
+    db.session.commit()
+    print(f'[INFO] Course.ordem preenchido/normalizado para {len(cursos)} curso(s)')
+
+
+def _seed_quizzes():
+    """Cria a prova (Quiz) de cada curso, se ainda não existir. Nota mínima: 70%."""
+    import random
+    from app.models.course import Course
+    from app.models.quiz import Quiz, QuizQuestion, QuizOption
+
+    quizzes_data = {
+        'Fundamentos da Biometria Infantil': [
+            (
+                'Qual a resolução mínima recomendada do sensor óptico para capturar '
+                'digitais de recém-nascidos?',
+                [('500 dpi ou superior', True), ('150 dpi', False), ('72 dpi', False),
+                 ('Não há recomendação específica', False)],
+            ),
+            (
+                'Qual dos três padrões de digital descritos no curso é o mais raro?',
+                [('Arco (5%)', True), ('Presilha (65%)', False), ('Verticilo (30%)', False),
+                 ('Todos têm a mesma frequência', False)],
+            ),
+            (
+                'Qual a ordem de prioridade recomendada para escolha do dígito na captura?',
+                [('Polegar direito → indicador direito → polegar esquerdo', True),
+                 ('Indicador direito → polegar direito → indicador esquerdo', False),
+                 ('Qualquer dedo — não há prioridade', False),
+                 ('Mindinho direito → anelar direito → médio direito', False)],
+            ),
+            (
+                'Antes de cada turno, qual score de referência a calibração do ETAN deve atingir?',
+                [('Entre 85 e 100', True), ('Entre 40 e 60', False), ('Exatamente 100', False),
+                 ('Não é necessário calibrar diariamente', False)],
+            ),
+        ],
+        'Protocolo ETAN — Técnicas Avançadas': [
+            (
+                'Na Fase 1 do Protocolo ETAN (verificação de sinais vitais), qual faixa '
+                'de saturação de oxigênio é considerada aceitável?',
+                [('≥ 95%', True), ('≥ 80%', False), ('≥ 70%', False),
+                 ('Não é avaliada nesta fase', False)],
+            ),
+            (
+                'Quantas fases compõem o Protocolo ETAN?',
+                [('5', True), ('3', False), ('7', False), ('10', False)],
+            ),
+            (
+                'O que deve ser feito se o recém-nascido demonstrar desconforto durante a captura?',
+                [('Interromper e aguardar', True), ('Continuar até finalizar o dígito', False),
+                 ('Aumentar a pressão para agilizar', False),
+                 ('Trocar de dígito sem pausar', False)],
+            ),
+            (
+                'Qual produto é recomendado para higienizar o sensor entre capturas?',
+                [('Álcool isopropílico 70%', True), ('Água e sabão neutro', False),
+                 ('Álcool em gel comum', False), ('Hipoclorito de sódio', False)],
+            ),
+        ],
+        'Gestão e Qualidade em Biometria Hospitalar': [
+            (
+                'Qual a meta recomendada para a taxa de sucesso na 1ª tentativa de captura?',
+                [('≥ 85%', True), ('≥ 50%', False), ('≥ 30%', False),
+                 ('Não há meta definida', False)],
+            ),
+            (
+                'Qual a meta de score NFIQ médio mensal mencionada no curso?',
+                [('≥ 55', True), ('≥ 90', False), ('≥ 20', False),
+                 ('NFIQ não é medido mensalmente', False)],
+            ),
+            (
+                'Qual a meta máxima recomendada para a taxa de rejeição (score < 40)?',
+                [('≤ 10%', True), ('≤ 50%', False), ('≤ 90%', False),
+                 ('Rejeição não precisa ser monitorada', False)],
+            ),
+            (
+                'Quem é o principal responsável por acompanhar os indicadores de '
+                'qualidade (KPIs) do sistema biométrico no hospital?',
+                [('O coordenador/responsável técnico pelo sistema biométrico', True),
+                 ('Qualquer visitante do hospital', False),
+                 ('Somente o fabricante do equipamento', False),
+                 ('Não é necessário acompanhamento', False)],
+            ),
+        ],
+    }
+
+    criados = 0
+    for titulo_curso, perguntas in quizzes_data.items():
+        curso = Course.query.filter_by(titulo=titulo_curso).first()
+        if not curso:
+            continue
+        if Quiz.query.filter_by(curso_id=curso.id).first():
+            continue  # já tem prova cadastrada — não sobrescrever edições manuais
+
+        quiz = Quiz(curso_id=curso.id, titulo=f'Avaliação — {titulo_curso}', nota_minima=70)
+        db.session.add(quiz)
+        db.session.flush()
+
+        for idx_p, (enunciado, opcoes) in enumerate(perguntas, start=1):
+            pergunta = QuizQuestion(quiz_id=quiz.id, enunciado=enunciado, ordem=idx_p)
+            db.session.add(pergunta)
+            db.session.flush()
+            # A opção correta está sempre escrita primeiro na lista acima (mais fácil
+            # de revisar o conteúdo) — embaralha antes de salvar para não deixar a
+            # posição da resposta certa previsível (sempre "a primeira alternativa").
+            opcoes_embaralhadas = list(opcoes)
+            random.shuffle(opcoes_embaralhadas)
+            for idx_o, (texto, correto) in enumerate(opcoes_embaralhadas, start=1):
+                db.session.add(QuizOption(
+                    question_id=pergunta.id, texto=texto, correto=correto, ordem=idx_o
+                ))
+        criados += 1
+
+    if criados:
+        db.session.commit()
+        print(f'[INFO] Provas (quizzes) criadas para {criados} curso(s)')
+    else:
+        print('[INFO] Todos os cursos já têm prova cadastrada — seed ignorado')
 
 
 def _seed_hospitals():

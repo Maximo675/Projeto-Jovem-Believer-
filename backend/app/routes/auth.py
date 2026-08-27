@@ -6,6 +6,7 @@ from app.models.invitation import Invitation
 from datetime import datetime, timedelta
 import jwt
 import os
+import uuid
 
 try:
     import msal
@@ -40,14 +41,20 @@ def _ms_redirect_uri():
 # ─── Helper JWT ───────────────────────────────────────────────────────────────
 _JWT_SECRET  = os.getenv('JWT_SECRET', 'secret-dev-inseguro-troque-em-producao').strip()
 _JWT_EXPIRY  = int(os.getenv('JWT_EXPIRY_HOURS', 8))   # padrão: 1 turno
+# Enfermeiras/instrutores identificados sem senha (POST /identificar) não têm como
+# "re-logar" se o token expirar no meio de um treinamento de vários dias — por isso
+# esse token dura bem mais (90 dias por padrão).
+_JWT_EXPIRY_ANONIMO = int(os.getenv('JWT_EXPIRY_HOURS_ANONIMO', 24 * 90))
 
-def _gerar_token(usuario):
+def _gerar_token(usuario, expiry_hours=None):
+    horas = expiry_hours if expiry_hours is not None else _JWT_EXPIRY
     payload = {
         'usuario_id': usuario.id,
         'email': usuario.email,
+        'nome': usuario.nome,
         'funcao': usuario.funcao,
         'iat': datetime.utcnow(),
-        'exp': datetime.utcnow() + timedelta(hours=_JWT_EXPIRY),
+        'exp': datetime.utcnow() + timedelta(hours=horas),
     }
     return jwt.encode(payload, _JWT_SECRET, algorithm='HS256')
 
@@ -233,6 +240,60 @@ def register():
         logging.getLogger(__name__).exception('Erro ao registrar usuário')
         db.session.rollback()
         return jsonify({'erro': 'Não foi possível criar a conta. Tente novamente.'}), 500
+
+
+@bp.route('/identificar', methods=['POST'])
+def identificar():
+    """
+    Identificação sem login para o lado do hospital (enfermeira/instrutor).
+    Não pede senha nem e-mail — só nome + hospital. Cria (ou, se já houver um
+    token válido no navegador, o frontend nem chama isso de novo) um User
+    comum com funcao='usuario', senha aleatória nunca usada, e-mail sintético
+    só para satisfazer a constraint, e devolve um token de longa duração no
+    mesmo formato de login() — para que loadUserInfo()/checkAuth() no
+    frontend funcionem sem nenhuma mudança.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        nome = (data.get('nome') or '').strip()
+        hospital_id = data.get('hospital_id')
+
+        if not nome:
+            return jsonify({'erro': 'Nome é obrigatório'}), 400
+        if not hospital_id:
+            return jsonify({'erro': 'Hospital é obrigatório'}), 400
+
+        hospital = Hospital.query.get(hospital_id)
+        if not hospital or not hospital.ativo:
+            return jsonify({'erro': 'Hospital inválido'}), 400
+
+        email_sintetico = f'anon-{uuid.uuid4().hex}@sem-email.local'
+
+        usuario = User(
+            email=email_sintetico,
+            nome=nome,
+            senha=os.urandom(32).hex(),
+            hospital_id=hospital_id,
+            funcao='usuario',
+            origem='anonimo',
+        )
+        db.session.add(usuario)
+        db.session.commit()
+
+        token = _gerar_token(usuario, expiry_hours=_JWT_EXPIRY_ANONIMO)
+
+        return jsonify({
+            'mensagem': 'Identificação realizada com sucesso',
+            'token': token,
+            'expira_em_horas': _JWT_EXPIRY_ANONIMO,
+            'usuario': usuario.to_dict(),
+        }), 201
+
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('Erro ao identificar usuário anônimo')
+        db.session.rollback()
+        return jsonify({'erro': 'Não foi possível processar. Tente novamente.'}), 500
 
 
 @bp.route('/login', methods=['POST'])

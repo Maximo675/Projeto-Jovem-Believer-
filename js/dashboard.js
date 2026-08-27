@@ -47,7 +47,10 @@ const Dashboard = {
         
         // Carregar certificados
         await this.loadCertificates();
-        
+
+        // Carregar respostas do super_admin a feedbacks enviados anteriormente
+        this.loadMinhasRespostasFeedback();
+
         // Setup de eventos
         this.setupEventListeners();
         
@@ -166,8 +169,8 @@ const Dashboard = {
     checkAuth() {
         const token = localStorage.getItem('authToken');
         if (!token) {
-            console.warn('[DASHBOARD] Token não encontrado, redirecionando para login');
-            window.location.href = '/pages/login.html';
+            console.warn('[DASHBOARD] Token não encontrado, redirecionando para identificação');
+            window.location.href = '/pages/identificar.html';
             return null;
         }
         return token;
@@ -185,12 +188,14 @@ const Dashboard = {
             
             this.user = JSON.parse(jsonPayload);
             
-            // Atualizar UI
+            // Atualizar UI — enfermeiras identificadas sem login não têm e-mail
+            // real (só um placeholder sintético), então prioriza o nome.
+            const displayName = this.user.nome || this.user.email || 'Usuário';
             const userName = document.getElementById('userName');
-            if (userName) userName.textContent = `${this.user.email}`;
-            
+            if (userName) userName.textContent = displayName;
+
             const userAvatar = document.getElementById('userAvatar');
-            if (userAvatar) userAvatar.textContent = (this.user.email?.charAt(0) || 'U').toUpperCase();
+            if (userAvatar) userAvatar.textContent = (displayName?.charAt(0) || 'U').toUpperCase();
 
             // Mostrar badge de papel e menus por funcao
             const funcao = this.user.funcao;
@@ -295,16 +300,48 @@ const Dashboard = {
     
     renderCourses() {
         const container = document.getElementById('coursesContainer');
-        
+
         if (!this.courses || this.courses.length === 0) {
             container.innerHTML = '<div class="loading">Nenhum curso disponível no momento</div>';
             return;
         }
-        
-        container.innerHTML = this.courses.map(course => {
+
+        // admin/super_admin podem visualizar qualquer curso livremente (mesma
+        // exceção já aplicada no backend, em GET /api/courses/<id>)
+        const podeVerTudo = ['admin', 'super_admin'].includes(this.user?.funcao);
+
+        container.innerHTML = this.courses.map((course, index) => {
             const progress = this.getProgressForCourse(course.id);
             const isCompleted = this.isCourseCompleted(course.id);
-            
+            const locked = !podeVerTudo && this.isCourseLocked(index);
+
+            if (locked) {
+                return `
+                <div class="course-card" style="opacity: 0.65;">
+                    <div class="course-header">
+                        <div class="course-icon">🔒</div>
+                        <span class="course-level">${course.nivel || 'Básico'}</span>
+                    </div>
+
+                    <h3 class="course-title">${course.titulo}</h3>
+                    <p class="course-description">${course.descricao || 'Curso estruturado para seu aprendizado'}</p>
+
+                    <div class="course-footer">
+                        <div class="course-progress">
+                            <div class="progress-label">🔒 Bloqueado</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="course-action">
+                            <button class="btn" disabled title="Conclua e seja aprovado(a) na prova do curso anterior primeiro" style="opacity: 0.6; cursor: not-allowed;">
+                                🔒 Bloqueado
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
             return `
             <div class="course-card" style="${isCompleted ? 'border-top: 4px solid #388e3c; background: linear-gradient(135deg, rgba(56, 142, 60, 0.05) 0%, transparent 100%);' : ''}">
                 <div class="course-header">
@@ -312,10 +349,10 @@ const Dashboard = {
                     <span class="course-level">${course.nivel || 'Básico'}</span>
                     ${isCompleted ? '<span style="background: #388e3c; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-left: auto;">✓ Concluído</span>' : ''}
                 </div>
-                
+
                 <h3 class="course-title">${course.titulo}</h3>
                 <p class="course-description">${course.descricao || 'Curso estruturado para seu aprendizado'}</p>
-                
+
                 <div class="course-footer">
                     <div class="course-progress">
                         <div class="progress-label">
@@ -333,6 +370,24 @@ const Dashboard = {
                 </div>
             </div>
         `}).join('');
+    },
+
+    // Curso na posição `index` (0-based, this.courses já vem ordenado por
+    // Course.ordem do backend) está bloqueado se o curso anterior da trilha
+    // ainda não foi APROVADO na prova (não basta ter só assistido as aulas).
+    isCourseLocked(index) {
+        if (index <= 0) return false;
+        const anterior = this.courses[index - 1];
+        if (!anterior) return false;
+        return !this.isCourseApproved(anterior.id);
+    },
+
+    isCourseApproved(courseId) {
+        if (this.userProgress && Array.isArray(this.userProgress)) {
+            const progress = this.userProgress.find(p => p.curso_id === courseId);
+            return !!(progress && progress.aprovado);
+        }
+        return false;
     },
     
     getIconForLevel(level) {
@@ -575,6 +630,45 @@ const Dashboard = {
         });
     },
     
+    // Feedbacks que este usuário enviou (ao concluir cursos) e que já
+    // receberam resposta do super_admin — mostra num card no topo do
+    // dashboard, só quando existe pelo menos um respondido.
+    async loadMinhasRespostasFeedback() {
+        const container = document.getElementById('feedbackRepliesContainer');
+        if (!container) return;
+
+        try {
+            const res = await fetch('/api/users/meus-feedbacks', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+            });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const respondidos = (data.feedbacks || []).filter(f => f.resposta);
+            if (respondidos.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = `
+                <div style="background: linear-gradient(135deg, #eef6ff 0%, #ffffff 100%); border: 1px solid #cfe3fb; border-radius: 12px; padding: 20px 24px;">
+                    <h3 style="margin: 0 0 12px 0; color: #1a1a1a;">💬 Respostas da equipe Infant.ID</h3>
+                    ${respondidos.map(f => `
+                        <div style="padding: 12px 0; border-top: 1px solid #e0e9f5;">
+                            <p style="margin: 0 0 6px 0; color: #555; font-size: 0.9rem;">
+                                Sobre o feedback${f.curso_titulo ? ' em <strong>' + _esc(f.curso_titulo) + '</strong>' : ''}${f.comentario ? ': "' + _esc(f.comentario) + '"' : ''}
+                            </p>
+                            <p style="margin: 0; color: #1a1a1a; font-weight: 500;">↳ ${_esc(f.resposta)}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.style.display = 'block';
+        } catch (err) {
+            console.warn('[DASHBOARD] Não foi possível carregar respostas de feedback:', err);
+        }
+    },
+
     updateStats() {
         const totalCourses = this.courses.length;
         const completedCourses = this.courses.filter(c => this.isCourseCompleted(c.id)).length;
@@ -599,7 +693,16 @@ const Dashboard = {
     
     startCourse(courseId, courseTitle) {
         console.log('[DASHBOARD] Iniciando curso:', courseId, courseTitle);
-        
+
+        // Trava é só feedback visual aqui — a trava de verdade é o 403 que
+        // GET /api/courses/<id> devolve no backend (ver courses.py get_course())
+        const podeVerTudo = ['admin', 'super_admin'].includes(this.user?.funcao);
+        const index = this.courses.findIndex(c => c.id === courseId);
+        if (!podeVerTudo && index > 0 && this.isCourseLocked(index)) {
+            alert('🔒 Este curso ainda está bloqueado.\n\nConclua e seja aprovado(a) na prova do curso anterior primeiro.');
+            return;
+        }
+
         // Verificar se curso já foi concluído
         const isCompleted = this.isCourseCompleted(courseId);
         
@@ -787,9 +890,12 @@ function sendChatMessage() {
 // ============================================
 
 function logout() {
+    // Só super_admin tem login de verdade — o resto do lado do hospital volta
+    // pra tela de identificação (nome+hospital), não pro login com senha.
+    const funcao = Dashboard.user?.funcao;
     localStorage.removeItem('authToken');
     console.log('[DASHBOARD] Usuário desconectado');
-    window.location.href = '/pages/login.html';
+    window.location.href = (funcao === 'super_admin') ? '/pages/login.html' : '/pages/identificar.html';
 }
 
 // ============================================

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Começar - Winged Mind</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="icon" href="/public/icon-blue.ico" type="image/x-icon">
+    <script src="../js/theme.js"></script>
+    <style>
+        .btn-cta { position: relative; overflow: hidden; transition: opacity .2s, background .3s, transform .1s; }
+        .btn-cta .btn-spinner {
+            display: none;
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btn-spin .7s linear infinite;
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+        }
+        @keyframes btn-spin { to { transform: translateY(-50%) rotate(360deg); } }
+        #btnComecar { position: relative; overflow: hidden; }
+        #btnComecar .btn-spinner {
+            display: none;
+            width: 18px; height: 18px;
+            border: 2.5px solid rgba(255,255,255,.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: btn-spin .7s linear infinite;
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+        }
+        #btnComecar.loading { opacity: .75; cursor: not-allowed; padding-right: 48px; }
+        #btnComecar.loading .btn-spinner { display: block; }
+        .login-feedback {
+            margin-top: 14px; padding: 10px 14px;
+            border-radius: 8px; font-size: .88rem; font-weight: 500;
+            display: none;
+        }
+        .login-feedback:not(:empty) { display: block; }
+        .feedback-error { background: #fff0f0; color: #c0392b; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-container">
+            <!-- Left Side - Form -->
+            <div class="auth-left">
+                <div class="logo-section">
+                    <img src="../assets/logo/winged_mind_azul.png" alt="Logo" style="width: 100px; height: auto;" data-logo>
+                </div>
+
+                <h1>Vamos começar!</h1>
+                <p class="subtitle">Só precisamos de duas informações para liberar seu treinamento — sem senha, sem complicação.</p>
+
+                <form id="identificarForm">
+                    <div class="form-group">
+                        <label for="nome">Seu nome</label>
+                        <input
+                            type="text"
+                            id="nome"
+                            name="nome"
+                            placeholder="Como podemos te chamar?"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="hospital">Hospital</label>
+                        <select id="hospital" name="hospital" required>
+                            <option value="" disabled selected>Carregando hospitais…</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-large" id="btnComecar">
+                        <span class="btn-text">Começar meu treinamento</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div id="identificarFeedback" class="login-feedback" role="alert"></div>
+            </div>
+
+            <!-- Right Side - Benefits -->
+            <div class="auth-right">
+                <h2>Bem-vindo ao Winged Mind</h2>
+                <p style="margin-bottom: 30px; font-size: 1.1rem;">Comece agora seu treinamento em captura biométrica infantil.</p>
+
+                <div class="benefits">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Cursos estruturados e profissionais</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Sem cadastro, sem senha</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Rastreamento de progresso</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">✓</div>
+                        <div class="benefit-text">Certificados de conclusão</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Se já existe um token válido neste navegador, não precisa preencher de novo
+        (function () {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                window.location.href = '/pages/dashboard.html';
+            }
+        })();
+
+        function showFeedback(msg) {
+            const el = document.getElementById('identificarFeedback');
+            el.textContent = msg;
+            el.className = 'login-feedback feedback-error';
+        }
+
+        function setLoading(on) {
+            const btn = document.getElementById('btnComecar');
+            btn.disabled = on;
+            btn.classList.toggle('loading', on);
+        }
+
+        async function carregarHospitais() {
+            const select = document.getElementById('hospital');
+            try {
+                const res = await fetch('/api/hospitals');
+                const data = await res.json();
+                const hospitais = (data.hospitais || []).slice().sort((a, b) => a.nome.localeCompare(b.nome));
+                select.innerHTML = '<option value="" disabled selected>Selecione seu hospital</option>' +
+                    hospitais.map(h => `<option value="${h.id}">${h.nome}</option>`).join('');
+            } catch (err) {
+                select.innerHTML = '<option value="" disabled selected>Erro ao carregar hospitais</option>';
+                showFeedback('⚠️ Não foi possível carregar a lista de hospitais. Recarregue a página.');
+            }
+        }
+        carregarHospitais();
+
+        document.getElementById('identificarForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('nome').value.trim();
+            const hospitalId = document.getElementById('hospital').value;
+
+            if (!nome) { showFeedback('Informe seu nome.'); return; }
+            if (!hospitalId) { showFeedback('Selecione seu hospital.'); return; }
+
+            setLoading(true);
+            document.getElementById('identificarFeedback').className = 'login-feedback';
+
+            try {
+                const response = await fetch('/api/auth/identificar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, hospital_id: parseInt(hospitalId, 10) }),
+                });
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    window.location.href = '/pages/dashboard.html';
+                } else {
+                    setLoading(false);
+                    showFeedback('⚠️ ' + (data.erro || 'Não foi possível continuar. Tente novamente.'));
+                }
+            } catch (err) {
+                setLoading(false);
+                showFeedback('⚠️ Sem resposta do servidor. Verifique sua conexão.');
+            }
+        });
+    </script>
+</body>
+</html>

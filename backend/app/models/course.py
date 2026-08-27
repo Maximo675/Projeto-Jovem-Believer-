@@ -12,6 +12,7 @@ class Course(db.Model):
     tempo_estimado = db.Column(db.Integer)  # em minutos
     autor = db.Column(db.String(120), nullable=False)
     imagem_url = db.Column(db.String(255), nullable=True)
+    ordem = db.Column(db.Integer, default=0)  # posição na trilha sequencial (0, 1, 2, ...)
     ativo = db.Column(db.Boolean, default=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -20,7 +21,7 @@ class Course(db.Model):
     aulas = db.relationship('Lesson', backref='curso', cascade='all, delete-orphan')
     progresso_usuarios = db.relationship('Progress', backref='curso', cascade='all, delete-orphan')
     
-    def __init__(self, titulo, descricao, autor, nivel='basico', tempo_estimado=None, imagem_url=None, ativo=True):
+    def __init__(self, titulo, descricao, autor, nivel='basico', tempo_estimado=None, imagem_url=None, ativo=True, ordem=0):
         self.titulo = titulo
         self.descricao = descricao
         self.autor = autor
@@ -28,6 +29,7 @@ class Course(db.Model):
         self.tempo_estimado = tempo_estimado
         self.imagem_url = imagem_url
         self.ativo = ativo
+        self.ordem = ordem
     
     def to_dict(self):
         """Converter para dicionário"""
@@ -38,6 +40,7 @@ class Course(db.Model):
             'nivel': self.nivel,
             'tempo_estimado': self.tempo_estimado,
             'autor': self.autor,
+            'ordem': self.ordem,
             'ativo': self.ativo,
             'quantidade_aulas': len(self.aulas) if isinstance(self.aulas, list) else 0
         }

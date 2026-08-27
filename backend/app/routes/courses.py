@@ -1,48 +1,62 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from app import db
 from app.models.course import Course
 from app.models.lesson import Lesson
 from app.models.progress import Progress
 from app.models.user import User
 from app.models.certificate import Certificate
+from app.utils.decorators import token_requerido
 from datetime import datetime
 
 bp = Blueprint('courses', __name__, url_prefix='/api/courses')
 
 @bp.route('', methods=['GET'])
 def list_courses():
-    """Listar todos os cursos"""
+    """Listar todos os cursos, na ordem da trilha"""
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
-        
-        cursos = Course.query.filter_by(ativo=True).paginate(page=page, per_page=per_page)
-        
+
+        cursos = Course.query.filter_by(ativo=True).order_by(Course.ordem, Course.id).paginate(page=page, per_page=per_page)
+
         return jsonify({
             'total': cursos.total,
             'paginas': cursos.pages,
             'cursos': [c.to_dict() for c in cursos.items]
         }), 200
-        
+
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
 
 @bp.route('/<int:course_id>', methods=['GET'])
+@token_requerido
 def get_course(course_id):
-    """Obter detalhes de um curso"""
+    """Obter detalhes de um curso — bloqueado se o curso anterior da trilha ainda não foi aprovado na prova"""
     try:
         course = Course.query.get(course_id)
-        
+
         if not course:
             return jsonify({'erro': 'Curso não encontrado'}), 404
-        
+
+        # Bloqueio sequencial da trilha (admin/super_admin podem visualizar livremente)
+        if course.ordem and course.ordem > 0 and g.usuario.funcao not in ('admin', 'super_admin'):
+            anterior = Course.query.filter(
+                Course.ordem < course.ordem, Course.ativo == True
+            ).order_by(Course.ordem.desc()).first()
+            if anterior:
+                progresso_anterior = Progress.query.filter_by(
+                    usuario_id=g.usuario.id, curso_id=anterior.id
+                ).first()
+                if not progresso_anterior or not progresso_anterior.aprovado:
+                    return jsonify({'erro': 'Curso bloqueado. Conclua e seja aprovado na prova do curso anterior primeiro.'}), 403
+
         # Retornar curso com todas as aulas
         return jsonify({
             'curso': course.to_dict(),
             'aulas': [a.to_dict() for a in course.aulas]
         }), 200
-        
+
     except Exception as e:
         print(f'[ERROR] Erro ao obter curso: {str(e)}')
         return jsonify({'erro': str(e)}), 500
@@ -102,66 +116,44 @@ def get_course_lessons(course_id):
 
 
 @bp.route('/<int:course_id>/progress', methods=['POST'])
+@token_requerido
 def save_course_progress(course_id):
-    """Salvar progresso do curso do usuário"""
+    """
+    Salvar progresso PARCIAL do curso (percentual de aulas vistas).
+
+    Não emite mais certificado aqui — a emissão do certificado agora depende
+    de passar na prova (ver POST /api/courses/<id>/quiz/submit em
+    backend/app/routes/quizzes.py), não de um `concluido: true` mandado pelo
+    cliente, que antes era confiado sem nenhuma verificação.
+    """
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         percentual = data.get('percentual', 100)
         concluido = data.get('concluido', False)
         tempo_gasto = data.get('tempo_gasto', 0)
-        
-        # 🔐 IMPORTANTE: Extrair usuario_id do Authorization header (do token)
-        # Não confiar no frontend para evitar fraude
-        auth_header = request.headers.get('Authorization', '')
-        usuario_id = None
-        
-        if auth_header.startswith('Bearer '):
-            token = auth_header[7:]  # Remove "Bearer "
-            import base64
-            import json
-            try:
-                parts = token.split('.')
-                if len(parts) == 3:
-                    decoded = json.loads(base64.urlsafe_b64decode(parts[1] + '=='))
-                    usuario_id = decoded.get('sub') or decoded.get('usuario_id') or decoded.get('user_id') or decoded.get('id')
-                    print(f'[AUTH] Usuario extraído do token: {usuario_id}')
-            except Exception as e:
-                print(f'[AUTH] Erro ao decodificar token: {e}')
-        
-        # Fallback: se não conseguiu extrair do token, usar do frontend (mas com log)
-        if not usuario_id:
-            usuario_id = data.get('usuario_id')
-            if usuario_id:
-                print(f'[AUTH] ⚠️  Usando usuario_id do frontend: {usuario_id}')
-        
-        if not usuario_id:
-            return jsonify({'erro': 'usuario_id obrigatório'}), 400
-        
-        # Verificar se usuário existe
-        usuario = User.query.get(usuario_id)
-        if not usuario:
-            return jsonify({'erro': 'Usuário não encontrado'}), 404
-        
+
+        usuario_id = g.usuario.id
+
         # Verificar se curso existe
         curso = Course.query.get(course_id)
         if not curso:
             return jsonify({'erro': 'Curso não encontrado'}), 404
-        
+
         # Buscar ou criar progresso
         progresso = Progress.query.filter_by(
             usuario_id=usuario_id,
             curso_id=course_id
         ).first()
-        
+
         if progresso:
             # Atualizar progresso existente
             progresso.percentual = percentual
             progresso.concluido = concluido
             progresso.tempo_gasto = tempo_gasto
-            
+
             if concluido and not progresso.data_conclusao:
                 progresso.data_conclusao = datetime.utcnow()
-            
+
             progresso.data_atualizacao = datetime.utcnow()
         else:
             # Criar novo progresso
@@ -172,41 +164,18 @@ def save_course_progress(course_id):
                 concluido=concluido,
                 tempo_gasto=tempo_gasto
             )
-            
+
             if concluido:
                 progresso.data_conclusao = datetime.utcnow()
-        
+
         db.session.add(progresso)
         db.session.commit()
-        
-        # 🎓 NOVO: Gerar certificado se curso foi concluído
-        certificado = None
-        if concluido:
-            # Verificar se certificado já existe
-            cert_existe = Certificate.query.filter_by(
-                usuario_id=usuario_id,
-                curso_id=course_id
-            ).first()
-            
-            if not cert_existe:
-                # Criar novo certificado
-                certificado = Certificate(
-                    usuario_id=usuario_id,
-                    curso_id=course_id,
-                    validade=365  # Válido por 1 ano
-                )
-                db.session.add(certificado)
-                db.session.commit()
-                print(f'[CERTIFICATE] Certificado gerado: Usuario {usuario_id}, Curso {course_id}, Numero: {certificado.numero_certificado}')
-            else:
-                certificado = cert_existe
-        
+
         return jsonify({
             'mensagem': 'Progresso salvo com sucesso',
-            'progresso': progresso.to_dict(),
-            'certificado': certificado.to_dict() if certificado else None
+            'progresso': progresso.to_dict()
         }), 200
-        
+
     except Exception as e:
         db.session.rollback()
         print(f'[ERROR] Erro ao salvar progresso: {str(e)}')
@@ -240,35 +209,12 @@ def get_course_progress(course_id, user_id):
         return jsonify({'erro': str(e)}), 500
 
 @bp.route('/certificates', methods=['GET'])
+@token_requerido
 def get_user_certificates():
     """Obter certificados do usuário logado"""
     try:
-        # Extrair user_id do token
-        from flask import request as flask_request
-        auth_header = flask_request.headers.get('Authorization', '')
-        
-        if not auth_header.startswith('Bearer '):
-            return jsonify({'erro': 'Token não fornecido'}), 401
-        
-        token = auth_header[7:]  # Remove "Bearer "
-        
-        # Decodificar token (simplificado, sem verificação)
-        import base64
-        import json
-        try:
-            parts = token.split('.')
-            if len(parts) != 3:
-                return jsonify({'erro': 'Token inválido'}), 401
-            
-            decoded = json.loads(base64.urlsafe_b64decode(parts[1] + '=='))
-            usuario_id = decoded.get('sub') or decoded.get('usuario_id') or decoded.get('user_id') or decoded.get('id')
-            
-            if not usuario_id:
-                return jsonify({'erro': 'User ID não encontrado no token'}), 401
-            
-        except Exception as e:
-            return jsonify({'erro': f'Erro ao decodificar token: {str(e)}'}), 401
-        
+        usuario_id = g.usuario.id
+
         # Buscar certificados do usuário
         certificados = Certificate.query.filter_by(usuario_id=usuario_id).all()
         

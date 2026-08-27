@@ -1144,7 +1144,7 @@
                 // Verificar autenticação
                 const token = localStorage.getItem('authToken');
                 if (!token) {
-                    window.location.href = '/pages/login.html';
+                    window.location.href = '/pages/identificar.html';
                     return;
                 }
                 
@@ -1301,11 +1301,16 @@
                     });
                     
                     clearTimeout(timeoutId);
-                    
+
+                    if (response.status === 403) {
+                        const bloqueado = await response.json().catch(() => ({}));
+                        this.showError(bloqueado.erro || 'Curso bloqueado. Conclua o curso anterior primeiro.');
+                        return;
+                    }
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
-                    
+
                     const data = await response.json();
                     console.log('[COURSE] Dados recebidos:', data);
                     
@@ -1444,10 +1449,10 @@
                                 ${index === 0 ? 'disabled' : ''}>
                             <span>←</span> Aula Anterior
                         </button>
-                        ${index === this.lessons.length - 1 ? 
+                        ${index === this.lessons.length - 1 ?
                             `<button class="nav-btn complete" onclick="CourseViewer.completeCourse()" style="background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%); color: white; font-weight: 600;">
-                                ✓ Finalizar Curso
-                            </button>` : 
+                                ✓ Ir para a Prova
+                            </button>` :
                             `<button class="nav-btn next" onclick="CourseViewer.showLesson(${index + 1})">
                                 Próxima Aula <span>→</span>
                             </button>`
@@ -1532,12 +1537,149 @@
             },
 
             completeCourse() {
-                console.log('[COURSE] Finalizando curso...');
-                // Preparar dados de feedback
+                console.log('[COURSE] Aulas concluídas — abrindo a prova...');
+
+                if (this.isReview) {
+                    // Curso já concluído e aprovado antes — não precisa refazer a prova
+                    window.location.href = '/pages/dashboard.html';
+                    return;
+                }
+
+                this._marcarConteudoConcluido();
+                this.mostrarProva();
+            },
+
+            // Marca as aulas como 100% vistas (concluido:true) — não emite mais
+            // certificado sozinho, isso agora depende de passar na prova
+            // (ver enviarProva() / POST /api/courses/<id>/quiz/submit).
+            _marcarConteudoConcluido() {
+                const token = localStorage.getItem('authToken');
+                if (!token) return;
+                fetch(`/api/courses/${this.courseId}/progress`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                    body: JSON.stringify({ percentual: 100, concluido: true })
+                }).catch(err => console.error('[PROGRESS] Erro ao marcar conteúdo concluído:', err));
+            },
+
+            async mostrarProva() {
+                const token = localStorage.getItem('authToken');
+                const contentArea = document.getElementById('contentArea');
+                contentArea.innerHTML = '<div class="loading">Carregando prova...</div>';
+
+                try {
+                    const res = await fetch(`/api/courses/${this.courseId}/quiz`, {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+
+                    if (res.status === 404) {
+                        // Curso ainda sem prova cadastrada — não bloqueia o aluno, segue pro feedback
+                        console.warn('[QUIZ] Curso sem prova cadastrada, pulando direto para o feedback');
+                        this.abrirFeedback();
+                        return;
+                    }
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    const data = await res.json();
+                    this.quiz = data.quiz;
+                    this.renderizarProva();
+                } catch (err) {
+                    console.error('[QUIZ] Erro ao carregar prova:', err);
+                    contentArea.innerHTML = `
+                        <div style="padding: 40px; text-align: center; color: #d32f2f;">
+                            <h2>Não foi possível carregar a prova</h2>
+                            <p>${err.message}</p>
+                            <button class="nav-btn" onclick="CourseViewer.mostrarProva()">Tentar novamente</button>
+                        </div>
+                    `;
+                }
+            },
+
+            renderizarProva() {
+                const contentArea = document.getElementById('contentArea');
+                const perguntasHTML = this.quiz.perguntas.map((p, idx) => `
+                    <div class="quiz-pergunta" style="margin-bottom:24px;padding:20px;background:#f8f9fa;border-radius:10px;">
+                        <p style="font-weight:600;margin-bottom:14px;">${idx + 1}. ${p.enunciado}</p>
+                        <div class="quiz-opcoes">
+                            ${p.opcoes.map(o => `
+                                <label style="display:block;margin-bottom:10px;cursor:pointer;">
+                                    <input type="radio" name="pergunta-${p.id}" value="${o.id}">
+                                    <span style="margin-left:8px;">${o.texto}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `).join('');
+
+                contentArea.innerHTML = `
+                    <div class="lesson-header">
+                        <h2 class="lesson-title">📝 ${this.quiz.titulo}</h2>
+                        <p class="lesson-description">
+                            Responda todas as perguntas e envie. Nota mínima para aprovação: ${this.quiz.nota_minima}%.
+                            Não há limite de tentativas — se não passar, revise o conteúdo e tente de novo.
+                        </p>
+                    </div>
+                    <div id="quizResultado"></div>
+                    <div class="lesson-body">${perguntasHTML}</div>
+                    <div class="lesson-navigation">
+                        <button class="nav-btn prev" onclick="CourseViewer.showLesson(${this.lessons.length - 1})">
+                            <span>←</span> Voltar às Aulas
+                        </button>
+                        <button class="nav-btn complete" onclick="CourseViewer.enviarProva()" style="background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%); color: white; font-weight: 600;">
+                            Enviar Prova
+                        </button>
+                    </div>
+                `;
+                document.querySelector('.course-content').scrollTop = 0;
+            },
+
+            async enviarProva() {
+                const respostas = [];
+                for (const p of this.quiz.perguntas) {
+                    const marcada = document.querySelector(`input[name="pergunta-${p.id}"]:checked`);
+                    if (!marcada) {
+                        alert('Responda todas as perguntas antes de enviar.');
+                        return;
+                    }
+                    respostas.push({ question_id: p.id, option_id: parseInt(marcada.value, 10) });
+                }
+
+                const token = localStorage.getItem('authToken');
+                try {
+                    const res = await fetch(`/api/courses/${this.courseId}/quiz/submit`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                        body: JSON.stringify({ respostas })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.erro || `Erro ${res.status}`);
+
+                    if (data.aprovado) {
+                        if (typeof Dashboard !== 'undefined' && Dashboard.cache) {
+                            Dashboard.cache.certificates = { data: null, timestamp: 0, ttl: 0 };
+                        }
+                        this.abrirFeedback();
+                    } else {
+                        const resultadoEl = document.getElementById('quizResultado');
+                        if (resultadoEl) {
+                            resultadoEl.innerHTML = `
+                                <div style="padding:16px 20px;margin-bottom:20px;background:#fff3e0;border:1px solid #ffcc80;border-radius:8px;color:#e65100;">
+                                    <strong>Nota: ${data.nota}% (mínimo: ${data.nota_minima}%)</strong><br>
+                                    Você acertou ${data.acertos} de ${data.total_perguntas} pergunta(s). Revise o conteúdo e tente novamente.
+                                </div>
+                            `;
+                            resultadoEl.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                } catch (err) {
+                    console.error('[QUIZ] Erro ao enviar prova:', err);
+                    alert('Erro ao enviar a prova: ' + err.message);
+                }
+            },
+
+            abrirFeedback() {
                 document.getElementById('feedbackCourseName').textContent = this.courseTitle;
                 document.getElementById('feedbackLessonCount').textContent = `${this.lessons.length} aulas`;
-                
-                // Mostrar modal de feedback
                 document.getElementById('feedbackModal').classList.add('active');
             },
 
@@ -1558,113 +1700,43 @@
 
             submitFeedback() {
                 console.log('[FEEDBACK] Submetendo feedback...');
-                
+
                 // Verificar se é revisão
                 if (this.isReview) {
                     console.log('[COURSE] Revisão detectada - não submetendo dados novamente');
-                    alert('✓ Curso já foi concluído!\n\nVocê está apenas revisando o conteúdo. Os dados de conclusão já foram salvos.');
-                    setTimeout(() => {
-                        window.location.href = '/pages/dashboard.html';
-                    }, 500);
+                    window.location.href = '/pages/dashboard.html';
                     return;
                 }
-                
+
+                // Neste ponto o progresso (conteúdo + prova aprovada) e o certificado já
+                // foram gravados por _marcarConteudoConcluido()/enviarProva() — este
+                // envio é só a avaliação/satisfação sobre o curso, opcional.
                 const comments = document.getElementById('feedbackComments').value;
-                
-                // Decodificar JWT para obter user_id
                 const token = localStorage.getItem('authToken');
-                let userId = null;
-                
-                if (token) {
-                    try {
-                        const parts = token.split('.');
-                        if (parts.length === 3) {
-                            const decoded = JSON.parse(atob(parts[1]));
-                            userId = decoded.sub || decoded.user_id || decoded.id;
-                        }
-                    } catch (e) {
-                        console.log('[JWT] Erro ao decodar token:', e);
-                    }
-                }
-                
-                // Dados de progresso
-                const progressData = {
-                    usuario_id: userId || 1,  // Fallback para user 1 se não conseguir extrair
-                    percentual: 100,
-                    concluido: true,
-                    tempo_gasto: Math.floor((Date.now() - (this.startTime || Date.now())) / 1000)
-                };
-                
-                // Dados de feedback
+
                 const feedbackData = {
-                    courseId: this.courseId,
-                    courseName: this.courseTitle,
-                    lessonsCount: this.lessons.length,
                     content: this.feedback?.content || 'não avaliado',
                     difficulty: this.feedback?.difficulty || 'não avaliado',
                     comments: comments,
-                    completedAt: new Date().toISOString()
                 };
-                
-                // Primeiro, salvar o progresso do curso
-                console.log('[PROGRESS] Salvando progresso do curso:', progressData);
-                fetch(`/api/courses/${this.courseId}/progress`, {
+
+                fetch(`/api/courses/${this.courseId}/feedback`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
-                    body: JSON.stringify(progressData)
+                    body: JSON.stringify(feedbackData)
                 })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Erro ${res.status} ao salvar progresso`);
-                    return res.json();
-                })
-                .then(progressResponse => {
-                    console.log('[PROGRESS] ✓ Progresso salvo:', progressResponse);
-                    console.log('[CERTIFICATE] Certificado na resposta:', progressResponse.certificado);
-                    
-                    // Depois, enviar feedback (opcional)
-                    return fetch('/api/ia/avaliar/' + this.courseId, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
-                        body: JSON.stringify(feedbackData)
-                    })
-                    .then(res => res.json())
-                    .catch(err => {
-                        // Feedback pode falhar, mas não devemos parar por isso
-                        console.warn('[FEEDBACK] Aviso ao enviar feedback (não crítico):', err);
-                        return { warning: 'Feedback não foi salvo, mas curso foi concluído' };
-                    });
-                })
-                .then(feedbackResponse => {
-                    console.log('[FEEDBACK] ✓ Feedback processado:', feedbackResponse);
-                    
-                    // 🎓 Mostrar mensagem de sucesso com certificado
-                    alert('✅ Parabéns!\\n\\nVocê concluiu o curso com sucesso!\\n🎓 Seu certificado foi gerado e está disponível na aba "Certificados"');
-                    
-                    // 🔄 Limpar cache para recarregar certificados
-                    if (typeof Dashboard !== 'undefined' && Dashboard.cache) {
-                        Dashboard.cache.certificates = { data: null, timestamp: 0, ttl: 0 };
-                        console.log('[COURSE] Cache de certificados limpo');
-                    }
-                    
-                    // Fechar feedback e voltar ao dashboard com delay
+                .then(res => res.ok ? res.json() : res.text().then(txt => {
+                    console.warn('[FEEDBACK] Servidor recusou o feedback:', res.status, txt);
+                }))
+                .catch(err => console.warn('[FEEDBACK] Erro de rede ao enviar feedback (não crítico):', err))
+                .finally(() => {
+                    alert('✅ Parabéns!\n\nVocê foi aprovado(a) na prova e concluiu o curso!\n🎓 Seu certificado já está disponível na aba "Certificados"');
                     setTimeout(() => {
                         this.closeFeedback();
-                    }, 1500);
-                })
-                .catch(err => {
-                    console.error('[ERROR] Erro ao finalizar curso:', err);
-                    alert('Erro ao finalizar curso: ' + err.message);
-                    
-                    // Mesmo assim, tenta fechar e voltar
-                    setTimeout(() => {
-                        this.closeFeedback();
-                    }, 2000);
+                    }, 1200);
                 });
             },
 

@@ -10,7 +10,9 @@ class Progress(db.Model):
     curso_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     aula_id = db.Column(db.Integer, db.ForeignKey('lessons.id'), nullable=True)
     percentual = db.Column(db.Integer, default=0)  # 0-100%
-    concluido = db.Column(db.Boolean, default=False)
+    concluido = db.Column(db.Boolean, default=False)  # aulas visualizadas até o fim
+    nota = db.Column(db.Integer, nullable=True)  # 0-100, nota da prova do curso
+    aprovado = db.Column(db.Boolean, default=False)  # passou na prova (>= nota_minima) — é isso que libera o próximo curso
     data_inicio = db.Column(db.DateTime, default=datetime.utcnow)
     data_conclusao = db.Column(db.DateTime, nullable=True)
     tempo_gasto = db.Column(db.Integer, default=0)  # em segundos
@@ -35,6 +37,8 @@ class Progress(db.Model):
             'curso_id': self.curso_id,
             'percentual': self.percentual,
             'concluido': self.concluido,
+            'nota': self.nota,
+            'aprovado': self.aprovado,
             'data_inicio': self.data_inicio.isoformat(),
             'data_conclusao': self.data_conclusao.isoformat() if self.data_conclusao else None,
             'tempo_gasto': self.tempo_gasto
