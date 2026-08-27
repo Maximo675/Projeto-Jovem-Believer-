@@ -108,11 +108,20 @@
     </div>
 
     <script>
-        // Se já existe um token válido neste navegador, não precisa preencher de novo
+        // Se já existe um token de ENFERMEIRA válido neste navegador, não precisa preencher de novo.
+        // Tokens de outro tipo (ex: super_admin testando no mesmo navegador) são ignorados aqui
+        // para não misturar sessões — o formulário é mostrado normalmente nesse caso.
         (function () {
             const token = localStorage.getItem('authToken');
-            if (token) {
-                window.location.href = '/pages/dashboard.html';
+            if (!token) return;
+            try {
+                const payloadBase64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const payload = JSON.parse(atob(payloadBase64));
+                if (payload.funcao === 'usuario') {
+                    window.location.href = '/pages/dashboard.html';
+                }
+            } catch (e) {
+                // token inválido/corrompido — deixa o formulário aparecer normalmente
             }
         })();
 
