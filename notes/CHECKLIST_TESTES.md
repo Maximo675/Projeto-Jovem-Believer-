@@ -204,3 +204,5 @@ Se algum teste falhar:
 ---
 
 **Pronto para testar!** 🚀
+
+<!-- N8N test branch #3 -->
