@@ -1018,6 +1018,44 @@
         .feedback-actions .btn-secondary:hover {
             background: #e0e0e0;
         }
+
+        /* Opcoes da prova: linha com a bolinha alinhada ao texto, borda propria
+           (nao mais a caixa de campo de texto herdada por engano) e destaque
+           visivel na opcao marcada. */
+        .quiz-opcoes {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .quiz-opcao {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: white;
+            border: 2px solid #e2e6ea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color .15s, background .15s;
+        }
+        .quiz-opcao:hover {
+            border-color: #b9c2cc;
+        }
+        .quiz-opcao input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+        .quiz-opcao span {
+            flex: 1;
+        }
+        /* Destaca a opcao selecionada. :has() cobre a maioria dos navegadores
+           atuais; a classe .selecionada (aplicada via JS) cobre o restante. */
+        .quiz-opcao:has(input:checked),
+        .quiz-opcao.selecionada {
+            border-color: var(--primary-blue, #20b7c9);
+            background: rgba(32, 183, 201, 0.08);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -1358,7 +1396,31 @@
                     </li>
                 `).join('');
             },
-            
+
+            /**
+             * Formata o texto de duração exibido embaixo do vídeo. Usa
+             * duracao_segundos (tempo exato do vídeo, em segundos) quando
+             * disponível — é o que o aluno realmente assiste. duracao (em
+             * minutos) é só a estimativa geral de conteúdo da aula e serve
+             * apenas de reserva para aulas sem essa medição precisa.
+             */
+            _formatarDuracaoVideo(lesson) {
+                if (lesson.duracao_segundos) {
+                    const total = lesson.duracao_segundos;
+                    const min = Math.floor(total / 60);
+                    const seg = total % 60;
+                    const texto = min > 0
+                        ? `${min}min ${String(seg).padStart(2, '0')}s`
+                        : `${seg}s`;
+                    return `<span class="video-duration">⏱️ Duração: ${texto}</span>`;
+                }
+                if (lesson.duracao) {
+                    const texto = `${lesson.duracao} minuto${lesson.duracao === 1 ? '' : 's'}`;
+                    return `<span class="video-duration">⏱️ Duração: ${texto}</span>`;
+                }
+                return '';
+            },
+
             showLesson(index) {
                 if (index < 0 || index >= this.lessons.length) return;
                 
@@ -1378,7 +1440,7 @@
                 let videoHTML = '';
                 if (lesson.video_url && lesson.video_url.trim()) {
                     let embedUrl = lesson.video_url;
-                    const duracao = lesson.duracao ? `<span class="video-duration">⏱️ Duração: ${lesson.duracao} minutos</span>` : '';
+                    const duracao = CourseViewer._formatarDuracaoVideo(lesson);
                     
                     // Se for arquivo de vídeo local (.mp4, .webm, .ogg)
                     if (/\.(mp4|webm|ogg)$/i.test(lesson.video_url)) {
@@ -1602,9 +1664,9 @@
                         <p style="font-weight:600;margin-bottom:14px;">${idx + 1}. ${p.enunciado}</p>
                         <div class="quiz-opcoes">
                             ${p.opcoes.map(o => `
-                                <label style="display:block;margin-bottom:10px;cursor:pointer;">
+                                <label class="quiz-opcao">
                                     <input type="radio" name="pergunta-${p.id}" value="${o.id}">
-                                    <span style="margin-left:8px;">${o.texto}</span>
+                                    <span>${o.texto}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -1631,6 +1693,16 @@
                     </div>
                 `;
                 document.querySelector('.course-content').scrollTop = 0;
+
+                // Destaca a opcao marcada mesmo em navegadores sem suporte a
+                // CSS :has() (o CSS ja cobre a maioria; isso e so o reforco).
+                contentArea.querySelectorAll('.quiz-pergunta').forEach(pergunta => {
+                    pergunta.addEventListener('change', (e) => {
+                        if (e.target.type !== 'radio') return;
+                        pergunta.querySelectorAll('.quiz-opcao').forEach(op => op.classList.remove('selecionada'));
+                        e.target.closest('.quiz-opcao')?.classList.add('selecionada');
+                    });
+                });
             },
 
             async enviarProva() {

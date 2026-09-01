@@ -6,6 +6,7 @@ from app.models.invitation import Invitation
 from datetime import datetime, timedelta
 import jwt
 import os
+import re
 import uuid
 
 try:
@@ -45,6 +46,27 @@ _JWT_EXPIRY  = int(os.getenv('JWT_EXPIRY_HOURS', 8))   # padrão: 1 turno
 # "re-logar" se o token expirar no meio de um treinamento de vários dias — por isso
 # esse token dura bem mais (90 dias por padrão).
 _JWT_EXPIRY_ANONIMO = int(os.getenv('JWT_EXPIRY_HOURS_ANONIMO', 24 * 90))
+
+def _normalizar_cpf(cpf):
+    """Remove pontuação, mantém só os 11 dígitos."""
+    return re.sub(r'\D', '', cpf or '')
+
+
+def _cpf_valido(cpf):
+    """
+    Valida CPF pelo algoritmo oficial de dígitos verificadores (não bate em
+    nenhum serviço externo — só confere que os números batem entre si).
+    """
+    cpf = _normalizar_cpf(cpf)
+    if len(cpf) != 11 or cpf == cpf[0] * 11:
+        return False
+    for i in (9, 10):
+        soma = sum(int(cpf[num]) * ((i + 1) - num) for num in range(0, i))
+        digito = ((soma * 10) % 11) % 10
+        if digito != int(cpf[i]):
+            return False
+    return True
+
 
 def _gerar_token(usuario, expiry_hours=None):
     horas = expiry_hours if expiry_hours is not None else _JWT_EXPIRY
@@ -246,39 +268,62 @@ def register():
 def identificar():
     """
     Identificação sem login para o lado do hospital (enfermeira/instrutor).
-    Não pede senha nem e-mail — só nome + hospital. Cria (ou, se já houver um
-    token válido no navegador, o frontend nem chama isso de novo) um User
-    comum com funcao='usuario', senha aleatória nunca usada, e-mail sintético
-    só para satisfazer a constraint, e devolve um token de longa duração no
-    mesmo formato de login() — para que loadUserInfo()/checkAuth() no
-    frontend funcionem sem nenhuma mudança.
+    Não pede senha nem e-mail — pede nome + hospital + CPF. O CPF existe para
+    que o certificado emitido comprove de fato quem é a pessoa (nomes iguais
+    ou muito parecidos não bastam) e para reconhecer a mesma pessoa se ela se
+    identificar de novo — dedup por CPF em vez de sempre criar um cadastro
+    novo, para não fragmentar o progresso/certificados dela em várias linhas.
+
+    Cria (ou reaproveita, se o CPF já existir) um User comum com
+    funcao='usuario', senha aleatória nunca usada, e-mail sintético só para
+    satisfazer a constraint, e devolve um token de longa duração no mesmo
+    formato de login() — para que loadUserInfo()/checkAuth() no frontend
+    funcionem sem nenhuma mudança.
     """
     try:
         data = request.get_json(silent=True) or {}
         nome = (data.get('nome') or '').strip()
         hospital_id = data.get('hospital_id')
+        cpf = _normalizar_cpf(data.get('cpf'))
 
         if not nome:
             return jsonify({'erro': 'Nome é obrigatório'}), 400
         if not hospital_id:
             return jsonify({'erro': 'Hospital é obrigatório'}), 400
+        if not cpf:
+            return jsonify({'erro': 'CPF é obrigatório'}), 400
+        if not _cpf_valido(cpf):
+            return jsonify({'erro': 'CPF inválido. Confira os números digitados.'}), 400
 
         hospital = Hospital.query.get(hospital_id)
         if not hospital or not hospital.ativo:
             return jsonify({'erro': 'Hospital inválido'}), 400
 
-        email_sintetico = f'anon-{uuid.uuid4().hex}@sem-email.local'
-
-        usuario = User(
-            email=email_sintetico,
-            nome=nome,
-            senha=os.urandom(32).hex(),
-            hospital_id=hospital_id,
-            funcao='usuario',
-            origem='anonimo',
-        )
-        db.session.add(usuario)
-        db.session.commit()
+        # Mesma pessoa se identificando de novo (outro navegador, cache limpo,
+        # trocou de hospital etc.) — reaproveita o cadastro em vez de criar um
+        # novo, mantendo o progresso e os certificados dela unificados.
+        usuario = User.query.filter_by(cpf=cpf).first()
+        status_code = 200
+        if usuario:
+            if not usuario.ativo:
+                return jsonify({'erro': 'Cadastro inativo. Fale com o administrador do seu hospital.'}), 403
+            usuario.nome = nome
+            usuario.hospital_id = hospital_id
+            db.session.commit()
+        else:
+            email_sintetico = f'anon-{uuid.uuid4().hex}@sem-email.local'
+            usuario = User(
+                email=email_sintetico,
+                nome=nome,
+                senha=os.urandom(32).hex(),
+                hospital_id=hospital_id,
+                funcao='usuario',
+                origem='anonimo',
+                cpf=cpf,
+            )
+            db.session.add(usuario)
+            db.session.commit()
+            status_code = 201
 
         token = _gerar_token(usuario, expiry_hours=_JWT_EXPIRY_ANONIMO)
 
@@ -287,7 +332,7 @@ def identificar():
             'token': token,
             'expira_em_horas': _JWT_EXPIRY_ANONIMO,
             'usuario': usuario.to_dict(),
-        }), 201
+        }), status_code
 
     except Exception:
         import logging

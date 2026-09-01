@@ -257,7 +257,17 @@ def download_certificate(cert_number):
         
         if not usuario or not curso:
             return jsonify({'erro': 'Dados do certificado incompletos'}), 404
-        
+
+        # CPF mascarado no certificado (LGPD) — confirma a identidade de quem
+        # recebeu sem expor o número completo num documento que pode circular.
+        cpf_detail = ''
+        if usuario.cpf_mascarado():
+            cpf_detail = f'''
+                        <div class="detail">
+                            <strong>CPF</strong><br/>
+                            {usuario.cpf_mascarado()}
+                        </div>'''
+
         # Gerar HTML do certificado
         html = f"""
         <!DOCTYPE html>
@@ -398,7 +408,7 @@ def download_certificate(cert_number):
                         <div class="detail">
                             <strong>Válido até</strong><br/>
                             {(certificado.data_emissao.replace(year=certificado.data_emissao.year + certificado.validade // 365)).strftime('%d/%m/%Y') if certificado.data_emissao else 'N/A'}
-                        </div>
+                        </div>{cpf_detail}
                     </div>
                 </div>
             </div>

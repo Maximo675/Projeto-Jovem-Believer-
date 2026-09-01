@@ -50,7 +50,7 @@
                 </div>
 
                 <h1>Vamos começar!</h1>
-                <p class="subtitle">Só precisamos de duas informações para liberar seu treinamento — sem senha, sem complicação.</p>
+                <p class="subtitle">Precisamos de nome, CPF e hospital para liberar seu treinamento e emitir um certificado que comprove que é você — sem senha, sem complicação.</p>
 
                 <form id="identificarForm">
                     <div class="form-group">
@@ -62,6 +62,22 @@
                             placeholder="Como podemos te chamar?"
                             required
                         >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cpf">CPF</label>
+                        <input
+                            type="text"
+                            id="cpf"
+                            name="cpf"
+                            placeholder="000.000.000-00"
+                            inputmode="numeric"
+                            maxlength="14"
+                            required
+                        >
+                        <small style="display:block; margin-top:6px; font-size:0.78rem; color:#94a3b8;">
+                            Usamos seu CPF só para confirmar que o certificado é seu — não é compartilhado com terceiros.
+                        </small>
                     </div>
 
                     <div class="form-group">
@@ -129,6 +145,29 @@
             }
         })();
 
+        // Máscara 000.000.000-00 conforme digita
+        document.getElementById('cpf').addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            e.target.value = v;
+        });
+
+        // Mesma validação (dígitos verificadores) que o servidor faz — só para dar
+        // feedback imediato; a validação que vale de verdade é sempre a do backend.
+        function cpfValido(cpf) {
+            cpf = (cpf || '').replace(/\D/g, '');
+            if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+            for (const i of [9, 10]) {
+                let soma = 0;
+                for (let num = 0; num < i; num++) soma += parseInt(cpf[num], 10) * ((i + 1) - num);
+                const digito = ((soma * 10) % 11) % 10;
+                if (digito !== parseInt(cpf[i], 10)) return false;
+            }
+            return true;
+        }
+
         function showFeedback(msg) {
             const el = document.getElementById('identificarFeedback');
             el.textContent = msg;
@@ -159,9 +198,11 @@
         document.getElementById('identificarForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const nome = document.getElementById('nome').value.trim();
+            const cpf = document.getElementById('cpf').value.replace(/\D/g, '');
             const hospitalId = document.getElementById('hospital').value;
 
             if (!nome) { showFeedback('Informe seu nome.'); return; }
+            if (!cpf || !cpfValido(cpf)) { showFeedback('CPF inválido. Confira os números digitados.'); return; }
             if (!hospitalId) { showFeedback('Selecione seu hospital.'); return; }
 
             setLoading(true);
@@ -171,7 +212,7 @@
                 const response = await fetch('/api/auth/identificar', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome, hospital_id: parseInt(hospitalId, 10) }),
+                    body: JSON.stringify({ nome, cpf, hospital_id: parseInt(hospitalId, 10) }),
                 });
                 const data = await response.json();
 

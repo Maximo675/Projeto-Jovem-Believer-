@@ -11,24 +11,26 @@ class Lesson(db.Model):
     descricao = db.Column(db.Text, nullable=False)
     conteudo = db.Column(db.Text, nullable=False)  # HTML content
     ordem = db.Column(db.Integer, nullable=False)
-    duracao = db.Column(db.Integer)  # em minutos
+    duracao = db.Column(db.Integer)  # em minutos (estimativa de tempo de conteudo/leitura)
+    duracao_segundos = db.Column(db.Integer, nullable=True)  # duracao exata do video, em segundos
     video_url = db.Column(db.String(255), nullable=True)
     material_complementar = db.Column(db.Text, nullable=True)  # Links, arquivos, etc
     ativo = db.Column(db.Boolean, default=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
     data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    def __init__(self, curso_id, titulo, descricao, conteudo, ordem, duracao=None, video_url=None, material_complementar=None, ativo=True):
+
+    def __init__(self, curso_id, titulo, descricao, conteudo, ordem, duracao=None, duracao_segundos=None, video_url=None, material_complementar=None, ativo=True):
         self.curso_id = curso_id
         self.titulo = titulo
         self.descricao = descricao
         self.conteudo = conteudo
         self.ordem = ordem
         self.duracao = duracao
+        self.duracao_segundos = duracao_segundos
         self.video_url = video_url
         self.material_complementar = material_complementar
         self.ativo = ativo
-    
+
     def to_dict(self):
         """Converter para dicionário"""
         return {
@@ -39,6 +41,7 @@ class Lesson(db.Model):
             'conteudo': self.conteudo,
             'ordem': self.ordem,
             'duracao': self.duracao,
+            'duracao_segundos': self.duracao_segundos,
             'video_url': self.video_url
         }
     

@@ -867,6 +867,7 @@
                     <h3>${esc(u.nome)}</h3>
                     <p style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                         ${esc(u.email)} &nbsp;
+                        ${u.cpf ? `<span class="badge" style="background:#eef2f7;color:#475569;">CPF ${esc(u.cpf)}</span>` : ''}
                         <span class="badge badge-role">${esc(u.funcao)}</span>
                         <span class="badge ${u.ativo ? 'badge-active' : 'badge-inactive'}">${u.ativo ? 'Ativo' : 'Inativo'}</span>
                         <span class="aptidao-badge ${aptClasse}">${apt}% — ${aptTexto}</span>

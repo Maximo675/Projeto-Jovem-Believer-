@@ -490,6 +490,28 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 3px rgba(0, 153, 204, 0.08);
 }
 
+/* Radio/checkbox nao devem herdar o estilo de campo de texto acima (largura
+   total, borda, fundo) -- isso esticava cada opcao de prova numa caixa enorme
+   e escondia a bolinha de selecao. Volta pro tamanho/aparencia nativos. */
+input[type="radio"],
+input[type="checkbox"] {
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    accent-color: var(--primary-blue);
+    flex-shrink: 0;
+}
+
+input[type="radio"]:focus,
+input[type="checkbox"]:focus {
+    box-shadow: none;
+    outline: 2px solid var(--primary-blue);
+    outline-offset: 2px;
+}
+
 .btn-full {
     width: 100%;
 }

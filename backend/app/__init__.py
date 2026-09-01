@@ -845,6 +845,8 @@ def _ensure_schema_upgrades():
         "ALTER TABLE progress ADD COLUMN nota INTEGER",
         "ALTER TABLE progress ADD COLUMN aprovado BOOLEAN DEFAULT FALSE",
         "ALTER TABLE courses ADD COLUMN ordem INTEGER DEFAULT 0",
+        "ALTER TABLE lessons ADD COLUMN duracao_segundos INTEGER",
+        "ALTER TABLE users ADD COLUMN cpf VARCHAR(11)",
     ]
     for stmt in statements:
         try:
@@ -1133,6 +1135,44 @@ def _patch_video_urls():
         print('[INFO] _patch_video_urls: todos os video_url já estavam preenchidos')
 
 
+def _patch_lesson_duracoes():
+    """
+    Corrige a duracao mostrada embaixo do video nas aulas que tem video_url.
+    Os numeros antigos (25/45/45/40 minutos) eram estimativa de quando o
+    conteudo foi planejado -- os videos gravados de verdade ficaram bem mais
+    curtos. duracao_segundos guarda o tempo exato do video (o que aparece na
+    tela); duracao (minutos) continua sendo só a estimativa geral de conteudo,
+    usada em outros lugares (ex: tempo_estimado do curso), por isso os dois
+    campos coexistem em vez de um substituir o outro.
+    """
+    from app.models.lesson import Lesson
+    from app import db
+
+    mapa = {
+        'Equipamentos e Dispositivos ETAN':              99,   # 1:39 -- "Como funciona o ETAN"
+        'Segurança, Higiene e Aspectos Legais':          50,   # 0:50 -- "Limpeza do ETAN"
+        'Prática com o Sistema INFANT.ID — Simulação Completa': 68,   # 1:08 -- "Escaneamento do ETAN"
+        'Certificação e Boas Práticas — Próximos Passos': 44,   # 0:44 -- "Aula teórica, aprofundada sobre o ETAN"
+    }
+
+    atualizadas = 0
+    for titulo, segundos in mapa.items():
+        aula = Lesson.query.filter_by(titulo=titulo).first()
+        if aula and aula.duracao_segundos != segundos:
+            aula.duracao_segundos = segundos
+            atualizadas += 1
+
+    if atualizadas:
+        try:
+            db.session.commit()
+            print(f'[INFO] _patch_lesson_duracoes: {atualizadas} aula(s) com duracao_segundos corrigida')
+        except Exception as e:
+            db.session.rollback()
+            print(f'[WARNING] _patch_lesson_duracoes falhou: {e}')
+    else:
+        print('[INFO] _patch_lesson_duracoes: duracao_segundos já estava correta')
+
+
 def _seed_courses():
     """Insere cursos e aulas padrão se as tabelas estiverem vazias."""
     from app.models.course import Course
@@ -1140,8 +1180,9 @@ def _seed_courses():
     from app import db
 
     if Course.query.first():
-        # Cursos já existem — apenas garantir que os video_url estão preenchidos
+        # Cursos já existem — apenas garantir que os video_url e as duracoes estão corretos
         _patch_video_urls()
+        _patch_lesson_duracoes()
         return
 
     cursos_data = [
@@ -1184,7 +1225,7 @@ def _seed_courses():
                 dict(
                     titulo='Equipamentos e Dispositivos ETAN',
                     descricao='Conheça o dispositivo ETAN INFANT.ID: componentes, manutenção e calibração.',
-                    ordem=2, duracao=25,
+                    ordem=2, duracao=2, duracao_segundos=99,
                     video_url='https://youtu.be/TDH2gdrRukk',
                     conteudo=(
                         '<h2>O Dispositivo ETAN INFANT.ID</h2>'
@@ -1244,7 +1285,7 @@ def _seed_courses():
                 dict(
                     titulo='Segurança, Higiene e Aspectos Legais',
                     descricao='Protocolos de higiene, LGPD aplicada à biometria e responsabilidades do profissional.',
-                    ordem=4, duracao=45,
+                    ordem=4, duracao=1, duracao_segundos=50,
                     video_url='https://youtu.be/0GOkU_0QpKU',
                     conteudo=(
                         '<h2>Segurança e Higiene no Procedimento Biométrico</h2>'
@@ -1394,7 +1435,7 @@ def _seed_courses():
                 dict(
                     titulo='Prática com o Sistema INFANT.ID — Simulação Completa',
                     descricao='Exercício prático simulando uma captura real completa do início ao fim.',
-                    ordem=4, duracao=45,
+                    ordem=4, duracao=2, duracao_segundos=68,
                     video_url='https://youtu.be/UNKHidgcbo4',
                     conteudo=(
                         '<h2>Prática Real com o Sistema INFANT.ID</h2>'
@@ -1523,7 +1564,7 @@ def _seed_courses():
                 dict(
                     titulo='Certificação e Boas Práticas — Próximos Passos',
                     descricao='Caminhos de certificação profissional e boas práticas para manter a excelência.',
-                    ordem=4, duracao=40,
+                    ordem=4, duracao=1, duracao_segundos=44,
                     video_url='https://youtu.be/-mBNVoN8QT8',
                     conteudo=(
                         '<h2>Certificação e Desenvolvimento Profissional</h2>'
@@ -1568,6 +1609,7 @@ def _seed_courses():
                     conteudo=aula_data['conteudo'],
                     ordem=aula_data['ordem'],
                     duracao=aula_data.get('duracao'),
+                    duracao_segundos=aula_data.get('duracao_segundos'),
                     video_url=aula_data.get('video_url'),
                 )
                 db.session.add(aula)
